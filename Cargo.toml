@@ -1,0 +1,18 @@
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+[workspace.dependencies]
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+authors = ["4t145 <u4t145@163.com>"]
+license = "MIT/Apache-2.0"
+repository = "https://github.com/4t145/hypergate/"
+homepage = "https://github.com/4t145/hypergate"
+categories = [
+    "network-programming",
+    "asynchronous",
+]
+readme = "README.md"
