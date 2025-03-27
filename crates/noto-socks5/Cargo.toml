@@ -10,3 +10,7 @@ categories.workspace = true
 readme.workspace = true
 
 [dependencies]
+tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true, features = [] }
+tracing = { workspace = true }
+noto-tcp = { version = "0.1.0", workspace = true }
