@@ -10,4 +10,8 @@ categories.workspace = true
 readme.workspace = true
 
 [dependencies]
-tokio = { version = "1", features = ["full"]}
+tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true, features = [] }
+tracing = { workspace = true }
+rustls = { workspace = true }
+tokio-rustls = { workspace = true }
