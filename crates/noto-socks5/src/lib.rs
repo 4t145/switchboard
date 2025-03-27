@@ -1,4 +1,8 @@
-use std::{net::SocketAddr, pin::Pin, sync::Arc};
+use std::{
+    net::{Ipv4Addr, SocketAddr},
+    pin::Pin,
+    sync::Arc,
+};
 
 use noto_tcp::TcpService;
 use tokio::io::{self, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -110,6 +114,27 @@ where
     }
     Ok(())
 }
+
+async fn write_response<S>(stream: &mut S, rep: u8, bind: SocketAddr) -> io::Result<()>
+where
+    S: AsyncWrite + Unpin,
+{
+    stream.write_all(&[VERSION, rep, RSV]).await?;
+    match bind {
+        SocketAddr::V4(addr) => {
+            stream.write_all(&[ADDR_TYPE_IPV4]).await?;
+            stream.write_all(&addr.ip().octets()).await?;
+            stream.write_all(&addr.port().to_be_bytes()).await?;
+        }
+        SocketAddr::V6(addr) => {
+            stream.write_all(&[ADDR_TYPE_IPV6]).await?;
+            stream.write_all(&addr.ip().octets()).await?;
+            stream.write_all(&addr.port().to_be_bytes()).await?;
+        }
+    }
+    Ok(())
+}
+
 async fn read_request<S>(stream: &mut S) -> io::Result<Socks5Request>
 where
     S: AsyncRead + AsyncWrite + Unpin,
@@ -154,20 +179,12 @@ where
         CMD_BIND => Socks5Request::Bind(addr),
         CMD_UDP_ASSOCIATE => Socks5Request::UdpAssociate(addr),
         _ => {
-            stream
-                .write_all(&[
-                    VERSION,
-                    REP_COMMAND_NOT_SUPPORTED,
-                    RSV,
-                    ADDR_TYPE_IPV4,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                ])
-                .await?;
+            write_response(
+                stream,
+                REP_COMMAND_NOT_SUPPORTED,
+                (Ipv4Addr::UNSPECIFIED, 0).into(),
+            )
+            .await?;
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "Invalid command",
@@ -260,26 +277,11 @@ impl Socks5 {
                 };
                 if let Ok(mut outbound) = connect_result {
                     let local_addr = outbound.local_addr()?;
-                    match local_addr {
-                        SocketAddr::V4(addr) => {
-                            stream
-                                .write_all(&[VERSION, rep, RSV, ADDR_TYPE_IPV4])
-                                .await?;
-                            stream.write_all(&addr.ip().octets()).await?;
-                        }
-                        SocketAddr::V6(addr) => {
-                            stream
-                                .write_all(&[VERSION, rep, RSV, ADDR_TYPE_IPV6])
-                                .await?;
-                            stream.write_all(&addr.ip().octets()).await?;
-                        }
-                    }
+                    write_response(stream, rep, local_addr).await?;
                     tokio::io::copy_bidirectional(stream, &mut outbound).await?;
                 } else {
-                    let response = [VERSION, rep, RSV, ADDR_TYPE_IPV4, 0, 0, 0, 0, 0, 0];
-                    stream.write_all(&response).await?;
+                    write_response(stream, rep, (Ipv4Addr::UNSPECIFIED, 0).into()).await?;
                 }
-                stream.write_all(&response).await?;
             }
             _ => {
                 return Err(io::Error::new(
