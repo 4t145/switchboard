@@ -8,6 +8,10 @@ use tokio_util::sync::CancellationToken;
 
 pub mod tls;
 
+pub trait AsyncStream: AsyncRead + AsyncWrite + Unpin + Send + 'static {}
+
+impl<S: AsyncRead + AsyncWrite + Unpin + Send + 'static> AsyncStream for S {}
+
 pub trait TcpService: Send + Clone + 'static {
     fn serve<S>(
         self,
@@ -16,7 +20,7 @@ pub trait TcpService: Send + Clone + 'static {
         ct: CancellationToken,
     ) -> impl Future<Output = std::io::Result<()>> + Send + 'static
     where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static;
+        S: AsyncStream;
 }
 
 pub trait TcpServiceExt: TcpService {

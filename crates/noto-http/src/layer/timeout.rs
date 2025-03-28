@@ -6,14 +6,14 @@ use crate::service::timeout::TimeoutService;
 
 use super::Layer;
 
-pub struct Timeout<T> {
+pub struct Timeout {
     pub timeout: Duration,
     pub timeout_message: bytes::Bytes,
-    pub timer: T,
+    pub timer: Box<dyn Timer>,
 }
 
-impl<S, T: Timer> Layer<S> for Timeout<T> {
-    type Service = TimeoutService<S, T>;
+impl<S> Layer<S> for Timeout {
+    type Service = TimeoutService<S>;
 
     fn layer(self, service: S) -> Self::Service {
         TimeoutService {

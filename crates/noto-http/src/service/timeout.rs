@@ -9,11 +9,11 @@ use hyper::{
 use std::{pin::Pin, task::Poll, time::Duration};
 
 use crate::{response::IntoResponse, utils::Either};
-pub struct TimeoutService<S, T> {
+pub struct TimeoutService<S> {
     pub timeout: Duration,
     pub timeout_message: Bytes,
     pub inner: S,
-    pub timer: T,
+    pub timer: Box<dyn Timer>,
 }
 
 pub struct TimeoutResponse {
@@ -61,7 +61,7 @@ impl<Req, S: Service<Req>> Future for TimeoutFuture<Req, S> {
     }
 }
 
-impl<Req, S: Service<Req>, T: Timer> Service<Req> for TimeoutService<S, T> {
+impl<Req, S: Service<Req>> Service<Req> for TimeoutService<S> {
     type Response = Either<S::Response, TimeoutResponse>;
 
     type Error = S::Error;

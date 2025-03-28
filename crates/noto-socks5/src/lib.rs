@@ -4,7 +4,7 @@ use std::{
     sync::Arc,
 };
 
-use noto_tcp::TcpService;
+use noto_tcp::{AsyncStream, TcpService};
 use tokio::io::{self, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 const CMD_CONNECT: u8 = 0x01;
@@ -85,14 +85,10 @@ impl From<u8> for Socks5Method {
 
 const VERSION: u8 = 0x05;
 
-pub trait Socks5Stream: AsyncRead + AsyncWrite + Unpin {}
-
-impl<S> Socks5Stream for S where S: AsyncRead + AsyncWrite + Unpin {}
-
 pub trait Socks5Auth: Send + Sync + 'static {
     fn auth(
         &self,
-        method: &mut dyn Socks5Stream,
+        method: &mut dyn AsyncStream,
     ) -> Pin<Box<dyn Future<Output = io::Result<bool>> + Send>>;
 }
 
@@ -202,7 +198,7 @@ impl TcpService for Socks5 {
         _ct: tokio_util::sync::CancellationToken,
     ) -> io::Result<()>
     where
-        S: Socks5Stream + Send + 'static,
+        S: AsyncStream,
     {
         self.accept(&mut stream, peer).await
     }
@@ -211,7 +207,7 @@ impl TcpService for Socks5 {
 impl Socks5 {
     pub async fn accept<S>(&self, stream: &mut S, _peer: SocketAddr) -> io::Result<()>
     where
-        S: AsyncRead + AsyncWrite + Unpin,
+        S: AsyncStream,
     {
         read_version(stream).await?;
         let nmethods = stream.read_u8().await? as usize;

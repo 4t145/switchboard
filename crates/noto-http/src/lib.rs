@@ -1,4 +1,4 @@
-// notochord 
+// notochord
 pub mod layer;
 pub mod response;
 pub mod service;
@@ -9,7 +9,8 @@ use hyper::{
     server::conn::{http1, http2},
     service::HttpService,
 };
-use std::error::Error as StdError;
+use rustls::ServerConfig;
+use std::{error::Error as StdError, sync::Arc};
 
 async fn serve<S>(stream: impl Read + Write + Unpin, service: S)
 where
@@ -21,4 +22,22 @@ where
     let stream = http1::Builder::new()
         .serve_connection(stream, service)
         .await;
+}
+
+pub enum HttpVersion {
+    Http1,
+    Http2,
+    Auto,
+}
+
+pub enum Tls {
+    Tls { config: Arc<ServerConfig> },
+    NoTls,
+    Auto { config: Arc<ServerConfig> },
+}
+
+pub struct Http<S: HttpService<Incoming>> {
+    version: HttpVersion,
+    tls: Tls,
+    service: S,
 }

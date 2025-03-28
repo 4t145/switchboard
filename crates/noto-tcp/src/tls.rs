@@ -2,14 +2,13 @@ use std::sync::Arc;
 
 use tokio::io::{self, AsyncRead, AsyncWrite};
 
-use crate::TcpService;
+use crate::{AsyncStream, TcpService};
 
 #[derive(Debug, Clone)]
 pub struct TlsService<S> {
     pub config: Arc<rustls::ServerConfig>,
     pub service: S,
 }
-
 impl<Svc: TcpService + Send + Sync> TcpService for TlsService<Svc> {
     async fn serve<S>(
         self,
@@ -18,7 +17,7 @@ impl<Svc: TcpService + Send + Sync> TcpService for TlsService<Svc> {
         ct: tokio_util::sync::CancellationToken,
     ) -> io::Result<()>
     where
-        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+        S: AsyncStream,
     {
         let stream = tokio_rustls::TlsAcceptor::from(self.config.clone())
             .accept(stream)
