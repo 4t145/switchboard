@@ -4,6 +4,7 @@ resolver = "2"
 
 [workspace.dependencies]
 noto-tcp = { path = "crates/noto-tcp" }
+noto-socks5 = { path = "crates/noto-socks5" }
 
 tokio = {version = "1"}
 tokio-util = { version = "0.7" }

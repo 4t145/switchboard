@@ -97,6 +97,25 @@ pub struct Socks5 {
     accepted_methods: Arc<Vec<(Socks5Method, Box<dyn Socks5Auth>)>>,
 }
 
+pub struct NoAuth;
+
+impl Socks5Auth for NoAuth {
+    fn auth(
+        &self,
+        _method: &mut dyn AsyncStream,
+    ) -> Pin<Box<dyn Future<Output = io::Result<bool>> + Send>> {
+        Box::pin(async { Ok(true) })
+    }
+}
+
+impl Socks5 {
+    pub fn no_auth() -> Self {
+        Socks5 {
+            accepted_methods: Arc::new(vec![(Socks5Method::NoAuth, Box::new(NoAuth))]),
+        }
+    }
+}
+
 async fn read_version<S>(stream: &mut S) -> io::Result<()>
 where
     S: AsyncRead + Unpin,
@@ -195,17 +214,22 @@ impl TcpService for Socks5 {
         self,
         mut stream: S,
         peer: SocketAddr,
-        _ct: tokio_util::sync::CancellationToken,
+        ct: tokio_util::sync::CancellationToken,
     ) -> io::Result<()>
     where
         S: AsyncStream,
     {
-        self.accept(&mut stream, peer).await
+        self.accept(&mut stream, peer, ct.child_token()).await
     }
 }
 
 impl Socks5 {
-    pub async fn accept<S>(&self, stream: &mut S, _peer: SocketAddr) -> io::Result<()>
+    pub async fn accept<S>(
+        &self,
+        stream: &mut S,
+        _peer: SocketAddr,
+        ct: tokio_util::sync::CancellationToken,
+    ) -> io::Result<()>
     where
         S: AsyncStream,
     {
@@ -274,7 +298,16 @@ impl Socks5 {
                 if let Ok(mut outbound) = connect_result {
                     let local_addr = outbound.local_addr()?;
                     write_response(stream, rep, local_addr).await?;
-                    tokio::io::copy_bidirectional(stream, &mut outbound).await?;
+                    tokio::select! {
+                        _ = ct.cancelled() => {
+                            tracing::info!("Cancellation token triggered, shutting down server");
+                            return Ok(());
+                        }
+                        result = tokio::io::copy_bidirectional(stream, &mut outbound) => {
+                            tracing::info!("Outbound stream shutdown");
+                            result?;
+                        }
+                    };
                 } else {
                     write_response(stream, rep, (Ipv4Addr::UNSPECIFIED, 0).into()).await?;
                 }
