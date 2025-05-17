@@ -65,7 +65,7 @@ pub trait ConfigService {
     ) -> impl Future<Output = Result<(), Self::Error>> + Send + '_;
     fn get_enabled(
         &self,
-        query: bool,
+        enabled: bool,
         query: CursorQuery,
     ) -> impl Future<Output = Result<PagedResult<String>, Self::Error>> + Send + '_;
 

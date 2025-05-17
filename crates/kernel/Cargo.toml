@@ -1,5 +1,5 @@
 [package]
-name = "switchboard-tcp"
+name = "switchboard-kernel"
 edition.workspace = true
 version.workspace = true
 authors.workspace = true
@@ -10,8 +10,7 @@ categories.workspace = true
 readme.workspace = true
 
 [dependencies]
+clap = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-tokio-util = { workspace = true, features = [] }
-tracing = { workspace = true }
-rustls = { workspace = true }
-tokio-rustls = { workspace = true }
+thiserror = { workspace = true }
+switchboard-model = { workspace = true }

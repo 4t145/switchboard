@@ -4,7 +4,7 @@ use std::{
     sync::Arc,
 };
 
-use switchboard_tcp::{AsyncStream, TcpService};
+use switchboard_service::tcp::{AsyncStream, TcpService};
 use tokio::io::{self, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 const CMD_CONNECT: u8 = 0x01;

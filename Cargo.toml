@@ -1,10 +1,10 @@
 [workspace]
-members = ["crates/service/*", "crates/config/*", "crates/model"]
+members = ["crates/service-impl/*", "crates/config/*", "crates/model", "crates/kernel", "crates/service"]
 resolver = "2"
 
 [workspace.dependencies]
-switchboard-tcp = { path = "crates/service/tcp" }
-switchboard-socks5 = { path = "crates/service/socks5" }
+switchboard-service = { path = "crates/service" }
+switchboard-socks5 = { path = "crates/service-impl/socks5" }
 switchboard-model = { path = "crates/model" }
 
 tokio = { version = "1" }
@@ -13,6 +13,18 @@ tracing = { version = "0.1" }
 rustls = { version = "0.23" }
 tokio-rustls = { version = "0.26" }
 clap = { version = "4", features = ["derive", "env"] }
+
+
+# Serde
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1" }
+toml = { version = "0.8"}
+
+# Error
+thiserror = { version = "2"}
+
+# Futures
+pin-project-lite = "0.2.16"
 
 [workspace.package]
 edition = "2024"

@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use switchboard_tcp::{AsyncStream, TcpService};
+use switchboard_service::tcp::{AsyncStream, TcpService};
 use tokio::{io, net::TcpStream};
 
 #[derive(Debug, Clone)]

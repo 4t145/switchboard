@@ -1,5 +1,5 @@
 [package]
-name = "switchboard-model"
+name = "switchboard-socks5"
 edition.workspace = true
 version.workspace = true
 authors.workspace = true
@@ -10,5 +10,7 @@ categories.workspace = true
 readme.workspace = true
 
 [dependencies]
-tokio = { workspace = true, features = ["io-util"] }
-serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true, features = [] }
+tracing = { workspace = true }
+switchboard-service = { version = "0.1.0", workspace = true }
