@@ -1,0 +1,13 @@
+[package]
+name = "switchboard-model"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+readme.workspace = true
+
+[dependencies]
+tokio = { workspace = true, features = ["io-util"]}

@@ -1,0 +1,13 @@
+[package]
+name = "switchboard-config-fs"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+readme.workspace = true
+
+[dependencies]
+switchboard-model = { workspace = true }
