@@ -13,7 +13,7 @@ tracing = { version = "0.1" }
 rustls = { version = "0.23" }
 tokio-rustls = { version = "0.26" }
 clap = { version = "4", features = ["derive", "env"] }
-
+futures = { version = "0"}
 
 # Serde
 serde = { version = "1", features = ["derive"] }

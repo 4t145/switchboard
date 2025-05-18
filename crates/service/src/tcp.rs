@@ -1,5 +1,10 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::{
+    net::SocketAddr,
+    pin::{self, Pin},
+    sync::Arc,
+};
 
+use futures::future::BoxFuture;
 use tokio::{
     io::{self, AsyncRead, AsyncWrite},
     net::TcpListener,
@@ -9,6 +14,62 @@ use tokio_util::sync::CancellationToken;
 pub mod tls;
 
 pub trait AsyncStream: AsyncRead + AsyncWrite + Unpin + Send + 'static {}
+pub struct BoxedAsyncStream(Box<dyn AsyncStream>);
+
+impl BoxedAsyncStream {
+    pub fn new<S: AsyncStream>(stream: S) -> Self {
+        Self(Box::new(stream))
+    }
+    pub fn project(self: Pin<&mut Self>) -> Pin<&mut dyn AsyncStream> {
+        unsafe { self.map_unchecked_mut(|s| &mut *s.0) }
+    }
+}
+
+impl AsyncRead for BoxedAsyncStream {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        self.project().poll_read(cx, buf)
+    }
+}
+
+impl AsyncWrite for BoxedAsyncStream {
+    fn poll_write(
+        self: pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<Result<usize, std::io::Error>> {
+        self.project().poll_write(cx, buf)
+    }
+
+    fn poll_flush(
+        self: pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        self.project().poll_flush(cx)
+    }
+
+    fn poll_shutdown(
+        self: pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        self.project().poll_shutdown(cx)
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        self.0.is_write_vectored()
+    }
+
+    fn poll_write_vectored(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        bufs: &[std::io::IoSlice<'_>],
+    ) -> std::task::Poll<Result<usize, std::io::Error>> {
+        self.project().poll_write_vectored(cx, bufs)
+    }
+}
 
 impl<S: AsyncRead + AsyncWrite + Unpin + Send + 'static> AsyncStream for S {}
 
@@ -23,7 +84,27 @@ pub trait TcpService: Send + Clone + 'static {
         S: AsyncStream;
 }
 
-pub trait TcpServiceExt: TcpService {
+pub trait DynTcpService {
+    fn serve(
+        self,
+        stream: BoxedAsyncStream,
+        peer: SocketAddr,
+        ct: CancellationToken,
+    ) -> BoxFuture<'static, std::io::Result<()>>;
+}
+
+impl<S: TcpService> DynTcpService for S {
+    fn serve(
+        self,
+        stream: BoxedAsyncStream,
+        peer: SocketAddr,
+        ct: CancellationToken,
+    ) -> BoxFuture<'static, std::io::Result<()>> {
+        Box::pin(self.serve(stream, peer, ct))
+    }
+}
+
+pub trait TcpServiceExt: Sized {
     fn bind(&self, addr: SocketAddr) -> impl Future<Output = io::Result<RunningTcpService>>;
     fn listen(self, listener: TcpListener, ct: CancellationToken) -> impl Future<Output = ()>;
 
@@ -34,6 +115,7 @@ pub trait TcpServiceExt: TcpService {
         }
     }
 }
+
 
 impl<S: TcpService> TcpServiceExt for S {
     async fn bind(&self, addr: SocketAddr) -> io::Result<RunningTcpService> {

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use tokio::io::{self, AsyncRead, AsyncWrite};
 
-use super::{AsyncStream, TcpService};
+use crate::{tcp::AsyncStream, TcpService};
 
 #[derive(Debug, Clone)]
 pub struct TlsService<S> {

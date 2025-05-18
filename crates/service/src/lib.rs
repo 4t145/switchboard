@@ -1,4 +1,7 @@
-use tcp::TcpService;
+use std::borrow::Cow;
+
+use futures::future::BoxFuture;
+use tcp::{DynTcpService, TcpService};
 use tokio::io::AsyncRead;
 use udp::UdpService;
 
@@ -13,6 +16,16 @@ pub trait TcpServiceProvider {
         &self,
         config: impl AsyncRead + Send,
     ) -> impl Future<Output = Result<Self::Service, Self::Error>>;
+}
+
+pub type BoxedError = Box<dyn std::error::Error + Send + Sync>;
+pub type BoxTcpServiceProvider = Box<dyn DynTcpServiceProvider>;
+pub trait DynTcpServiceProvider {
+    fn name(&self) -> Cow<'static, str>;
+    fn provide(
+        &self,
+        config: impl AsyncRead + Send,
+    ) -> BoxFuture<'static, Result<Box<dyn DynTcpService>, BoxedError>>;
 }
 
 pub trait UdpServiceProvider {
