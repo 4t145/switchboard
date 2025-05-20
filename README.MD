@@ -1,4 +1,5 @@
-switchboard is an unified gateway for every traffic.
+# **SWITCHBOARD**
+High-performance Easy-to-use Next Generation Post-modern Cross-platform Super Gateway 
 
 ```
 "localhost:8888" => "sb://tcp/socks5/my-s5-proxy"
