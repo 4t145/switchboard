@@ -44,7 +44,7 @@ where
         )
     }
 }
-
+#[derive(Clone)]
 pub struct SharedService {
     service: Arc<dyn DynService>,
 }
