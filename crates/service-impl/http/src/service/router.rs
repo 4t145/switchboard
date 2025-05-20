@@ -1,30 +1,29 @@
-use std::{hash::Hash, ops::Index};
+use std::ops::Index;
 
+use http::Request;
 use hyper::service::Service;
 
-pub trait Router<Req> {
-    type Index: Hash + Eq + Ord;
-    fn route(&self, req: &Req) -> Self::Index;
-}
+use crate::router::{Route, Router};
 
-pub struct RouterService<Req, R: Router<Req>, C: Index<R::Index, Output = S>, S: Service<Req>> {
+pub struct RouterService<Req, R: Router, C: Index<Route, Output = S>, S: Service<Req>> {
     services: C,
     router: R,
     marker: std::marker::PhantomData<fn(Req)>,
 }
 
-impl<Req, R, C, S> Service<Req> for RouterService<Req, R, C, S>
+impl<ReqBody, R, C, S> Service<Request<ReqBody>> for RouterService<Request<ReqBody>, R, C, S>
 where
-    R: Router<Req>,
-    S: Service<Req>,
-    C: Index<R::Index, Output = S>,
+    R: Router,
+    S: Service<Request<ReqBody>>,
+    C: Index<Route, Output = S>,
 {
     type Response = S::Response;
     type Error = S::Error;
     type Future = S::Future;
-    fn call(&self, req: Req) -> Self::Future {
-        let index = self.router.route(&req);
+    fn call(&self, req: Request<ReqBody>) -> Self::Future {
+        let (parts, body) = req.into_parts();
+        let index = self.router.route(&parts);
         let service = self.services.index(index);
-        service.call(req)
+        service.call(Request::from_parts(parts, body))
     }
 }
