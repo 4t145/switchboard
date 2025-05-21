@@ -116,7 +116,6 @@ pub trait TcpServiceExt: Sized {
     }
 }
 
-
 impl<S: TcpService> TcpServiceExt for S {
     async fn bind(&self, addr: SocketAddr) -> io::Result<RunningTcpService> {
         let listener = TcpListener::bind(addr).await?;

@@ -7,6 +7,7 @@ use udp::UdpService;
 
 pub mod tcp;
 pub mod udp;
+pub mod utils;
 
 pub trait TcpServiceProvider {
     const NAME: &'static str;

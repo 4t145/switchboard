@@ -1,4 +1,4 @@
-use std::pin::{Pin, pin};
+use std::pin::Pin;
 
 use bytes::Buf;
 use hyper::body::Body;

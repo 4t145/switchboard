@@ -7,8 +7,8 @@ use std::{convert::Infallible, error::Error as StdError, sync::Arc};
 pub type DynBody = UnsyncBoxBody<bytes::Bytes, BoxedError>;
 pub type DynRequest = Request<DynBody>;
 pub type DynResponse = Response<DynBody>;
-pub type BoxedError = Box<dyn std::error::Error + Send + 'static>;
-pub fn dyn_error<E: StdError + Send + 'static>(e: E) -> BoxedError {
+pub type BoxedError = Box<dyn std::error::Error + Send + Sync + 'static>;
+pub fn dyn_error<E: StdError + Send + Sync + 'static>(e: E) -> BoxedError {
     Box::new(e)
 }
 pub trait DynService: Send + Sync + 'static {
@@ -22,11 +22,11 @@ pub trait IntoDynResponse {
 impl<B> IntoDynResponse for Response<B>
 where
     B: Body<Data = Bytes> + Send + 'static,
-    B::Error: StdError + Send,
+    BoxedError: From<B::Error>,
 {
     fn into_dyn_response(self) -> DynResponse {
         let (parts, body) = self.into_parts();
-        let body = body.map_err(dyn_error);
+        let body = body.map_err(BoxedError::from);
         Response::from_parts(parts, DynBody::new(body))
     }
 }
@@ -52,14 +52,14 @@ pub struct SharedService {
 impl<ReqBody> Service<Request<ReqBody>> for SharedService
 where
     ReqBody: Body<Data = Bytes> + Send + 'static,
-    ReqBody::Error: StdError + Send + 'static,
+    BoxedError: From<ReqBody::Error>,
 {
     type Response = Response<DynBody>;
     type Error = Infallible;
     type Future = BoxFuture<'static, Result<Self::Response, Self::Error>>;
 
     fn call(&self, req: Request<ReqBody>) -> Self::Future {
-        let req = req.map(|body| DynBody::new(body.map_err(dyn_error)));
+        let req = req.map(|body| DynBody::new(body.map_err(BoxedError::from)));
         let service = self.service.clone();
         service.call(req)
     }
@@ -75,4 +75,3 @@ impl SharedService {
         }
     }
 }
-

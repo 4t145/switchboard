@@ -7,7 +7,7 @@ use super::Layer;
 pub trait DynLayer {
     fn layer(&self, service: SharedService) -> SharedService;
 }
-
+#[derive(Clone)]
 pub struct SharedLayer {
     layer: Arc<dyn DynLayer>,
 }
@@ -19,5 +19,13 @@ where
 {
     fn layer(&self, service: SharedService) -> SharedService {
         SharedService::new(self.clone().layer(service))
+    }
+}
+
+impl Layer<SharedService> for SharedLayer {
+    type Service = SharedService;
+
+    fn layer(self, service: SharedService) -> Self::Service {
+        self.layer.layer(service)
     }
 }

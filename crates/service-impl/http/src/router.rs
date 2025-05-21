@@ -2,8 +2,6 @@ use std::{fmt::Display, num::ParseIntError, str::FromStr, string::FromUtf8Error,
 
 use serde::{Deserialize, Serialize};
 
-use crate::node::NodeId;
-
 #[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 pub enum Route {
     // utf-8 string, between 1 and 255 bytes, can not start with '['
@@ -79,12 +77,19 @@ impl<'de> Deserialize<'de> for Route {
     }
 }
 
-pub trait Router {
+pub trait Router: Send + Sync + 'static {
     fn route(&self, req: &http::request::Parts) -> Route;
 }
 
+#[derive(Clone)]
 pub struct SharedRouter {
     router: Arc<dyn Router>,
+}
+
+impl std::fmt::Debug for SharedRouter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SharedRouter").finish()
+    }
 }
 
 impl Router for SharedRouter {
