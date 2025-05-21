@@ -1,4 +1,3 @@
-
 pub mod config;
 pub mod layer;
 pub mod object;
@@ -17,12 +16,13 @@ use tokio_util::sync::CancellationToken;
 use tracing::instrument;
 use utils::read_version;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum HttpVersion {
     Http1,
     #[serde(alias = "h2")]
     Http2,
+    #[default]
     Auto,
 }
 
@@ -58,7 +58,7 @@ impl Http {
             result = connection => {
                 result.map_err(|e| {
                     tracing::error!(%peer, "Error serving connection: {}", e);
-                    std::io::Error::new(std::io::ErrorKind::Other, e)
+                    std::io::Error::other(e)
                 })?;
             }
         }
@@ -83,7 +83,7 @@ impl Http {
             result = connection => {
                 result.map_err(|e| {
                     tracing::error!(%peer, "Error serving HTTP/2 connection: {}", e);
-                    std::io::Error::new(std::io::ErrorKind::Other, e)
+                    std::io::Error::other(e)
                 })?;
             }
         }
