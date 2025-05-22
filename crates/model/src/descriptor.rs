@@ -1,15 +1,17 @@
 use std::{convert::Infallible, fmt::Display, str::FromStr};
 
 use serde::{Deserialize, Serialize};
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(bon::Builder)]
+#[builder(on(String, into))]
 pub struct AnonServiceDescriptor {
-    service: String,
-    config: Option<String>,
+    pub provider: String,
+    pub config: Option<String>,
 }
 
 pub type NamedServiceDescriptor = String;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ServiceDescriptor {
     Anon(AnonServiceDescriptor),
     Named(NamedServiceDescriptor),
@@ -29,9 +31,9 @@ impl Display for ServiceDescriptor {
         match self {
             ServiceDescriptor::Anon(anon) => {
                 if let Some(config_str) = &anon.config {
-                    write!(f, "{}/{}", anon.service, config_str)
+                    write!(f, "{}/{}", anon.provider, config_str)
                 } else {
-                    write!(f, "{}", anon.service)
+                    write!(f, "{}", anon.provider)
                 }
             }
             ServiceDescriptor::Named(named) => write!(f, "@{}", named),
@@ -46,12 +48,12 @@ impl FromStr for ServiceDescriptor {
             Ok(ServiceDescriptor::Named(resource_name.to_owned()))
         } else if let Some((service, config_str)) = s.split_once('/') {
             Ok(ServiceDescriptor::Anon(AnonServiceDescriptor {
-                service: service.to_owned(),
+                provider: service.to_owned(),
                 config: Some(config_str.to_owned()),
             }))
         } else {
             Ok(ServiceDescriptor::Anon(AnonServiceDescriptor {
-                service: s.to_owned(),
+                provider: s.to_owned(),
                 config: None,
             }))
         }

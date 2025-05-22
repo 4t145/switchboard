@@ -2,16 +2,16 @@ use std::sync::Arc;
 
 use tokio::io::{self, AsyncRead, AsyncWrite};
 
-use crate::{tcp::AsyncStream, TcpService};
+use crate::{TcpService, tcp::AsyncStream};
 
 #[derive(Debug, Clone)]
 pub struct TlsService<S> {
     pub config: Arc<rustls::ServerConfig>,
-    pub service: S,
+    pub service: Arc<S>,
 }
 impl<Svc: TcpService + Send + Sync> TcpService for TlsService<Svc> {
     async fn serve<S>(
-        self,
+        self: Arc<Self>,
         stream: S,
         peer: std::net::SocketAddr,
         ct: tokio_util::sync::CancellationToken,
@@ -19,7 +19,8 @@ impl<Svc: TcpService + Send + Sync> TcpService for TlsService<Svc> {
     where
         S: AsyncStream,
     {
-        let stream = tokio_rustls::TlsAcceptor::from(self.config.clone())
+        let config = self.config.clone();
+        let stream = tokio_rustls::TlsAcceptor::from(config)
             .accept(stream)
             .await
             .map_err(|e| {
@@ -28,6 +29,6 @@ impl<Svc: TcpService + Send + Sync> TcpService for TlsService<Svc> {
                     format!("Failed to accept TLS connection: {}", e),
                 )
             })?;
-        self.service.serve(stream, peer, ct).await
+        self.service.clone().serve(stream, peer, ct).await
     }
 }

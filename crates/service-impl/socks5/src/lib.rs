@@ -1,10 +1,14 @@
 use std::{
+    convert::Infallible,
     net::{Ipv4Addr, SocketAddr},
     pin::Pin,
     sync::Arc,
 };
 
-use switchboard_service::tcp::{AsyncStream, TcpService};
+use switchboard_service::{
+    TcpServiceProvider,
+    tcp::{AsyncStream, TcpService},
+};
 use tokio::io::{self, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 const CMD_CONNECT: u8 = 0x01;
@@ -211,7 +215,7 @@ where
 
 impl TcpService for Socks5 {
     async fn serve<S>(
-        self,
+        self: Arc<Self>,
         mut stream: S,
         peer: SocketAddr,
         ct: tokio_util::sync::CancellationToken,
@@ -320,5 +324,18 @@ impl Socks5 {
             }
         };
         Ok(())
+    }
+}
+
+pub struct Socks5Provider;
+impl TcpServiceProvider for Socks5Provider {
+    const NAME: &'static str = "socks5";
+
+    type Service = Socks5;
+
+    type Error = Infallible;
+
+    fn construct(&self, _config: Option<String>) -> Result<Self::Service, Self::Error> {
+        Ok(Socks5::no_auth())
     }
 }

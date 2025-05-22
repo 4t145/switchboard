@@ -73,9 +73,9 @@ impl AsyncWrite for BoxedAsyncStream {
 
 impl<S: AsyncRead + AsyncWrite + Unpin + Send + 'static> AsyncStream for S {}
 
-pub trait TcpService: Send + Clone + 'static {
+pub trait TcpService: Send + Sync + 'static {
     fn serve<S>(
-        self,
+        self: Arc<Self>,
         stream: S,
         peer: SocketAddr,
         ct: CancellationToken,
@@ -84,9 +84,9 @@ pub trait TcpService: Send + Clone + 'static {
         S: AsyncStream;
 }
 
-pub trait DynTcpService {
+pub trait DynTcpService: Send + Sync + 'static {
     fn serve(
-        self,
+        self: Arc<Self>,
         stream: BoxedAsyncStream,
         peer: SocketAddr,
         ct: CancellationToken,
@@ -95,7 +95,7 @@ pub trait DynTcpService {
 
 impl<S: TcpService> DynTcpService for S {
     fn serve(
-        self,
+        self: Arc<Self>,
         stream: BoxedAsyncStream,
         peer: SocketAddr,
         ct: CancellationToken,
@@ -106,34 +106,37 @@ impl<S: TcpService> DynTcpService for S {
 
 pub trait TcpServiceExt: Sized {
     fn bind(&self, addr: SocketAddr) -> impl Future<Output = io::Result<RunningTcpService>>;
-    fn listen(self, listener: TcpListener, ct: CancellationToken) -> impl Future<Output = ()>;
+    fn listen(&self, listener: TcpListener, ct: CancellationToken) -> impl Future<Output = ()>;
 
     fn tls(self, config: impl Into<Arc<rustls::ServerConfig>>) -> tls::TlsService<Self> {
         tls::TlsService {
             config: config.into(),
-            service: self,
+            service: Arc::new(self),
         }
     }
 }
-
-impl<S: TcpService> TcpServiceExt for S {
-    async fn bind(&self, addr: SocketAddr) -> io::Result<RunningTcpService> {
+impl dyn DynTcpService {
+    pub async fn bind(self: Arc<Self>, addr: SocketAddr) -> io::Result<RunningTcpService> {
         let listener = TcpListener::bind(addr).await?;
-        tracing::info!(%addr, "Listening on TCP");
+        tracing::debug!(%addr, "Listening on TCP");
         let ct = CancellationToken::new();
-        let join_handle = tokio::spawn(self.clone().listen(listener, ct.child_token()));
+        let service = self.clone();
+        let join_handle = tokio::spawn({
+            let ct = ct.child_token();
+            async move { service.listen(listener, ct.child_token()).await }
+        });
         Ok(RunningTcpService {
             bind: addr,
             ct,
             join_handle,
         })
     }
-    async fn listen(self, listener: TcpListener, ct: CancellationToken) {
+    pub async fn listen(self: Arc<Self>, listener: TcpListener, ct: CancellationToken) {
         let mut task_set = tokio::task::JoinSet::new();
         loop {
             let (stream, peer) = tokio::select! {
                 _ = ct.cancelled() => {
-                    tracing::info!("Cancellation token triggered, shutting down server");
+                    tracing::debug!("Cancellation token triggered, shutting down server");
                     break;
                 }
                 next_income_result = listener.accept() => {
@@ -155,7 +158,9 @@ impl<S: TcpService> TcpServiceExt for S {
                     continue;
                 }
             };
-            let service = self.clone().serve(stream, peer, ct.child_token());
+            let service = self
+                .clone()
+                .serve(BoxedAsyncStream::new(stream), peer, ct.child_token());
             task_set.spawn(service);
         }
         while let Some(result) = task_set.join_next_with_id().await {
@@ -178,6 +183,7 @@ fn logging_joined_task(
     }
 }
 
+#[derive(Debug)]
 pub struct RunningTcpService {
     bind: SocketAddr,
     ct: CancellationToken,

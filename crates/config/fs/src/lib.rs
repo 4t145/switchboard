@@ -80,18 +80,18 @@ pub enum FsConfigServiceError {
 impl switchboard_model::ConfigService for FsConfigService {
     type Error = FsConfigServiceError;
 
-    fn get_many_items(
+    fn get_many_binds(
         &self,
-        query: ItemQuery,
+        query: BindQuery,
         cursor: CursorQuery,
-    ) -> impl Future<Output = Result<PagedResult<Item>, Self::Error>> + Send + '_ {
+    ) -> impl Future<Output = Result<PagedResult<Bind>, Self::Error>> + Send + '_ {
         async { todo!() }
     }
 
     fn get_item_by_id(
         &self,
         id: String,
-    ) -> impl Future<Output = Result<Option<Item>, Self::Error>> + Send + '_ {
+    ) -> impl Future<Output = Result<Option<Bind>, Self::Error>> + Send + '_ {
         async { todo!() }
     }
 
@@ -104,7 +104,7 @@ impl switchboard_model::ConfigService for FsConfigService {
 
     fn add_items(
         &self,
-        items: Vec<Item>,
+        items: Vec<Bind>,
     ) -> impl Future<Output = Result<Vec<Result<String, Self::Error>>, Self::Error>> + Send + '_
     {
         async { todo!() }
@@ -119,28 +119,16 @@ impl switchboard_model::ConfigService for FsConfigService {
 
     fn update_items(
         &self,
-        items: std::collections::HashMap<String, Item>,
+        items: std::collections::HashMap<String, Bind>,
     ) -> impl Future<Output = Result<Vec<Result<(), Self::Error>>, Self::Error>> + Send + '_ {
         async { todo!() }
     }
 
-    async fn get_named_service_config(
-        &self,
-        name: String,
-    ) -> Result<Option<impl tokio::io::AsyncRead + Send>, Self::Error> {
-        let this = self.inner.read().await;
-        let config = this
-            .memory_config
-            .services
-            .get(&name)
-            .ok_or(FsConfigServiceError::ServiceNotFound)?;
-        match config {
-            Some(config) => {
-                let read = config.read().await?;
-                Ok(Some(read))
-            }
-            None => Ok(None),
-        }
+    async fn get_named_service(
+            &self,
+            name: String,
+        ) -> Result<NamedService, Self::Error> {
+        
     }
 
     fn set_named_service_config(

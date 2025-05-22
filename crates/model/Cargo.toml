@@ -12,3 +12,4 @@ readme.workspace = true
 [dependencies]
 tokio = { workspace = true, features = ["io-util"] }
 serde = { workspace = true, features = ["derive"] }
+bon = { version = "3.6" }

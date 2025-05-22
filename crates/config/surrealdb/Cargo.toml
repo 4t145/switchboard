@@ -10,6 +10,8 @@ categories.workspace = true
 readme.workspace = true
 
 [dependencies]
+switchboard-model = { workspace = true }
+thiserror = { workspace = true }
 surrealdb = { version = "2.3.2", features = ["kv-mem", "kv-rocksdb"] }
 serde = { workspace = true }
 tokio = { workspace = true, features = [

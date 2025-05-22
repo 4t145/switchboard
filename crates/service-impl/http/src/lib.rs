@@ -93,7 +93,7 @@ impl Http {
 
 impl switchboard_service::tcp::TcpService for Http {
     async fn serve<S>(
-        self,
+        self: Arc<Self>,
         stream: S,
         peer: std::net::SocketAddr,
         ct: CancellationToken,
@@ -102,8 +102,8 @@ impl switchboard_service::tcp::TcpService for Http {
         S: switchboard_service::tcp::AsyncStream,
     {
         match self.version {
-            HttpVersion::Http1 => self.serve_http1(stream, peer, ct).await,
-            HttpVersion::Http2 => self.serve_http2(stream, peer, ct).await,
+            HttpVersion::Http1 => self.as_ref().clone().serve_http1(stream, peer, ct).await,
+            HttpVersion::Http2 => self.as_ref().clone().serve_http2(stream, peer, ct).await,
             HttpVersion::Auto => {
                 let read_version = read_version(stream);
                 let (version, rewind) = tokio::select! {
@@ -117,8 +117,8 @@ impl switchboard_service::tcp::TcpService for Http {
                 };
                 tracing::debug!(%peer, "Detected HTTP version: {:?}", version);
                 match version {
-                    HttpVersion::Http1 => self.serve_http1(rewind, peer, ct).await,
-                    HttpVersion::Http2 => self.serve_http2(rewind, peer, ct).await,
+                    HttpVersion::Http1 => self.as_ref().clone().serve_http1(rewind, peer, ct).await,
+                    HttpVersion::Http2 => self.as_ref().clone().serve_http2(rewind, peer, ct).await,
                     HttpVersion::Auto => {
                         unreachable!("Auto version should not be used here");
                     }

@@ -14,3 +14,21 @@ clap = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 thiserror = { workspace = true }
 switchboard-model = { workspace = true }
+switchboard-service = { workspace = true }
+switchboard-socks5 = { path = "../service-impl/socks5" }
+switchboard-pf = { path = "../service-impl/pf" }
+tracing = { workspace = true }
+
+
+tracing-subscriber = { version = "0.3", features = [
+    "env-filter",
+    "fmt",
+], optional = true }
+
+[features]
+binary = ["dep:tracing-subscriber"]
+
+[[bin]]
+name = "switchboard"
+path = "src/main.rs"
+required-features = ["binary"]

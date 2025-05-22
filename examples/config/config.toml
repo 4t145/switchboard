@@ -1,0 +1,18 @@
+[[service]]
+name = "ssh-pf"
+provider = "tf"
+config = "[::1]:22"
+
+[[bind]]
+addr = "[::]:10022"
+service = "@ssh-pf"
+enable = true
+
+[[bind]]
+addr = "[::]:12222"
+service = "tf/[::1]:22"
+enable = true
+
+[[bind]]
+addr = "[::]:10080"
+service = "@http-gateway"
