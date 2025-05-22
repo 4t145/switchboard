@@ -1,4 +1,5 @@
 use std::{collections::HashMap, sync::Arc};
+use switchboard_model::Tls;
 use switchboard_service::{
     registry::{ServiceProviderRegistry, ServiceProviderRegistryError},
     tcp::RunningTcpService,
@@ -14,6 +15,8 @@ pub enum SupervisorError {
     ServiceProviderError(#[from] ServiceProviderRegistryError),
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+    #[error("TLS build error: {0}")]
+    TlsBuildError(#[from] crate::tls::TlsBuildError),
 }
 
 pub struct Supervisor {
@@ -38,11 +41,12 @@ impl Supervisor {
         &mut self,
         info: &TcpServiceInfo,
     ) -> Result<RunningTcpService, SupervisorError> {
-        let service = self
-            .registry
-            .read()
-            .await
-            .construct_tcp(&info.provider, info.config.clone())?;
+        let tls_config = info.tls_config.clone().map(crate::tls::build_tls_config).transpose()?;
+        let service = self.registry.read().await.construct_tcp(
+            &info.provider,
+            info.config.clone(),
+            tls_config,
+        )?;
         let running_service = service.bind(info.bind).await?;
         Ok(running_service)
     }

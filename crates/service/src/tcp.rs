@@ -84,6 +84,20 @@ pub trait TcpService: Send + Sync + 'static {
         S: AsyncStream;
 }
 
+impl TcpService for dyn DynTcpService {
+    fn serve<S>(
+        self: Arc<Self>,
+        stream: S,
+        peer: SocketAddr,
+        ct: CancellationToken,
+    ) -> impl Future<Output = std::io::Result<()>> + Send + 'static
+    where
+        S: AsyncStream,
+    {
+        self.serve(BoxedAsyncStream::new(stream), peer, ct)
+    }
+}
+
 pub trait DynTcpService: Send + Sync + 'static {
     fn serve(
         self: Arc<Self>,
@@ -93,7 +107,7 @@ pub trait DynTcpService: Send + Sync + 'static {
     ) -> BoxFuture<'static, std::io::Result<()>>;
 }
 
-impl<S: TcpService> DynTcpService for S {
+impl<S: TcpService + ?Sized> DynTcpService for S {
     fn serve(
         self: Arc<Self>,
         stream: BoxedAsyncStream,

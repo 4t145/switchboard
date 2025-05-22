@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use switchboard_model::{Bind, ConfigService, Cursor, Indexed, NamedService};
+use switchboard_model::{Bind, ConfigService, Cursor, Indexed, NamedService, Tls};
 
 pub type BindId = String;
 fn next_bind_id() -> String {
@@ -13,6 +13,7 @@ pub struct Mem {
     pub named_services: HashMap<String, NamedService>,
     pub binds: HashMap<BindId, Bind>,
     pub enabled: Vec<BindId>,
+    pub tls: HashMap<String, Tls>,
 }
 
 impl Mem {
@@ -21,6 +22,7 @@ impl Mem {
             named_services: HashMap::new(),
             binds: HashMap::new(),
             enabled: Vec::new(),
+            tls: HashMap::new(),
         }
     }
 
@@ -33,6 +35,10 @@ impl Mem {
         self.binds.insert(id.clone(), bind);
         self.enabled.push(id.clone());
         id
+    }
+
+    pub fn add_tls(&mut self, name: String, tls: Tls) {
+        self.tls.insert(name, tls);
     }
 }
 
@@ -96,5 +102,9 @@ impl ConfigService for Mem {
 
     async fn get_named_service(&self, name: String) -> Result<Option<NamedService>, Self::Error> {
         Ok(self.named_services.get(&name).cloned())
+    }
+
+    async fn get_tls(&self, name: String) -> Result<Option<Tls>, Self::Error> {
+        Ok(self.tls.get(&name).cloned())
     }
 }

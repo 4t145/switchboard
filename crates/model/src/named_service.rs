@@ -8,4 +8,5 @@ pub struct NamedService {
     pub name: String,
     pub config: Option<String>,
     pub description: Option<String>,
+    pub tls: Option<String>,
 }

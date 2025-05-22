@@ -8,6 +8,7 @@ use crate::descriptor::ServiceDescriptor;
 #[builder(on(String, into))]
 pub struct Bind {
     pub addr: SocketAddr,
+    #[builder(into)]
     pub service: ServiceDescriptor,
     pub description: Option<String>,
 }

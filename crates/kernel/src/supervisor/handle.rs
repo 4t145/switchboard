@@ -1,5 +1,6 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Arc};
 
+use switchboard_model::Tls;
 use switchboard_service::tcp::RunningTcpService;
 
 use super::SupervisorError;
@@ -13,6 +14,7 @@ pub struct TcpServiceInfo {
     pub config: Option<String>,
     pub bind_description: Option<String>,
     pub service_description: Option<String>,
+    pub tls_config: Option<Tls>,
 }
 
 #[derive(Debug)]

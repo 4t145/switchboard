@@ -10,28 +10,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut config = Mem::new();
     config.add_named_service(
         NamedService::builder()
-            .name("ssh-pf")
-            .config("[::]:10022")
-            .description("forward ssh from 10022")
+            .name("mc-pf")
+            .config("192.168.1.5:25565")
+            .description("forward minecraft traffic")
             .provider("pf")
             .build(),
     );
     config.add_bind(
         Bind::builder()
-            .addr("[::]:20222".parse()?)
-            .description("ssh")
-            .service(ServiceDescriptor::Named("ssh-pf".to_string()))
+            .addr("[::]:25565".parse()?)
+            .description("mc")
+            .service(ServiceDescriptor::named("mc-pf"))
             .build(),
     );
     config.add_bind(
         Bind::builder()
             .addr("[::]:10999".parse()?)
             .description("socks5 proxy")
-            .service(ServiceDescriptor::Anon(
-                AnonServiceDescriptor::builder()
-                    .provider("socks5")
-                    .build(),
-            ))
+            .service(AnonServiceDescriptor::builder().provider("socks5").build())
             .build(),
     );
     let mut context = KernelContext::startup(config).await?;

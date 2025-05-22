@@ -2,6 +2,7 @@
 name = "ssh-pf"
 provider = "tf"
 config = "[::1]:22"
+tls = "example.4t145.com"
 
 [[bind]]
 addr = "[::]:10022"
@@ -16,3 +17,6 @@ enable = true
 [[bind]]
 addr = "[::]:10080"
 service = "@http-gateway"
+
+[[tls]]
+name = "example.4t145.com"

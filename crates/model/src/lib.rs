@@ -10,6 +10,9 @@ pub mod tag;
 pub use tag::*;
 pub mod named_service;
 pub use named_service::*;
+
+pub mod tls;
+pub use tls::*;
 use tokio::io::AsyncRead;
 
 pub enum ConfigEvent {}
@@ -69,7 +72,10 @@ pub trait ConfigService {
         &self,
         query: CursorQuery,
     ) -> impl Future<Output = Result<PagedResult<Bind>, Self::Error>> + Send + '_;
-
+    fn get_tls(
+        &self,
+        name: String,
+    ) -> impl Future<Output = Result<Option<Tls>, Self::Error>> + Send + '_;
     // fn listen(
     //     &self,
     //     items: Vec<String>,
