@@ -41,12 +41,17 @@ impl Supervisor {
         &mut self,
         info: &TcpServiceInfo,
     ) -> Result<RunningTcpService, SupervisorError> {
-        let tls_config = info.tls_config.clone().map(crate::tls::build_tls_config).transpose()?;
-        let service = self.registry.read().await.construct_tcp(
-            &info.provider,
-            info.config.clone(),
-            tls_config,
-        )?;
+        let tls_config = info
+            .tls_config
+            .clone()
+            .map(crate::tls::build_tls_config)
+            .transpose()?;
+        let service = self
+            .registry
+            .read()
+            .await
+            .construct_tcp(&info.provider, info.config.clone(), tls_config)
+            .await?;
         let running_service = service.bind(info.bind).await?;
         Ok(running_service)
     }

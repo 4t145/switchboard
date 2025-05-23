@@ -1,17 +1,23 @@
 pub mod config;
+mod consts;
 pub mod layer;
 pub mod object;
 pub mod response;
 pub mod router;
 pub mod service;
 pub mod utils;
+pub mod extension;
+pub use consts::*;
+
+pub use service::dynamic::{DynRequest, DynResponse, DynService, SharedService, box_error, BoxedError};
 
 use hyper::server::conn::{http1, http2};
 use hyper_util::rt::{TokioExecutor, TokioIo};
+use object::{ObjectId, orchestration::OrchestrationError, registry::ObjectRegistry};
 use rustls::ServerConfig;
 use serde::{Deserialize, Serialize};
-use service::dynamic::SharedService;
 use std::sync::Arc;
+use switchboard_service::TcpServiceProvider;
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
 use utils::read_version;
@@ -125,5 +131,48 @@ impl switchboard_service::tcp::TcpService for Http {
                 }
             }
         }
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum HttpBuildError {
+    #[error("Failed to build HTTP service: {0}")]
+    Orchestration(#[from] OrchestrationError),
+
+    #[error("Failed to parse config: {0}")]
+    ParseError(#[from] serde_json::Error),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HttpConfig {
+    pub objects: ObjectRegistry,
+    pub entrypoint: ObjectId,
+}
+
+pub struct HttpProvider;
+
+impl TcpServiceProvider for HttpProvider {
+    const NAME: &'static str = "http";
+    type Service = Http;
+    type Error = HttpBuildError;
+    async fn construct(&self, config: Option<String>) -> Result<Self::Service, Self::Error> {
+        let config = config.unwrap_or_default();
+        let config = serde_json::from_str::<HttpConfig>(&config)?;
+        let class_registry = crate::object::registry::ObjectClassRegistry::globol()
+            .read_owned()
+            .await;
+        let class_registry = &class_registry;
+        let object_registry = config.objects;
+        let mut context = crate::object::orchestration::OrchestrationContext::new(
+            class_registry,
+            &object_registry,
+        );
+        let mut orchestration = crate::object::orchestration::Orchestration::default();
+        orchestration.rebuild_all_target(&mut context)?;
+        let service = orchestration.get_or_build_service(&config.entrypoint, &mut context)?;
+        Ok(Http {
+            service,
+            version: HttpVersion::default(),
+        })
     }
 }

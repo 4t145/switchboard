@@ -8,7 +8,7 @@ pub type DynBody = UnsyncBoxBody<bytes::Bytes, BoxedError>;
 pub type DynRequest = Request<DynBody>;
 pub type DynResponse = Response<DynBody>;
 pub type BoxedError = Box<dyn std::error::Error + Send + Sync + 'static>;
-pub fn dyn_error<E: StdError + Send + Sync + 'static>(e: E) -> BoxedError {
+pub fn box_error<E: StdError + Send + Sync + 'static>(e: E) -> BoxedError {
     Box::new(e)
 }
 pub trait DynService: Send + Sync + 'static {

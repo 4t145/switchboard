@@ -1,3 +1,9 @@
+use serde_json::json;
+use switchboard_http::object::{
+    Object, ObjectId,
+    class::{ObjectClassName, ServiceProperty},
+    registry::ObjectRegistry,
+};
 use switchboard_kernel::{KernelContext, config::mem::Mem};
 use switchboard_model::{AnonServiceDescriptor, Bind, NamedService, ServiceDescriptor};
 
@@ -30,7 +36,60 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .service(AnonServiceDescriptor::builder().provider("socks5").build())
             .build(),
     );
+
+    let mut http_objects = ObjectRegistry::new();
+    let client_object_id = ObjectId::new("client");
+    let rewrite_object_id = ObjectId::new("rewrite");
+    http_objects.service.insert(
+        client_object_id.clone(),
+        Object {
+            id: client_object_id.clone(),
+            class: ObjectClassName::std("client"),
+            config: "".to_string(),
+            property: ServiceProperty {
+                layers: vec![rewrite_object_id.clone()],
+            },
+        },
+    );
+    http_objects.layer.insert(
+        rewrite_object_id.clone(),
+        Object {
+            id: rewrite_object_id,
+            class: ObjectClassName::std("rewrite"),
+            config: json!(
+                {
+                    "host": "baidu.com",
+                    "schema": "http",
+                }
+            )
+            .to_string(),
+            property: (),
+        },
+    );
+    // http_objects.
+    config.add_named_service(
+        NamedService::builder()
+            .name("http-gateway")
+            .config(
+                json!({
+                    "objects": http_objects,
+                    "entrypoint": "client"
+                })
+                .to_string(),
+            )
+            .description("http gateway")
+            .provider("http")
+            .build(),
+    );
+    config.add_bind(
+        Bind::builder()
+            .addr("[::]:2525".parse()?)
+            .service(ServiceDescriptor::named("http-gateway"))
+            .build(),
+    );
     let mut context = KernelContext::startup(config).await?;
+    tracing::info!("Kernel startup complete");
+    tracing::info!("Kernel running, press Ctrl+C to exit");
     tokio::signal::ctrl_c()
         .await
         .expect("failed to install Ctrl+C signal handler");

@@ -13,3 +13,7 @@ impl ObjectClassType for SharedService {
 pub struct ServiceProperty {
     pub layers: Vec<ObjectId>,
 }
+
+pub trait ServiceClass {
+    
+}

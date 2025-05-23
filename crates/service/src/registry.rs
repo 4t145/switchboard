@@ -22,7 +22,7 @@ pub enum ServiceProviderRegistryError {
 }
 
 impl ServiceProviderRegistry {
-    pub fn construct_tcp(
+    pub async fn construct_tcp(
         &self,
         name: &str,
         config: Option<String>,
@@ -31,7 +31,7 @@ impl ServiceProviderRegistry {
         let provider = self.tcp.get(name).ok_or_else(|| {
             ServiceProviderRegistryError::ServiceProviderNotFound(name.to_owned())
         })?;
-        let service = provider.construct(config)?;
+        let service = provider.construct(config).await?;
         if let Some(tls_config) = tls_config {
             let tls_service = TlsService {
                 config: tls_config,

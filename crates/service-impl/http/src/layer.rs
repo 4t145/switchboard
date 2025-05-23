@@ -1,7 +1,7 @@
-pub mod timeout;
-pub mod function;
-pub mod take_error;
 pub mod dynamic;
+pub mod function;
+pub mod rewrite;
+pub mod timeout;
 
 pub trait Layer<S> {
     type Service;

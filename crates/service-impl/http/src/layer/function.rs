@@ -1,29 +1,76 @@
-// use hyper::service::Service;
+use std::sync::Arc;
 
-// use crate::service::function::FunctionService;
+use crate::service::{
+    dynamic::{DynRequest, DynResponse, DynService, SharedService},
+    function::FunctionService,
+};
 
-// use super::Layer;
+use super::dynamic::{DynLayer, SharedLayer};
+#[derive(Clone)]
+pub struct Inner {
+    inner: SharedService,
+}
 
-// pub struct FunctionLayer<Req, Resp, Err, Fut, F> 
+impl Inner {
+    pub fn new(inner: SharedService) -> Self {
+        Self { inner }
+    }
+    pub async fn call(&self, req: DynRequest) -> DynResponse {
+        DynService::call(&self.inner, req)
+            .await
+            .expect("infallible")
+    }
+}
 
-// {
-//     f: F,
+#[derive(Clone)]
+pub struct FunctionLayer<M: LayerMethod> {
+    method: Arc<M>,
+}
 
-// }
+impl<M: LayerMethod> FunctionLayer<M> {
+    pub fn new(method: M) -> Self {
+        Self {
+            method: Arc::new(method),
+        }
+    }
+}
 
-// pub struct Inner<S>(S);
+impl SharedLayer {
+    pub fn function<L>(layer: L) -> Self
+    where
+        L: LayerMethod + 'static,
+    {
+        Self::new(FunctionLayer::new(layer))
+    }
+}
 
-// impl<Req, Resp, Err, Fut, F, S> Layer<S> for FunctionLayer<Req, Resp, Err, Fut, F>
-// where
-//     F: Fn(Req, &S) -> Fut + 'static,
-//     Fut: Future<Output = Result<Resp, Err>>,
-//     S: Service<Req> + 'static,
-// {
-//     type Service = FunctionService<Box<dyn Fn(Req) -> Fut>>;
+pub trait LayerMethod: Send + Sync + 'static {
+    type Error: std::error::Error + Send + Sync + 'static;
+    fn error_kind() -> &'static str {
+        std::any::type_name::<Self>()
+    }
+    fn call(
+        self: Arc<Self>,
+        req: DynRequest,
+        inner: Inner,
+    ) -> impl Future<Output = Result<DynResponse, Self::Error>> + Send + 'static;
+}
 
-//     fn layer(self, service: S) -> Self::Service {
-//         FunctionService {
-//             function: Box::new(move |req| (self.f)(req, &service)),
-//         }
-//     }
-// }
+impl<F> DynLayer for FunctionLayer<F>
+where
+    F: LayerMethod,
+{
+    fn layer(&self, service: SharedService) -> SharedService {
+        let inner = Inner::new(service);
+        let function = self.method.clone();
+        let error_kind = F::error_kind();
+        let function = move |req: DynRequest| {
+            let inner = inner.clone();
+            let function = function.clone();
+            Box::pin(function.call(req, inner))
+        };
+        let service = FunctionService::new(function, error_kind);
+        let service = SharedService::new(service);
+        service
+    }
+}

@@ -1,3 +1,9 @@
+mod host;
+pub use host::*;
+mod path;
+pub use path::*;
+mod transparent;
+pub use transparent::*;
 use std::{fmt::Display, num::ParseIntError, str::FromStr, string::FromUtf8Error, sync::Arc};
 
 use serde::{Deserialize, Serialize};
@@ -78,7 +84,7 @@ impl<'de> Deserialize<'de> for Route {
 }
 
 pub trait Router: Send + Sync + 'static {
-    fn route(&self, req: &http::request::Parts) -> Route;
+    fn route(&self, req: &mut http::request::Parts) -> Route;
 }
 
 #[derive(Clone)]
@@ -93,7 +99,7 @@ impl std::fmt::Debug for SharedRouter {
 }
 
 impl Router for SharedRouter {
-    fn route(&self, req: &http::request::Parts) -> Route {
+    fn route(&self, req: &mut http::request::Parts) -> Route {
         self.router.route(req)
     }
 }

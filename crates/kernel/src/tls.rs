@@ -21,7 +21,7 @@ pub enum TlsBuildError {
 fn ensure_crypto_provider_installed() {
     static INSTALL: Once = Once::new();
     INSTALL.call_once(|| {
-        let _ = rustls::crypto::ring::default_provider().install_default();
+        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
     });
 }
 pub fn build_tls_config(tls_config: Tls) -> Result<Arc<rustls::ServerConfig>, TlsBuildError> {

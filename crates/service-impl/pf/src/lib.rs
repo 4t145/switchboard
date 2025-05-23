@@ -47,7 +47,7 @@ impl TcpServiceProvider for PortForwardProvider {
     type Service = PortForward;
     type Error = std::net::AddrParseError;
 
-    fn construct(&self, config: Option<String>) -> Result<Self::Service, Self::Error> {
+    async fn construct(&self, config: Option<String>) -> Result<Self::Service, Self::Error> {
         let config = config.unwrap_or_default();
         let to = config.parse()?;
         Ok(PortForward { to })

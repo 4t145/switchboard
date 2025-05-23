@@ -1,5 +1,12 @@
 [workspace]
-members = ["crates/service-impl/*", "crates/config/*", "crates/model", "crates/kernel", "crates/service", "crates/kernel/src/main.rs"]
+members = [
+    "crates/service-impl/*",
+    "crates/config/*",
+    "crates/model",
+    "crates/kernel",
+    "crates/service",
+    # "crates/kernel/src/main.rs",
+]
 resolver = "2"
 
 [workspace.dependencies]
@@ -13,15 +20,15 @@ tracing = { version = "0.1" }
 rustls = { version = "0.23" }
 tokio-rustls = { version = "0.26" }
 clap = { version = "4", features = ["derive", "env"] }
-futures = { version = "0"}
+futures = { version = "0" }
 
 # Serde
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
-toml = { version = "0.8"}
+toml = { version = "0.8" }
 
 # Error
-thiserror = { version = "2"}
+thiserror = { version = "2" }
 
 # Futures
 pin-project-lite = "0.2.16"

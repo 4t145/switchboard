@@ -1,10 +1,5 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    time::Duration,
-};
+use std::collections::HashMap;
 
-use hyper::server::conn::{http1, http2};
-use hyper_util::server::conn::auto::Http1Builder;
 use serde::{Deserialize, Serialize};
 
 use crate::{

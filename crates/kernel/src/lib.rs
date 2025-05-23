@@ -1,4 +1,5 @@
 use supervisor::{Supervisor, TcpServiceInfo};
+use switchboard_http::HttpProvider;
 use switchboard_model::{ConfigService, CursorQuery, Indexed, NamedService, ServiceDescriptor};
 use switchboard_pf::PortForwardProvider;
 use switchboard_service::registry::ServiceProviderRegistry;
@@ -11,9 +12,9 @@ pub mod tls;
 
 pub fn register_prelude(registry: &mut ServiceProviderRegistry) {
     // Register the prelude services
-
     registry.register_tcp_provider(Socks5Provider);
     registry.register_tcp_provider(PortForwardProvider);
+    registry.register_tcp_provider(HttpProvider);
 }
 #[derive(Debug, thiserror::Error)]
 pub enum Error<C: ConfigService> {

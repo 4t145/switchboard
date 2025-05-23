@@ -12,6 +12,17 @@ pub struct SharedLayer {
     layer: Arc<dyn DynLayer>,
 }
 
+impl SharedLayer {
+    pub fn new<L>(layer: L) -> Self
+    where
+        L: DynLayer + 'static,
+    {
+        Self {
+            layer: Arc::new(layer),
+        }
+    }
+}
+
 impl<L> DynLayer for L
 where
     L: Layer<SharedService> + Clone,

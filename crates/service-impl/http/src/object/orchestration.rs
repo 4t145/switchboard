@@ -27,17 +27,20 @@ pub struct Orchestration {
     pub(crate) constructed_router: Constructed<SharedRouter>,
     pub(crate) built_services: HashMap<ObjectId, SharedService>,
 }
-
+#[derive(Debug, thiserror::Error)]
 pub enum OrchestrationError {
+    #[error("Object class `{0}` is not defined")]
     UndefinedClass(ObjectClassName),
+    #[error("Object `{0}` is not found")]
     ObjectNotFound(ObjectId),
+    #[error("Object `{0}` is not constructed yet")]
     NotYetConstructed(ObjectId),
+    #[error("Object `{0}` is not a service or layer")]
     BuildingServiceOnLayer(ObjectId),
-    LoopDetected {
-        id: ObjectId,
-        trace: Vec<ObjectId>,
-    },
-    MakeError {
+    #[error("Loop detected while building service `{id}`, trace: {trace:#?}")]
+    LoopDetected { id: ObjectId, trace: Vec<ObjectId> },
+    #[error("Failed to construct object `{node_id}` of class `{class_name}`: {error}")]
+    ConstructError {
         class_name: ObjectClassName,
         node_id: ObjectId,
         error: anyhow::Error,
@@ -84,7 +87,7 @@ impl Orchestration {
                 let class = class
                     .constructor
                     .construct(&object.config)
-                    .map_err(|error| OrchestrationError::MakeError {
+                    .map_err(|error| OrchestrationError::ConstructError {
                         class_name: object.class.clone(),
                         node_id: target.clone(),
                         error,
@@ -99,7 +102,7 @@ impl Orchestration {
                 let class = class
                     .constructor
                     .construct(&object.config)
-                    .map_err(|error| OrchestrationError::MakeError {
+                    .map_err(|error| OrchestrationError::ConstructError {
                         class_name: object.class.clone(),
                         node_id: target.clone(),
                         error,
@@ -114,7 +117,7 @@ impl Orchestration {
                 let class = class
                     .constructor
                     .construct(&object.config)
-                    .map_err(|error| OrchestrationError::MakeError {
+                    .map_err(|error| OrchestrationError::ConstructError {
                         class_name: object.class.clone(),
                         node_id: target.clone(),
                         error,
@@ -177,7 +180,7 @@ impl Orchestration {
         }
         context.pending.insert(id.clone());
         context.trace.push(id.clone());
-        let build_result = self.get_or_build_service(id, context);
+        let build_result = self.get_or_build_service_inner(id, context);
         context.pending.remove(id);
         context.trace.pop();
         build_result

@@ -1,0 +1,1 @@
+pub const ERR_HTTP_CLIENT: &str = "http-client";

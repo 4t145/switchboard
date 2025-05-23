@@ -165,7 +165,7 @@ impl dyn DynTcpService {
                         }
                     }
                 }
-                finished = task_set.join_next_with_id() => {
+                finished = task_set.join_next_with_id(), if !task_set.is_empty()=> {
                     if let Some(result) = finished {
                         logging_joined_task(result);
                     };

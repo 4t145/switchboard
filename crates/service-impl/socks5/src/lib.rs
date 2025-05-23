@@ -335,7 +335,7 @@ impl TcpServiceProvider for Socks5Provider {
 
     type Error = Infallible;
 
-    fn construct(&self, _config: Option<String>) -> Result<Self::Service, Self::Error> {
+    async fn construct(&self, _config: Option<String>) -> Result<Self::Service, Self::Error> {
         Ok(Socks5::no_auth())
     }
 }

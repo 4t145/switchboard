@@ -1,5 +1,6 @@
 use std::{borrow::Cow, sync::Arc};
 
+use futures::{FutureExt, TryFutureExt, future::BoxFuture};
 use tcp::{DynTcpService, TcpService};
 use tokio::io::AsyncRead;
 use udp::UdpService;
@@ -49,7 +50,10 @@ pub trait TcpServiceProvider: Send + Sync + 'static {
     fn meta(&self) -> ServiceProviderMeta {
         ServiceProviderMeta::from_env()
     }
-    fn construct(&self, config: Option<String>) -> Result<Self::Service, Self::Error>;
+    fn construct(
+        &self,
+        config: Option<String>,
+    ) -> impl Future<Output = Result<Self::Service, Self::Error>> + Send + '_;
 }
 
 pub type BoxedError = Box<dyn std::error::Error + Send + Sync>;
@@ -57,7 +61,10 @@ pub type BoxTcpServiceProvider = Box<dyn DynTcpServiceProvider>;
 pub trait DynTcpServiceProvider: Send + Sync + 'static {
     fn meta(&self) -> ServiceProviderMeta;
     fn name(&self) -> Cow<'static, str>;
-    fn construct(&self, config: Option<String>) -> Result<Arc<dyn DynTcpService>, BoxedError>;
+    fn construct(
+        &self,
+        config: Option<String>,
+    ) -> BoxFuture<'_, Result<Arc<dyn DynTcpService>, BoxedError>>;
 }
 
 impl<T: TcpServiceProvider> DynTcpServiceProvider for T {
@@ -67,9 +74,17 @@ impl<T: TcpServiceProvider> DynTcpServiceProvider for T {
     fn name(&self) -> Cow<'static, str> {
         Cow::Borrowed(T::NAME)
     }
-    fn construct(&self, config: Option<String>) -> Result<Arc<dyn DynTcpService>, BoxedError> {
-        let service = self.construct(config)?;
-        Ok(Arc::new(service))
+    fn construct(
+        &self,
+        config: Option<String>,
+    ) -> BoxFuture<'_, Result<Arc<dyn DynTcpService>, BoxedError>> {
+        self.construct(config)
+            .map(|result| {
+                result
+                    .map(|service| Arc::new(service) as Arc<dyn DynTcpService>)
+                    .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+            })
+            .boxed()
     }
 }
 

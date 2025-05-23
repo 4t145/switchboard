@@ -17,9 +17,10 @@ switchboard-model = { workspace = true }
 switchboard-service = { workspace = true }
 switchboard-socks5 = { path = "../service-impl/socks5" }
 switchboard-pf = { path = "../service-impl/pf" }
+switchboard-http = { path = "../service-impl/http" }
 tracing = { workspace = true }
 
-
+serde_json = { version = "1", features = ["preserve_order"] }
 tracing-subscriber = { version = "0.3", features = [
     "env-filter",
     "fmt",
