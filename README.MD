@@ -1,5 +1,5 @@
 # **SWITCHBOARD**
-High-performance Easy-to-use Ergonomics Next-generation Post-modern Cross-platform AI-powered Super Gateway 
+High-performance Easy-to-use Ergonomics Next-generation Post-modern Cross-platform AI-powered Super (And any irresponsible adjective) Gateway 
 
 ```
 "localhost:8888" => "sb://tcp/socks5/my-s5-proxy"
