@@ -1,10 +1,10 @@
 mod host;
 pub use host::*;
-mod path;
-pub use path::*;
+mod path_match;
+pub use path_match::*;
 mod transparent;
+use std::{fmt::Display, str::FromStr, string::FromUtf8Error, sync::Arc};
 pub use transparent::*;
-use std::{fmt::Display, num::ParseIntError, str::FromStr, string::FromUtf8Error, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
@@ -12,15 +12,22 @@ use serde::{Deserialize, Serialize};
 pub enum Route {
     // utf-8 string, between 1 and 255 bytes, can not start with '['
     Named(Arc<str>),
-    Anon(u32),
     Fallback,
+}
+
+impl Route {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Route::Named(name) => name,
+            Route::Fallback => "[fallback]",
+        }
+    }
 }
 
 impl Display for Route {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Route::Named(name) => write!(f, "{}", name),
-            Route::Anon(num) => write!(f, "[{}]", num),
             Route::Fallback => write!(f, "[fallback]"),
         }
     }
@@ -30,8 +37,8 @@ impl Display for Route {
 pub enum InvalidRoute {
     #[error("invalid utf-8 string {0}")]
     FromUtf8Error(#[from] FromUtf8Error),
-    #[error("invalid int {0}")]
-    ParseIntError(#[from] ParseIntError),
+    // #[error("invalid int {0}")]
+    // ParseIntError(#[from] ParseIntError),
     #[error("name too long")]
     NameTooLong,
     #[error("empty name")]
@@ -47,8 +54,7 @@ impl FromStr for Route {
             if s == "[fallback]" {
                 Ok(Route::Fallback)
             } else {
-                let num = s[1..s.len() - 1].parse::<u32>()?;
-                Ok(Route::Anon(num))
+                Err(InvalidRoute::NameStartWithBracket)
             }
         } else if s.is_empty() {
             return Err(InvalidRoute::EmptyName);
@@ -67,7 +73,6 @@ impl Serialize for Route {
     {
         match self {
             Route::Named(name) => serializer.serialize_str(name),
-            Route::Anon(num) => serializer.serialize_str(&format!("[{}]", num)),
             Route::Fallback => serializer.serialize_str("[fallback]"),
         }
     }

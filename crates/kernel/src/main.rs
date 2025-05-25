@@ -1,8 +1,13 @@
+use std::vec;
+
 use serde_json::json;
-use switchboard_http::object::{
-    Object, ObjectId,
-    class::{ObjectClassName, ServiceProperty},
-    registry::ObjectRegistry,
+use switchboard_http::{
+    object::{
+        Object, ObjectId,
+        class::{ObjectClassName, RouterProperty, ServiceProperty},
+        registry::ObjectRegistry,
+    },
+    router::Route,
 };
 use switchboard_kernel::{KernelContext, config::mem::Mem};
 use switchboard_model::{AnonServiceDescriptor, Bind, NamedService, ServiceDescriptor};
@@ -40,6 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut http_objects = ObjectRegistry::new();
     let client_object_id = ObjectId::new("client");
     let rewrite_object_id = ObjectId::new("rewrite");
+    let router_object_id = ObjectId::new("router");
     http_objects.service.insert(
         client_object_id.clone(),
         Object {
@@ -48,6 +54,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             config: "".to_string(),
             property: ServiceProperty {
                 layers: vec![rewrite_object_id.clone()],
+            },
+        },
+    );
+    http_objects.router.insert(
+        router_object_id.clone(),
+        Object {
+            id: router_object_id.clone(),
+            class: ObjectClassName::std("path-match"),
+            config: json!(
+                [
+                    {
+                        "path": "/baidu/{*path}",
+                        "template": "/{path}",
+                    },
+                    {
+                        "path": "/{*path}",
+                        "template": "/{{path}}",
+                        "priority:": -1
+                    },
+                ]
+            )
+            .to_string(),
+            property: RouterProperty {
+                routes: [(Route::Fallback, client_object_id.clone())].into(),
+                layers: vec![],
             },
         },
     );
@@ -73,7 +104,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .config(
                 json!({
                     "objects": http_objects,
-                    "entrypoint": "client"
+                    "entrypoint": router_object_id
                 })
                 .to_string(),
             )

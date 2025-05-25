@@ -10,7 +10,7 @@ use crate::{
         dynamic::SharedLayer,
         rewrite::{Rewrite, RewriteLayer},
     },
-    router::{SharedRouter, self},
+    router::{self, SharedRouter},
     service::{client::Client, dynamic::SharedService},
 };
 
@@ -51,6 +51,8 @@ impl ObjectClassRegistry {
 
         // router
         self.register_router(router::Host);
+        self.register_router(router::Path);
+        self.register_router(router::Transparent);
     }
     pub fn register_service<C: SbhClass<Type = SharedService>>(&mut self, class: C) {
         let class_name = class.name();

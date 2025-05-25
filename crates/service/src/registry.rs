@@ -37,7 +37,7 @@ impl ServiceProviderRegistry {
                 config: tls_config,
                 service,
             };
-            return Ok(Arc::new(tls_service));
+            Ok(Arc::new(tls_service))
         } else {
             Ok(service)
         }
