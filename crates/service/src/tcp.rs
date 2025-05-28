@@ -137,7 +137,7 @@ impl dyn DynTcpService {
         let service = self.clone();
         let join_handle = tokio::spawn({
             let ct = ct.child_token();
-            async move { service.listen(listener, ct.child_token()).await }
+            async move { service.listen(listener, ct).await }
         });
         Ok(RunningTcpService {
             bind: addr,
