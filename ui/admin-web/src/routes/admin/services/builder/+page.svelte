@@ -14,8 +14,7 @@
 			isConnecting: false
 		},
 		viewBox: {
-			x: 0,
-			y: 0,
+			position: { x: 0, y: 0 },
 			width: 1200,
 			height: 800,
 			scale: 1

@@ -6,13 +6,16 @@
 	import Connection from './Connection.svelte';
 	import NodeToolbar from './NodeToolbar.svelte';
 
-	import type {
-		FlowchartState,
-		FlowNode as FlowNodeType,
-		Connection as ConnectionType,
-		Position,
-		NodeType
+	import {
+		type FlowchartState,
+		type FlowNode as FlowNodeType,
+		type Connection as ConnectionType,
+		type Position,
+		type NodeType,
+		ViewBox
 	} from '$lib/types/sbh-flow';
+	import { setContext } from 'svelte';
+	import { SBH_FLOW_VIEW_BOX_CONTEXT, type SbhFlowViewBoxContext } from '$lib/context';
 
 	interface Props {
 		state: FlowchartState;
@@ -23,9 +26,12 @@
 	}
 
 	let { state, onstatechange, onnodeconfigopen, onsave, onload }: Props = $props();
-
 	let svgElement: SVGSVGElement;
 	let containerElement: HTMLDivElement;
+	const getViewBox = () => new ViewBox(svgElement, state.viewBox);
+	setContext<SbhFlowViewBoxContext>(SBH_FLOW_VIEW_BOX_CONTEXT, {
+		getViewBox
+	});
 
 	// Helper functions
 	function generateId(): string {
@@ -75,8 +81,8 @@
 
 		// 转换到SVG坐标系
 		// 考虑viewBox的偏移和缩放
-		const x = (clientX / rect.width) * state.viewBox.width + state.viewBox.x;
-		const y = (clientY / rect.height) * state.viewBox.height + state.viewBox.y;
+		const x = (clientX / rect.width) * state.viewBox.width + state.viewBox.position.x;
+		const y = (clientY / rect.height) * state.viewBox.height + state.viewBox.position.y;
 		return {
 			x,
 			y
@@ -86,12 +92,11 @@
 	// Event handlers
 	function handleAddNode(type: NodeType) {
 		// 计算在当前视图中心的实际坐标
-		const centerX = (-state.viewBox.x + state.viewBox.width / 2) / state.viewBox.scale;
-		const centerY = (-state.viewBox.y + state.viewBox.height / 2) / state.viewBox.scale;
-
+		const viewBox = getViewBox();
+		const centerPosition = viewBox.canvasCenterCoord();
 		const newNode = createNode(type, {
-			x: centerX - 100, // 减去节点宽度的一半
-			y: centerY - 40 // 减去节点高度的一半
+			x: centerPosition.x - 100, // 减去节点宽度的一半
+			y: centerPosition.y - 40 // 减去节点高度的一半
 		});
 
 		const newState = {
@@ -350,7 +355,7 @@
 		<div>节点数量: {state.nodes.length}</div>
 		<div>连接数量: {state.connections.length}</div>
 		<div>
-			ViewBox: {state.viewBox.x}, {state.viewBox.y}, {state.viewBox.width}, {state.viewBox.height}
+			ViewBox: {state.viewBox.position.x}, {state.viewBox.position.y}, {state.viewBox.width}, {state.viewBox.height}
 		</div>
 		<div>Scale: {state.viewBox.scale}</div>
 		{#if state.nodes.length > 0}
@@ -365,7 +370,7 @@
 			role="button"
 			tabindex="0"
 			class="h-full w-full"
-			viewBox="{state.viewBox.x} {state.viewBox.y} {state.viewBox.width} {state.viewBox.height}"
+			viewBox="{state.viewBox.position.x} {state.viewBox.position.y} {state.viewBox.width} {state.viewBox.height}"
 			onclick={handleSvgClick}
 			onmousemove={handleSvgMouseMove}
 		>
@@ -406,7 +411,6 @@
 				</text>
 				<FlowNode
 					{node}
-					scale={state.viewBox.scale}
 					on:nodeSelect={handleNodeSelect}
 					on:nodeDrag={handleNodeDrag}
 					on:portMouseDown={handlePortMouseDown}
