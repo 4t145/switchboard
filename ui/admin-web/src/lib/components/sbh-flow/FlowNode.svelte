@@ -59,6 +59,7 @@
     const IconComponent = config.icon;
 
     let dragStartPosition: Position | null = null;
+    let dragStartNodePosition: Position | null = null;
     let isDragging = false;
 
     function handleMouseDown(event: MouseEvent) {
@@ -68,6 +69,7 @@
         event.stopPropagation();
         
         dragStartPosition = { x: event.clientX, y: event.clientY };
+        dragStartNodePosition = { x: node.position.x, y: node.position.y }; // 保存节点起始位置
         isDragging = false;
 
         dispatch('nodeSelect', { 
@@ -76,23 +78,27 @@
         });
 
         function handleMouseMove(event: MouseEvent) {
-            if (!dragStartPosition) return;
+            if (!dragStartPosition || !dragStartNodePosition) return;
             
-            const deltaX = event.clientX - dragStartPosition.x;
-            const deltaY = event.clientY - dragStartPosition.y;
+            // 计算鼠标移动的总距离（相对于拖拽开始位置）
+            const totalDeltaX = event.clientX - dragStartPosition.x;
+            const totalDeltaY = event.clientY - dragStartPosition.y;
             
-            if (!isDragging && (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3)) {
+            if (!isDragging && (Math.abs(totalDeltaX) > 3 || Math.abs(totalDeltaY) > 3)) {
                 isDragging = true;
                 dispatch('nodeDragStart', { nodeId: node.id, position: node.position });
             }
             
             if (isDragging) {
+                // 基于起始位置计算新位置，避免累积误差
+                const newPosition = {
+                    x: dragStartNodePosition.x + totalDeltaX / scale,
+                    y: dragStartNodePosition.y + totalDeltaY / scale
+                };
+
                 dispatch('nodeDrag', { 
                     nodeId: node.id, 
-                    position: {
-                        x: node.position.x + deltaX / scale,
-                        y: node.position.y + deltaY / scale
-                    }
+                    position: newPosition
                 });
             }
         }
@@ -207,6 +213,8 @@
     <!-- Input ports -->
     {#each node.ports.inputs as port}
         <circle
+            role="button"
+            tabindex="0"
             cx={port.position.x}
             cy={port.position.y}
             r="6"
@@ -219,6 +227,8 @@
     <!-- Output ports -->
     {#each node.ports.outputs as port}
         <circle
+            role="button"
+            tabindex="0"
             cx={port.position.x}
             cy={port.position.y}
             r="6"
@@ -230,6 +240,8 @@
     
     <!-- Invisible interaction area -->
     <rect
+        role="button"
+        tabindex="0"
         x="0"
         y="0"
         width={node.size.width}

@@ -69,9 +69,17 @@
 
 	function getMousePosition(event: MouseEvent): Position {
 		const rect = svgElement.getBoundingClientRect();
+		// 获取相对于SVG元素的鼠标位置
+		const clientX = event.clientX - rect.left;
+		const clientY = event.clientY - rect.top;
+
+		// 转换到SVG坐标系
+		// 考虑viewBox的偏移和缩放
+		const x = (clientX / rect.width) * state.viewBox.width + state.viewBox.x;
+		const y = (clientY / rect.height) * state.viewBox.height + state.viewBox.y;
 		return {
-			x: (event.clientX - rect.left - state.viewBox.x) / state.viewBox.scale,
-			y: (event.clientY - rect.top - state.viewBox.y) / state.viewBox.scale
+			x,
+			y
 		};
 	}
 
@@ -273,25 +281,25 @@
 					>
 						<DropdownMenu.Item
 							class="flex cursor-pointer items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-							onselect={() => handleAddNode('service')}
+							onclick={() => handleAddNode('service')}
 						>
 							服务节点
 						</DropdownMenu.Item>
 						<DropdownMenu.Item
 							class="flex cursor-pointer items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-							onselect={() => handleAddNode('router')}
+							onclick={() => handleAddNode('router')}
 						>
 							路由节点
 						</DropdownMenu.Item>
 						<DropdownMenu.Item
 							class="flex cursor-pointer items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-							onselect={() => handleAddNode('layer')}
+							onclick={() => handleAddNode('layer')}
 						>
 							层节点
 						</DropdownMenu.Item>
 						<DropdownMenu.Item
 							class="flex cursor-pointer items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-							onselect={() => handleAddNode('composition')}
+							onclick={() => handleAddNode('composition')}
 						>
 							组合节点
 						</DropdownMenu.Item>
@@ -338,22 +346,24 @@
 			</Button.Root>
 		</div>
 	</div>
-    <div class="bg-yellow-100 p-2 text-xs">
-        <div>节点数量: {state.nodes.length}</div>
-        <div>连接数量: {state.connections.length}</div>
-        <div>ViewBox: {state.viewBox.x}, {state.viewBox.y}, {state.viewBox.width}, {state.viewBox.height}</div>
-        <div>Scale: {state.viewBox.scale}</div>
-        {#if state.nodes.length > 0}
-            <div>第一个节点位置: x={state.nodes[0].position.x}, y={state.nodes[0].position.y}</div>
-        {/if}
-    </div>
+	<div class="bg-yellow-100 p-2 text-xs">
+		<div>节点数量: {state.nodes.length}</div>
+		<div>连接数量: {state.connections.length}</div>
+		<div>
+			ViewBox: {state.viewBox.x}, {state.viewBox.y}, {state.viewBox.width}, {state.viewBox.height}
+		</div>
+		<div>Scale: {state.viewBox.scale}</div>
+		{#if state.nodes.length > 0}
+			<div>第一个节点位置: x={state.nodes[0].position.x}, y={state.nodes[0].position.y}</div>
+		{/if}
+	</div>
 	<!-- Canvas -->
 	<div class="relative flex-1 overflow-hidden">
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <svg
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<svg
 			bind:this={svgElement}
-            role="button"
-            tabindex="0"
+			role="button"
+			tabindex="0"
 			class="h-full w-full"
 			viewBox="{state.viewBox.x} {state.viewBox.y} {state.viewBox.width} {state.viewBox.height}"
 			onclick={handleSvgClick}
