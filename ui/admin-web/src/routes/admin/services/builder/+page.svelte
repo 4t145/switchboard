@@ -21,22 +21,6 @@
 		}
 	});
 
-	function handleStateChange(event: FlowchartState) {
-		flowchartState = event;
-	}
-
-	function handleNodeConfigOpen(event: { nodeId: string }) {
-		const { nodeId } = event;
-		console.log('Open config for node:', nodeId);
-		// 这里可以打开节点配置对话框
-	}
-
-	function handleSave(event: FlowchartState) {
-		const state = event;
-		console.log('Saving flowchart state:', state);
-		// 这里可以保存到后端
-		localStorage.setItem('flowchart-state', JSON.stringify(state));
-	}
 
 	function handleLoad() {
 		const saved = localStorage.getItem('flowchart-state');
@@ -67,12 +51,6 @@
 	<div
 		class="h-[calc(100vh-200px)] overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
 	>
-		<FlowchartEditor
-			state={flowchartState}
-			onstatechange={handleStateChange}
-			onnodeconfigopen={handleNodeConfigOpen}
-			onsave={handleSave}
-			onload={handleLoad}
-		/>
+		<FlowchartEditor />
 	</div>
 </div>

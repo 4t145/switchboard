@@ -23,7 +23,6 @@ export interface FlowNode {
 	position: Position;
 	size: Size;
 	label: string;
-	config?: any;
 	ports: {
 		inputs: NodePort[];
 		outputs: NodePort[];
@@ -72,6 +71,7 @@ export class ViewBox implements ViewBoxState {
 	public width: number;
 	public height: number;
 	constructor(canvas: SVGSVGElement, state: ViewBoxState) {
+		console.log("ViewBox constructor", state);
 		this.position = state.position;
 		this.scale = state.scale;
 		this.width = state.width;

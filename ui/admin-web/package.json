@@ -38,6 +38,7 @@
 	},
 	"dependencies": {
 		"@inlang/paraglide-js": "^2.0.0",
+		"@xyflow/svelte": "^1.2.2",
 		"bits-ui": "^2.8.13",
 		"lucide-svelte": "^0.533.0"
 	}
