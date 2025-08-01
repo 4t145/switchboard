@@ -58,4 +58,28 @@ timeout = "5s"
 fallback = "http://192.168.15.15:80/"
 ```
 
+
+```typescript
+const frontend = service("frontend", endpoint("http://frontend:80/"));
+const api = service("api", endpoint("http://api:8080/"));
+const router = router(
+    "router", 
+    {
+        "api": api,
+        "frontend": frontend
+    },
+    match({
+        "/api/": "api",
+        "$fallback": "frontend"
+    })
+);
+
+export default [
+    ...layers,
+    ...services,
+    ...routers,
+    ...compositions,
+]
+```
 # SBH设计
+timeout Layer
