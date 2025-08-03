@@ -1,5 +1,5 @@
-import { createRouterClass, routerConstructor } from "../index";
+import { createRouterClass, createRouterConstructor } from "../index";
 import { pathMatchRouterConfigSchema, hostRouterConfigSchema } from '../types'
 
-export const pathMatch = routerConstructor(createRouterClass("std.path-match", pathMatchRouterConfigSchema))
-export const host = routerConstructor(createRouterClass("std.host", hostRouterConfigSchema))
+export const createPathMatch = createRouterConstructor(createRouterClass("std.path-match", pathMatchRouterConfigSchema))
+export const createHost = createRouterConstructor(createRouterClass("std.host", hostRouterConfigSchema))

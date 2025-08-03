@@ -10,10 +10,13 @@ export type Identifier = {
   id: string,
   name?: string;
 }
-export type IdentifierLike = Identifier | string;
+export type IdentifierLike = Identifier | string | (() => Identifier);
 export function intoIdentifier(id: IdentifierLike): Identifier {
   if (typeof id === "string") {
     return { id };
+  }
+  if (typeof id === "function") {
+    return id();
   }
   return id.name ? { id: id.id, name: id.name } : { id: id.id };
 }
@@ -50,9 +53,14 @@ export type GetPort<I> = {
 export type TargetLike =
   | GetDefaultTarget
   | Target;
-
+export function getTarget(target: TargetLike): Target {
+  if ("getDefaultTarget" in target) {
+    return target.getDefaultTarget();
+  }
+  return target;
+}
 export type RouterClass<Z extends ZodType = ZodType> = Class<"Router", Z>;
-export type RouterInstance<Output extends `${string}`, C extends RouterClass = RouterClass> = Instance<C, Interface<DefaultPort, Output>> & GetDefaultTarget;
+export type RouterInstance<Output extends `${string}` = `${string}`, C extends RouterClass = RouterClass> = Instance<C, Interface<DefaultPort, Output>> & GetDefaultTarget;
 
 export type LayerClass<Z extends ZodType = ZodType> = Class<"Layer", Z>;
 export type LayerInstance<C extends LayerClass = LayerClass> = Instance<C, Interface<DefaultPort, DefaultPort>> & GetDefaultTarget;
@@ -61,7 +69,7 @@ export type ServiceClass<Z extends ZodType = ZodType> = Class<"Service", Z>;
 export type ServiceInstance<C extends ServiceClass = ServiceClass> = Instance<C, Interface<DefaultPort, never>> & GetDefaultTarget;
 
 export type BundleClass<Z extends ZodType = ZodType> = Class<"Bundle", Z>;
-export type BundleInstance<I extends `${string}`, O extends `${string}`, C extends BundleClass = BundleClass> = Instance<C, Interface<I, O>> & GetPort<I>;
+export type BundleInstance<I extends `${string}` = `${string}`, O extends `${string}` = `${string}`, C extends BundleClass = BundleClass> = Instance<C, Interface<I, O>> & GetPort<I>;
 export function Class<K extends `${string}`, Z extends ZodType>(kind: K, id: IdentifierLike, configSchema: Z): Class<K, Z> {
   return {
     id: intoIdentifier(id),
@@ -99,7 +107,7 @@ export function getDefaultTarget(id: string): Target {
   };
 }
 
-export function routerConstructor<C extends RouterClass, P extends Outputs>(cls: C):
+export function createRouterConstructor<C extends RouterClass, P extends Outputs>(cls: C):
   (id: IdentifierLike, ports: P, config: z.infer<C['configSchema']>) => RouterInstance<Extract<keyof P, string>, C> {
   return (id: IdentifierLike, ports: P, config: z.infer<C['configSchema']>) => {
     const ident = intoIdentifier(id);
@@ -116,12 +124,7 @@ export function routerConstructor<C extends RouterClass, P extends Outputs>(cls:
   };
 }
 
-export function router<C extends RouterClass, O extends Outputs>
-  (cls: C, id: IdentifierLike, outputs: O, config: z.infer<C['configSchema']>): RouterInstance<Extract<keyof O, string>, C> {
-  return routerConstructor(cls)(id, outputs, config);
-}
-
-export function layerConstructor<C extends LayerClass>(cls: C): (id: IdentifierLike, next: TargetLike, config: any) => LayerInstance<C> {
+export function createLayerConstructor<C extends LayerClass>(cls: C): (id: IdentifierLike, next: TargetLike, config: any) => LayerInstance<C> {
   return (id: IdentifierLike, next: TargetLike, config: z.infer<C['configSchema']>) => {
     const ident = intoIdentifier(id);
     return {
@@ -133,11 +136,8 @@ export function layerConstructor<C extends LayerClass>(cls: C): (id: IdentifierL
     };
   };
 }
-export function layer<C extends LayerClass>(cls: C, id: IdentifierLike, next: TargetLike, config: any): LayerInstance<C> {
-  return layerConstructor(cls)(id, next, config);
-}
 
-export function serviceConstructor<C extends ServiceClass>(cls: C): (id: IdentifierLike, config: any) => ServiceInstance<C> {
+export function createServiceConstructor<C extends ServiceClass>(cls: C): (id: IdentifierLike, config: any) => ServiceInstance<C> {
   return (id: IdentifierLike, config: z.infer<C['configSchema']>) => {
     const ident = intoIdentifier(id);
     return {
@@ -150,11 +150,7 @@ export function serviceConstructor<C extends ServiceClass>(cls: C): (id: Identif
   };
 }
 
-export function service<C extends ServiceClass>(cls: C, id: IdentifierLike, config: z.infer<C['configSchema']>): ServiceInstance<C> {
-  return serviceConstructor(cls)(id, config);
-}
-
-export function bundleConstructor<I extends `${string}`, O extends `${string}`, C extends BundleClass>(cls: C):
+export function createBundleConstructor<I extends `${string}`, O extends `${string}`, C extends BundleClass>(cls: C):
   (id: IdentifierLike, inputs: Inputs<I>, outputs: Outputs<O>, config: z.infer<C['configSchema']>) => BundleInstance<I, O, C> {
   return (id: IdentifierLike, input: Inputs<I>, output: Outputs<O>, config: z.infer<C['configSchema']>) => {
     const ident = intoIdentifier(id);
@@ -176,8 +172,23 @@ export function bundleConstructor<I extends `${string}`, O extends `${string}`, 
   };
 }
 
-export function bundle<I extends `${string}`, O extends `${string}`, C extends BundleClass>
-  (cls: C, id: IdentifierLike, inputs: Inputs<I>, outputs: Outputs<O>, config: z.infer<C['configSchema']>): BundleInstance<I, O, C> {
-  return bundleConstructor<I, O, C>(cls)(id, inputs, outputs, config);
+export type Incoming = {
+  incoming: TargetLike;
 }
 
+export type ValidInstance = RouterInstance | LayerInstance | ServiceInstance | BundleInstance;
+export type Config = {
+  incoming: Target;
+  instances: Instance[]
+}
+
+export function createConfig(incoming: TargetLike, instances: Instance[]): Config {
+  return {
+    incoming: getTarget(incoming),
+    instances,
+  };
+}
+// import { createHost, createPathMatch } from "./router";
+// const host = createHost("host", { $default: { id: "default", port: "default" } }, {});
+// const pathMatch = createPathMatch("path-match", { $default: { id: "default", port: "default" } }, []);
+// const config = createConfig(host, [host, pathMatch])
