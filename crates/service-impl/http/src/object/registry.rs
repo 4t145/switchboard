@@ -51,7 +51,7 @@ impl ObjectClassRegistry {
 
         // router
         self.register_router(router::Host);
-        self.register_router(router::Path);
+        self.register_router(router::PathMatch);
         self.register_router(router::Transparent);
     }
     pub fn register_service<C: SbhClass<Type = SharedService>>(&mut self, class: C) {

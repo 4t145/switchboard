@@ -55,7 +55,7 @@ pub struct ObjectClassMeta {
     pub license: Option<String>,
     pub repository: Option<String>,
     pub homepage: Option<String>,
-    pub schema: Option<schemars::schema::RootSchema>,
+    pub schema: Option<schemars::Schema>,
 }
 impl Default for ObjectClassMeta {
     fn default() -> Self {

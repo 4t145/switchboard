@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use http::request::Parts;
+use typeshare::typeshare;
 
 use crate::object::class::SbhClass;
 
@@ -22,7 +23,8 @@ impl Router for HostRouter {
 }
 
 pub struct Host;
-
+#[typeshare]
+pub type HostRouterConfig = HashMap<String, Route>;
 impl SbhClass for Host {
     type Error = serde_json::Error;
     type Type = SharedRouter;

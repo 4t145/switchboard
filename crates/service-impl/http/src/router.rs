@@ -2,13 +2,17 @@ mod host;
 pub use host::*;
 mod path_match;
 pub use path_match::*;
+use schemars::JsonSchema;
+use typeshare::typeshare;
 mod transparent;
 use std::{fmt::Display, str::FromStr, string::FromUtf8Error, sync::Arc};
 pub use transparent::*;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, JsonSchema)]
+#[typeshare(serialized_as = "String")]
+#[serde(tag = "kind", content = "name")]
 pub enum Route {
     // utf-8 string, between 1 and 255 bytes, can not start with '['
     Named(Arc<str>),
@@ -19,7 +23,7 @@ impl Route {
     pub fn as_str(&self) -> &str {
         match self {
             Route::Named(name) => name,
-            Route::Fallback => "[fallback]",
+            Route::Fallback => "$default",
         }
     }
 }
@@ -28,7 +32,7 @@ impl Display for Route {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Route::Named(name) => write!(f, "{}", name),
-            Route::Fallback => write!(f, "[fallback]"),
+            Route::Fallback => write!(f, "$default"),
         }
     }
 }
@@ -51,7 +55,7 @@ impl FromStr for Route {
     type Err = InvalidRoute;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.starts_with('[') {
-            if s == "[fallback]" {
+            if s == "$default" {
                 Ok(Route::Fallback)
             } else {
                 Err(InvalidRoute::NameStartWithBracket)
@@ -73,7 +77,7 @@ impl Serialize for Route {
     {
         match self {
             Route::Named(name) => serializer.serialize_str(name),
-            Route::Fallback => serializer.serialize_str("[fallback]"),
+            Route::Fallback => serializer.serialize_str("$default"),
         }
     }
 }

@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use http::request::Parts;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
 
 use crate::object::class::SbhClass;
 use tera::Tera;
@@ -17,7 +19,8 @@ pub struct PathRouterEndpoint {
     pub route: Route,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[typeshare]
 #[serde(default)]
 pub struct MatchItem {
     pub priority: i32,
@@ -90,7 +93,7 @@ impl Router for PathRouter {
     }
 }
 
-pub struct Path;
+pub struct PathMatch;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PathRouterConstructError {
@@ -101,17 +104,17 @@ pub enum PathRouterConstructError {
     #[error("matchit router insert error: {0}")]
     MatchitRouterInsertError(#[from] matchit::InsertError),
 }
+#[typeshare]
+pub type PathMatchRouterConfig = Vec<MatchItem>;
 
-pub type PathRouterConfig = Vec<MatchItem>;
-
-impl SbhClass for Path {
+impl SbhClass for PathMatch {
     type Error = PathRouterConstructError;
     type Type = SharedRouter;
     fn name(&self) -> crate::object::class::ObjectClassName {
         crate::object::class::ObjectClassName::std("path-match")
     }
     fn construct(&self, config: &str) -> Result<Self::Type, Self::Error> {
-        let mut config: PathRouterConfig = serde_json::from_str(config)?;
+        let mut config: PathMatchRouterConfig = serde_json::from_str(config)?;
         config.sort_by(|a, b| a.priority.cmp(&b.priority));
         let mut tera = Tera::default();
         let mut router = matchit::Router::new();
