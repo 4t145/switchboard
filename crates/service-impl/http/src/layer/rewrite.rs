@@ -1,15 +1,16 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     DynRequest, DynResponse,
-    object::class::{ObjectClassName, SbhClass},
+    instance::class::{ClassId, SbhClass},
 };
 
 use super::{
     dynamic::SharedLayer,
     function::{FunctionLayer, Inner, LayerMethod},
 };
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, JsonSchema)]
 pub struct RewriteLayer {
     pub host: Option<String>,
     pub schema: Option<String>,
@@ -64,11 +65,11 @@ pub struct Rewrite;
 impl SbhClass for Rewrite {
     type Type = SharedLayer;
     type Error = serde_json::Error;
-    fn name(&self) -> ObjectClassName {
-        ObjectClassName::std("rewrite")
+    type Config = RewriteLayer;
+    fn id(&self) -> ClassId {
+        ClassId::std("rewrite")
     }
-    fn construct(&self, config: &str) -> Result<Self::Type, serde_json::Error> {
-        let config: RewriteLayer = serde_json::from_str(config)?;
+    fn construct(&self, config: RewriteLayer) -> Result<Self::Type, serde_json::Error> {
         Ok(SharedLayer::new(FunctionLayer::new(config)))
     }
 }

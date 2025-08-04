@@ -13,9 +13,9 @@ use hyper_util::{
     rt::TokioExecutor,
 };
 
-use crate::{ERR_HTTP_CLIENT, object::class::*, utils::error_response};
+use crate::{ERR_HTTP_CLIENT, instance::class::*, utils::error_response};
 
-use super::dynamic::{DynBody, DynRequest, DynResponse, DynService, SharedService, box_error};
+use crate::{DynBody, DynRequest, DynResponse, DynService, box_error};
 
 type HyperHttpsClient = HyperClient<HttpsConnector<HttpConnector>, DynBody>;
 
@@ -48,20 +48,5 @@ impl DynService for ClientService {
                 Err(e) => Ok(error_response(StatusCode::BAD_GATEWAY, e, ERR_HTTP_CLIENT)),
             }
         })
-    }
-}
-#[derive(Debug, Clone)]
-pub struct Client;
-
-impl SbhClass for Client {
-    type Type = SharedService;
-    type Error = std::io::Error;
-    fn construct(&self, config: &str) -> Result<Self::Type, Self::Error> {
-        let client = build()?;
-        let service = ClientService { client };
-        Ok(SharedService::new(service))
-    }
-    fn name(&self) -> ObjectClassName {
-        ObjectClassName::std("client")
     }
 }

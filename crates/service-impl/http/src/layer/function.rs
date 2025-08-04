@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::service::{
-    dynamic::{DynRequest, DynResponse, DynService, SharedService},
+    {DynRequest, DynResponse, DynService, SharedService},
     function::FunctionService,
 };
 

@@ -1,19 +1,21 @@
-pub mod config;
+// pub mod config;
 mod consts;
 pub mod layer;
-pub mod object;
+pub mod instance;
 pub mod response;
-pub mod router;
+// pub mod router;
 pub mod service;
 pub mod utils;
 pub mod extension;
+pub mod flow;
+mod dynamic;
 pub use consts::*;
 mod export;
-pub use service::dynamic::{DynRequest, DynResponse, DynService, SharedService, box_error, BoxedError};
+pub use dynamic::*;
 
 use hyper::server::conn::{http1, http2};
 use hyper_util::rt::{TokioExecutor, TokioIo};
-use object::{ObjectId, orchestration::OrchestrationError, registry::ObjectRegistry};
+// use instance::{InstanceId, orchestration::OrchestrationError, registry::InstanceRegistry};
 use rustls::ServerConfig;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -21,6 +23,8 @@ use switchboard_service::TcpServiceProvider;
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
 use utils::read_version;
+
+use crate::flow::Flow;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
@@ -40,7 +44,7 @@ pub enum Tls {
 
 #[derive(Clone)]
 pub struct Http {
-    service: SharedService,
+    service: Flow,
     version: HttpVersion,
 }
 
@@ -136,17 +140,17 @@ impl switchboard_service::tcp::TcpService for Http {
 
 #[derive(Debug, thiserror::Error)]
 pub enum HttpBuildError {
-    #[error("Failed to build HTTP service: {0}")]
-    Orchestration(#[from] OrchestrationError),
+    // #[error("Failed to build HTTP service: {0}")]
+    // Orchestration(#[from] OrchestrationError),
 
-    #[error("Failed to parse config: {0}")]
-    ParseError(#[from] serde_json::Error),
+    // #[error("Failed to parse config: {0}")]
+    // ParseError(#[from] serde_json::Error),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HttpConfig {
-    pub objects: ObjectRegistry,
-    pub entrypoint: ObjectId,
+    // pub objects: InstanceRegistry,
+    // pub entrypoint: InstanceId,
 }
 
 pub struct HttpProvider;
@@ -156,23 +160,24 @@ impl TcpServiceProvider for HttpProvider {
     type Service = Http;
     type Error = HttpBuildError;
     async fn construct(&self, config: Option<String>) -> Result<Self::Service, Self::Error> {
-        let config = config.unwrap_or_default();
-        let config = serde_json::from_str::<HttpConfig>(&config)?;
-        let class_registry = crate::object::registry::ObjectClassRegistry::globol()
-            .read_owned()
-            .await;
-        let class_registry = &class_registry;
-        let object_registry = config.objects;
-        let mut context = crate::object::orchestration::OrchestrationContext::new(
-            class_registry,
-            &object_registry,
-        );
-        let mut orchestration = crate::object::orchestration::Orchestration::default();
-        orchestration.rebuild_all_target(&mut context)?;
-        let service = orchestration.get_or_build_service(&config.entrypoint, &mut context)?;
-        Ok(Http {
-            service,
-            version: HttpVersion::default(),
-        })
+        todo!();
+        // let config = config.unwrap_or_default();
+        // let config = serde_json::from_str::<HttpConfig>(&config)?;
+        // let class_registry = crate::instance::registry::ClassRegistry::globol()
+        //     .read_owned()
+        //     .await;
+        // let class_registry = &class_registry;
+        // let object_registry = config.objects;
+        // let mut context = crate::instance::orchestration::OrchestrationContext::new(
+        //     class_registry,
+        //     &object_registry,
+        // );
+        // let mut orchestration = crate::instance::orchestration::Orchestration::default();
+        // orchestration.rebuild_all_target(&mut context)?;
+        // let service = orchestration.get_or_build_service(&config.entrypoint, &mut context)?;
+        // Ok(Http {
+        //     service,
+        //     version: HttpVersion::default(),
+        // })
     }
 }

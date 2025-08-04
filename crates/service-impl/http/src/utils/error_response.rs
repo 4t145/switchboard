@@ -4,7 +4,7 @@ use bytes::Bytes;
 use http::{StatusCode, header::CONTENT_TYPE};
 use http_body_util::BodyExt;
 
-use crate::service::dynamic::{DynResponse, box_error};
+use crate::{DynResponse, box_error};
 pub const HEADER_X_SBH_ERROR: &str = "X-Sbh-Error";
 pub fn error_response(code: StatusCode, error: impl StdError, kind: &'static str) -> DynResponse {
     let body = error.to_string();

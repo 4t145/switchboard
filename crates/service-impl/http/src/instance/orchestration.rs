@@ -7,14 +7,14 @@ use crate::{
 };
 
 use super::{
-    ObjectId,
-    class::{ObjectClassName, ObjectClassType},
-    registry::{ObjectClassRegistry, ObjectRegistry},
+    InstanceId,
+    class::{Class, ClassId},
+    registry::{ClassRegistry, InstanceRegistry},
 };
 
 #[derive(Clone)]
-struct Constructed<C: ObjectClassType>(pub HashMap<ObjectId, C>);
-impl<C: ObjectClassType> std::default::Default for Constructed<C> {
+pub(crate) struct Constructed<C>(pub HashMap<InstanceId, C>);
+impl<C> std::default::Default for Constructed<C> {
     fn default() -> Self {
         Self(HashMap::new())
     }
@@ -25,40 +25,40 @@ pub struct Orchestration {
     pub(crate) constructed_layer: Constructed<SharedLayer>,
     pub(crate) constructed_service: Constructed<SharedService>,
     pub(crate) constructed_router: Constructed<SharedRouter>,
-    pub(crate) built_services: HashMap<ObjectId, SharedService>,
+    pub(crate) built_services: HashMap<InstanceId, SharedService>,
 }
 #[derive(Debug, thiserror::Error)]
 pub enum OrchestrationError {
     #[error("Object class `{0}` is not defined")]
-    UndefinedClass(ObjectClassName),
+    UndefinedClass(ClassId),
     #[error("Object `{0}` is not found")]
-    ObjectNotFound(ObjectId),
+    ObjectNotFound(InstanceId),
     #[error("Object `{0}` is not constructed yet")]
-    NotYetConstructed(ObjectId),
+    NotYetConstructed(InstanceId),
     #[error("Object `{0}` is not a service or layer")]
-    BuildingServiceOnLayer(ObjectId),
+    BuildingServiceOnLayer(InstanceId),
     #[error("Loop detected while building service `{id}`, trace: {trace:#?}")]
-    LoopDetected { id: ObjectId, trace: Vec<ObjectId> },
-    #[error("Failed to construct object `{node_id}` of class `{class_name}`: {error}")]
+    LoopDetected {
+        id: InstanceId,
+        trace: Vec<InstanceId>,
+    },
+    #[error("Failed to construct object `{node_id}` of class `{class_id}`: {error}")]
     ConstructError {
-        class_name: ObjectClassName,
-        node_id: ObjectId,
+        class_id: ClassId,
+        node_id: InstanceId,
         error: anyhow::Error,
     },
 }
 #[derive(Clone)]
 pub struct OrchestrationContext<'a> {
-    class_registry: &'a ObjectClassRegistry,
-    object_registry: &'a ObjectRegistry,
-    pending: HashSet<ObjectId>,
-    trace: Vec<ObjectId>,
+    class_registry: &'a ClassRegistry,
+    object_registry: &'a InstanceRegistry,
+    pending: HashSet<InstanceId>,
+    trace: Vec<InstanceId>,
 }
 
 impl<'a> OrchestrationContext<'a> {
-    pub fn new(
-        class_registry: &'a ObjectClassRegistry,
-        object_registry: &'a ObjectRegistry,
-    ) -> Self {
+    pub fn new(class_registry: &'a ClassRegistry, object_registry: &'a InstanceRegistry) -> Self {
         Self {
             class_registry,
             object_registry,
@@ -71,7 +71,7 @@ impl<'a> OrchestrationContext<'a> {
 impl Orchestration {
     pub fn rebuild_target<'c>(
         &mut self,
-        target: &ObjectId,
+        target: &InstanceId,
         context: &mut OrchestrationContext<'c>,
     ) -> Result<(), OrchestrationError> {
         let object = context
@@ -79,46 +79,46 @@ impl Orchestration {
             .get(&target)
             .ok_or_else(|| OrchestrationError::ObjectNotFound(target.clone()))?;
         match object {
-            super::registry::GetObject::Router(object) => {
+            super::registry::GetInstance::Router(object) => {
                 let class = context
                     .class_registry
-                    .get_router(&object.class)
-                    .ok_or(OrchestrationError::UndefinedClass(object.class.clone()))?;
+                    .get_router(object.class_id())
+                    .ok_or(OrchestrationError::UndefinedClass(object.class_id().clone()))?;
                 let class = class
                     .constructor
-                    .construct(&object.config)
+                    .construct(object.config())
                     .map_err(|error| OrchestrationError::ConstructError {
-                        class_name: object.class.clone(),
+                        class_id: object.class_id().clone(),
                         node_id: target.clone(),
                         error,
                     })?;
                 self.constructed_router.0.insert(target.clone(), class);
             }
-            super::registry::GetObject::Layer(object) => {
+            super::registry::GetInstance::Layer(object) => {
                 let class = context
                     .class_registry
-                    .get_layer(&object.class)
-                    .ok_or(OrchestrationError::UndefinedClass(object.class.clone()))?;
+                    .get_layer(object.class_id())
+                    .ok_or(OrchestrationError::UndefinedClass(object.class_id().clone()))?;
                 let class = class
                     .constructor
-                    .construct(&object.config)
+                    .construct(&object.instance.config)
                     .map_err(|error| OrchestrationError::ConstructError {
-                        class_name: object.class.clone(),
+                        class_id: object.class_id().clone(),
                         node_id: target.clone(),
                         error,
                     })?;
                 self.constructed_layer.0.insert(target.clone(), class);
             }
-            super::registry::GetObject::Service(object) => {
+            super::registry::GetInstance::Service(object) => {
                 let class = context
                     .class_registry
-                    .get_service(&object.class)
-                    .ok_or(OrchestrationError::UndefinedClass(object.class.clone()))?;
+                    .get_service(&object.class_id())
+                    .ok_or(OrchestrationError::UndefinedClass(object.class_id().clone()))?;
                 let class = class
                     .constructor
-                    .construct(&object.config)
+                    .construct(object.config())
                     .map_err(|error| OrchestrationError::ConstructError {
-                        class_name: object.class.clone(),
+                        class_id: object.class_id().clone(),
                         node_id: target.clone(),
                         error,
                     })?;
@@ -140,7 +140,7 @@ impl Orchestration {
 
     pub fn get_layers<'i>(
         &self,
-        layer_ids: impl Iterator<Item = &'i ObjectId>,
+        layer_ids: impl Iterator<Item = &'i InstanceId>,
     ) -> Result<Vec<SharedLayer>, OrchestrationError> {
         layer_ids
             .map(|layer_id| {
@@ -155,7 +155,7 @@ impl Orchestration {
 
     pub fn get_service<'i>(
         &self,
-        service_id: &ObjectId,
+        service_id: &InstanceId,
     ) -> Result<SharedService, OrchestrationError> {
         self.constructed_service
             .0
@@ -166,7 +166,7 @@ impl Orchestration {
 
     pub fn get_or_build_service<'c>(
         &mut self,
-        id: &ObjectId,
+        id: &InstanceId,
         context: &mut OrchestrationContext<'c>,
     ) -> Result<SharedService, OrchestrationError> {
         if let Some(service) = self.built_services.get(id) {
@@ -188,7 +188,7 @@ impl Orchestration {
 
     pub fn get_or_build_service_inner<'c>(
         &mut self,
-        id: &ObjectId,
+        id: &InstanceId,
         context: &mut OrchestrationContext<'c>,
     ) -> Result<SharedService, OrchestrationError> {
         let object = context
@@ -196,7 +196,7 @@ impl Orchestration {
             .get(id)
             .ok_or_else(|| OrchestrationError::ObjectNotFound(id.clone()))?;
         let built_service = match object {
-            super::registry::GetObject::Router(router_object) => {
+            super::registry::GetInstance::Router(router_object) => {
                 let layers: Vec<_> = self.get_layers(router_object.property.layers.iter())?;
                 let mut services: BTreeMap<Route, SharedService> = BTreeMap::new();
                 let router = self
@@ -216,7 +216,7 @@ impl Orchestration {
                 }
                 inner_service
             }
-            super::registry::GetObject::Service(service_object) => {
+            super::registry::GetInstance::Service(service_object) => {
                 let layers: Vec<_> = self.get_layers(service_object.property.layers.iter())?;
                 let mut inner_service = self
                     .constructed_service
@@ -240,9 +240,9 @@ impl Orchestration {
 
     pub fn build_entries<'c>(
         &mut self,
-        entry_points: impl Iterator<Item = &'c ObjectId>,
+        entry_points: impl Iterator<Item = &'c InstanceId>,
         context: &mut OrchestrationContext<'c>,
-    ) -> Result<HashMap<ObjectId, SharedService>, OrchestrationError> {
+    ) -> Result<HashMap<InstanceId, SharedService>, OrchestrationError> {
         self.built_services.clear();
         let mut services = HashMap::new();
         for id in entry_points {

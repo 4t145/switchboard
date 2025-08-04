@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use http::request::Parts;
 use typeshare::typeshare;
 
-use crate::object::class::SbhClass;
+use crate::instance::class::SbhClass;
 
 use super::{Route, Router, SharedRouter};
 
@@ -28,11 +28,11 @@ pub type HostRouterConfig = HashMap<String, Route>;
 impl SbhClass for Host {
     type Error = serde_json::Error;
     type Type = SharedRouter;
-    fn name(&self) -> crate::object::class::ObjectClassName {
-        crate::object::class::ObjectClassName::std("host")
+    type Config = HostRouterConfig;
+    fn id(&self) -> crate::instance::class::ClassId {
+        crate::instance::class::ClassId::std("host")
     }
-    fn construct(&self, config: &str) -> Result<Self::Type, Self::Error> {
-        let map: HashMap<String, Route> = serde_json::from_str(config)?;
-        Ok(SharedRouter::new(HostRouter { map }))
+    fn construct(&self, config: HostRouterConfig) -> Result<Self::Type, Self::Error> {
+        Ok(SharedRouter::new(HostRouter { map: config }))
     }
 }

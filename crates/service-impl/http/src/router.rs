@@ -47,18 +47,18 @@ pub enum InvalidRoute {
     NameTooLong,
     #[error("empty name")]
     EmptyName,
-    #[error("name can not start with '['")]
-    NameStartWithBracket,
+    #[error("name can not start with '$'")]
+    NameStartWithDollar,
 }
 
 impl FromStr for Route {
     type Err = InvalidRoute;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.starts_with('[') {
+        if s.starts_with('$') {
             if s == "$default" {
                 Ok(Route::Fallback)
             } else {
-                Err(InvalidRoute::NameStartWithBracket)
+                Err(InvalidRoute::NameStartWithDollar)
             }
         } else if s.is_empty() {
             return Err(InvalidRoute::EmptyName);

@@ -1,4 +1,4 @@
-use crate::object::class::SbhClass;
+use crate::instance::class::SbhClass;
 
 use super::{Router, SharedRouter};
 
@@ -13,10 +13,11 @@ impl Router for Transparent {
 impl SbhClass for Transparent {
     type Type = SharedRouter;
     type Error = serde_json::Error;
-    fn name(&self) -> crate::object::class::ObjectClassName {
-        crate::object::class::ObjectClassName::std("transparent")
+    type Config = ();
+    fn id(&self) -> crate::instance::class::ClassId {
+        crate::instance::class::ClassId::std("transparent")
     }
-    fn construct(&self, _config: &str) -> Result<Self::Type, Self::Error> {
+    fn construct(&self, _config: ()) -> Result<Self::Type, Self::Error> {
         Ok(SharedRouter::new(Transparent))
     }
 }

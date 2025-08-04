@@ -1,3 +1,4 @@
+next level gateway
 # switchboard http, aka **sbh**
 ## update controled by sbh supervisor
 ```text,ignore
@@ -83,3 +84,18 @@ export default [
 ```
 # SBH设计
 timeout Layer
+
+0/1 => incoming
+1/0 => service
+1/1 => layer
+1/n => router
+n/1 => hub
+m/n => bundle
+
+原则1： 哪来的回哪去
+原则2： 扁平化
+```rust
+async fn call(req: Request, source: PortKey, out: Out) -> Response {
+
+}
+```

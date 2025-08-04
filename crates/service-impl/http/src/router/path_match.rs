@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 
-use crate::object::class::SbhClass;
+use crate::instance::class::SbhClass;
 use tera::Tera;
 
 use super::{Route, Router, SharedRouter};
@@ -110,11 +110,11 @@ pub type PathMatchRouterConfig = Vec<MatchItem>;
 impl SbhClass for PathMatch {
     type Error = PathRouterConstructError;
     type Type = SharedRouter;
-    fn name(&self) -> crate::object::class::ObjectClassName {
-        crate::object::class::ObjectClassName::std("path-match")
+    type Config = PathMatchRouterConfig;
+    fn id(&self) -> crate::instance::class::ClassId {
+        crate::instance::class::ClassId::std("path-match")
     }
-    fn construct(&self, config: &str) -> Result<Self::Type, Self::Error> {
-        let mut config: PathMatchRouterConfig = serde_json::from_str(config)?;
+    fn construct(&self, mut config: PathMatchRouterConfig) -> Result<Self::Type, Self::Error> {
         config.sort_by(|a, b| a.priority.cmp(&b.priority));
         let mut tera = Tera::default();
         let mut router = matchit::Router::new();

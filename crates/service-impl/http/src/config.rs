@@ -4,17 +4,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     HttpVersion,
-    object::{
-        ObjectId,
+    instance::{
+        InstanceId,
         orchestration::{Orchestration, OrchestrationContext, OrchestrationError},
-        registry::{ObjectClassRegistry, ObjectRegistry},
+        registry::{ClassRegistry, InstanceRegistry},
     },
     service::dynamic::SharedService,
 };
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Config {
-    pub object: ObjectRegistry,
-    pub server: HashMap<ObjectId, ServerConfig>,
+    pub object: InstanceRegistry,
+    pub server: HashMap<InstanceId, ServerConfig>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -25,8 +25,8 @@ pub struct ServerConfig {
 impl Config {
     pub fn build_services(
         &self,
-        class_reg: &ObjectClassRegistry,
-    ) -> Result<HashMap<ObjectId, SharedService>, OrchestrationError> {
+        class_reg: &ClassRegistry,
+    ) -> Result<HashMap<InstanceId, SharedService>, OrchestrationError> {
         let mut orchestration = Orchestration::default();
         let mut context = OrchestrationContext::new(class_reg, &self.object);
         orchestration.rebuild_all_target(&mut context)?;

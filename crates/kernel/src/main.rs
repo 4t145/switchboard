@@ -2,10 +2,10 @@ use std::vec;
 
 use serde_json::json;
 use switchboard_http::{
-    object::{
-        Object, ObjectId,
-        class::{ObjectClassName, RouterProperty, ServiceProperty},
-        registry::ObjectRegistry,
+    instance::{
+        Instance, InstanceId,
+        class::{ClassId, RouterProperty, ServiceProperty},
+        registry::InstanceRegistry,
     },
     router::Route,
 };
@@ -42,15 +42,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .build(),
     );
 
-    let mut http_objects = ObjectRegistry::new();
-    let client_object_id = ObjectId::new("client");
-    let rewrite_object_id = ObjectId::new("rewrite");
-    let router_object_id = ObjectId::new("router");
+    let mut http_objects = InstanceRegistry::new();
+    let client_object_id = InstanceId::new("client");
+    let rewrite_object_id = InstanceId::new("rewrite");
+    let router_object_id = InstanceId::new("router");
     http_objects.service.insert(
         client_object_id.clone(),
-        Object {
+        Instance {
             id: client_object_id.clone(),
-            class: ObjectClassName::std("client"),
+            class: ClassId::std("client"),
             config: "".to_string(),
             property: ServiceProperty {
                 layers: vec![rewrite_object_id.clone()],
@@ -59,9 +59,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     http_objects.router.insert(
         router_object_id.clone(),
-        Object {
+        Instance {
             id: router_object_id.clone(),
-            class: ObjectClassName::std("path-match"),
+            class: ClassId::std("path-match"),
             config: json!(
                 [
                     {
@@ -84,9 +84,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     http_objects.layer.insert(
         rewrite_object_id.clone(),
-        Object {
+        Instance {
             id: rewrite_object_id,
-            class: ObjectClassName::std("rewrite"),
+            class: ClassId::std("rewrite"),
             config: json!(
                 {
                     "host": "baidu.com",
