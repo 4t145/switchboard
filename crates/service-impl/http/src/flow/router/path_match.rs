@@ -1,14 +1,10 @@
-use std::collections::HashMap;
-
 use http::request::Parts;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 
-use crate::instance::class::SbhClass;
+use super::{NodePort, Router};
 use tera::Tera;
-
-use super::{Route, Router, SharedRouter};
 
 pub struct PathRouter {
     pub router: matchit::Router<PathRouterEndpoint>,
@@ -16,7 +12,7 @@ pub struct PathRouter {
 }
 
 pub struct PathRouterEndpoint {
-    pub route: Route,
+    pub route: NodePort,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -25,7 +21,7 @@ pub struct PathRouterEndpoint {
 pub struct MatchItem {
     pub priority: i32,
     pub template: String,
-    pub route: Route,
+    pub route: NodePort,
     pub path: String,
 }
 
@@ -34,14 +30,14 @@ impl Default for MatchItem {
         Self {
             priority: 0,
             template: "/{*path}".into(),
-            route: Route::Fallback,
+            route: NodePort::Default,
             path: "/{*path}".into(),
         }
     }
 }
 
 impl Router for PathRouter {
-    fn route(&self, req: &mut Parts) -> Route {
+    fn route(&self, req: &mut Parts) -> NodePort {
         let path = req.uri.path();
         match self.router.at(path) {
             Ok(mat) => {
@@ -54,7 +50,7 @@ impl Router for PathRouter {
                     .tera
                     .render(&mat.value.route.to_string(), render_context)
                 else {
-                    return Route::Fallback;
+                    return NodePort::Default;
                 };
                 let new_uri = req.uri.clone();
                 if let Some(raw_query) = new_uri.query() {
@@ -68,14 +64,14 @@ impl Router for PathRouter {
                         tracing::error!("Failed to parse path and query: {}", e);
                     })
                 else {
-                    return Route::Fallback;
+                    return NodePort::Default;
                 };
 
                 uri_parts.path_and_query = Some(p_and_q);
                 let Ok(new_uri) = http::Uri::from_parts(uri_parts).inspect_err(|e| {
                     tracing::error!("Failed to construct URI from parts: {}", e);
                 }) else {
-                    return Route::Fallback;
+                    return NodePort::Default;
                 };
                 tracing::debug!(
                     "rewrite path and query from {:?} to {:?}",
@@ -87,7 +83,7 @@ impl Router for PathRouter {
             }
             Err(e) => {
                 tracing::debug!("fail to match path: {}", e);
-                Route::Fallback
+                NodePort::Default
             }
         }
     }
@@ -107,21 +103,21 @@ pub enum PathRouterConstructError {
 #[typeshare]
 pub type PathMatchRouterConfig = Vec<MatchItem>;
 
-impl SbhClass for PathMatch {
-    type Error = PathRouterConstructError;
-    type Type = SharedRouter;
-    type Config = PathMatchRouterConfig;
-    fn id(&self) -> crate::instance::class::ClassId {
-        crate::instance::class::ClassId::std("path-match")
-    }
-    fn construct(&self, mut config: PathMatchRouterConfig) -> Result<Self::Type, Self::Error> {
-        config.sort_by(|a, b| a.priority.cmp(&b.priority));
-        let mut tera = Tera::default();
-        let mut router = matchit::Router::new();
-        for item in config {
-            tera.add_raw_template(item.route.as_str(), &item.template)?;
-            router.insert(item.path, PathRouterEndpoint { route: item.route })?;
-        }
-        Ok(SharedRouter::new(PathRouter { router, tera }))
-    }
-}
+// impl SbhClass for PathMatch {
+//     type Error = PathRouterConstructError;
+//     type Type = SharedRouter;
+//     type Config = PathMatchRouterConfig;
+//     fn id(&self) -> crate::instance::class::ClassId {
+//         crate::instance::class::ClassId::std("path-match")
+//     }
+//     fn construct(&self, mut config: PathMatchRouterConfig) -> Result<Self::Type, Self::Error> {
+//         config.sort_by(|a, b| a.priority.cmp(&b.priority));
+//         let mut tera = Tera::default();
+//         let mut router = matchit::Router::new();
+//         for item in config {
+//             tera.add_raw_template(item.route.as_str(), &item.template)?;
+//             router.insert(item.path, PathRouterEndpoint { route: item.route })?;
+//         }
+//         Ok(SharedRouter::new(PathRouter { router, tera }))
+//     }
+// }

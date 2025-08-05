@@ -3,10 +3,11 @@ use std::pin::Pin;
 use bytes::Buf;
 use hyper::body::Body;
 
-use crate::response::IntoResponse;
-
+#[derive(thiserror::Error, Debug)]
 pub enum Either<L, R> {
+    #[error("Left: {0}")]
     Left(L),
+    #[error("Right: {0}")]
     Right(R),
 }
 
@@ -85,32 +86,6 @@ where
         match self {
             Either::Left(l) => l.size_hint(),
             Either::Right(r) => r.size_hint(),
-        }
-    }
-}
-
-impl<L, R> IntoResponse for Either<L, R>
-where
-    L: IntoResponse,
-    R: IntoResponse,
-{
-    fn into_response(self) -> http::Response<impl hyper::body::Body> {
-        match self {
-            Either::Left(l) => l.into_response().map(Either::Left),
-            Either::Right(r) => r.into_response().map(Either::Right),
-        }
-    }
-}
-
-impl<T, E> IntoResponse for Result<T, E>
-where
-    T: IntoResponse,
-    E: IntoResponse,
-{
-    fn into_response(self) -> http::Response<impl hyper::body::Body> {
-        match self {
-            Ok(t) => t.into_response().map(Either::Left),
-            Err(e) => e.into_response().map(Either::Right),
         }
     }
 }

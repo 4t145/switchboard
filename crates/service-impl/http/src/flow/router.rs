@@ -1,8 +1,14 @@
 use std::collections::HashMap;
+pub mod host;
+pub mod path_match;
+pub mod transparent;
 
 use crate::{
     DynRequest, DynResponse,
-    flow::{FlowContext, NodeIdentifier, NodeInterface, NodeLike, NodePort, NodeTarget},
+    flow::{
+        FlowContext, NodePort,
+        node::{NodeIdentifier, NodeInterface, NodeLike, NodeOutput},
+    },
 };
 
 pub trait Router: Send + Sync + 'static {
@@ -11,7 +17,7 @@ pub trait Router: Send + Sync + 'static {
 
 pub struct RouterNode<R: Router> {
     pub id: NodeIdentifier,
-    pub routes: HashMap<NodePort, NodeTarget>,
+    pub routes: HashMap<NodePort, NodeOutput>,
     pub router: R,
 }
 

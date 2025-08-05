@@ -1,11 +1,10 @@
-use std::convert::Infallible;
-
-use futures::FutureExt;
-use hyper::service::Service;
-
+mod client;
 use crate::{
-    DynRequest, DynResponse, DynService,
-    flow::{FlowContext, NodeIdentifier, NodeInterface, NodeLike, NodePort},
+    DynRequest, DynResponse,
+    flow::{
+        FlowContext,
+        node::{NodeIdentifier, NodeInterface, NodeLike},
+    },
 };
 
 pub struct ServiceNode<S> {
@@ -13,18 +12,26 @@ pub struct ServiceNode<S> {
     pub service: S,
 }
 
+pub trait Service {
+    fn call<'c>(
+        &self,
+        req: DynRequest,
+        ctx: &'c mut FlowContext,
+    ) -> impl Future<Output = DynResponse> + Send + 'c;
+}
+
 impl<S> NodeLike for ServiceNode<S>
 where
-    S: DynService,
+    S: Service,
 {
     fn call<'c>(
         &self,
         req: DynRequest,
-        _: &'c mut FlowContext,
+        ctx: &'c mut FlowContext,
     ) -> impl Future<Output = DynResponse> + 'c + Send {
         let req = req;
-        let fut = self.service.call(req);
-        async move { fut.await.unwrap() }
+        let fut = self.service.call(req, ctx);
+        fut
     }
 
     fn identifier(&self) -> NodeIdentifier {

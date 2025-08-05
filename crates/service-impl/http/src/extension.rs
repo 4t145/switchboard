@@ -1,1 +1,1 @@
-pub mod captrue;
+pub mod capture;
