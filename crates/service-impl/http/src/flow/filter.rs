@@ -1,13 +1,22 @@
-pub mod timeout;
 pub mod rewrite;
+pub mod timeout;
 use std::sync::Arc;
 
 use futures::future::BoxFuture;
+use serde::{Deserialize, Serialize};
 
 use crate::{
-    DynRequest, DynResponse,
+    DynRequest, DynResponse, IntoDynResponse,
     flow::{FlowContext, NodeTarget, node::NodeFn},
 };
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct FilterId(Arc<str>);
+
+impl std::fmt::Display for FilterId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 pub struct Next {
     pub target: NodeTarget,
@@ -31,10 +40,16 @@ impl Next {
             self.location = NextLocation::Target;
         }
         let response = if let Some(filter) = self.output_filters.pop() {
-            (filter.call)(req, context, self).await
+            match context.get_filter(&filter.id) {
+                Ok(filter) => (filter.call.clone())(req, context, self).await,
+                Err(e) => e.into_dyn_response(),
+            }
         } else {
             if let Some(filter) = self.input_filters.pop() {
-                (filter.call)(req, context, self).await
+                match context.get_filter(&filter.id) {
+                    Ok(filter) => (filter.call.clone())(req, context, self).await,
+                    Err(e) => e.into_dyn_response(),
+                }
             } else {
                 (self.call)(req, context).await
             }
@@ -51,7 +66,7 @@ pub type FilterFn = dyn Fn(DynRequest, &'_ mut FlowContext, Next) -> BoxFuture<'
     + Sync
     + 'static;
 
-pub trait Filter {
+pub trait FilterType {
     fn call<'c>(
         self: Arc<Self>,
         req: DynRequest,
@@ -60,20 +75,21 @@ pub trait Filter {
     ) -> impl futures::Future<Output = DynResponse> + 'c + Send;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct FilterReference {
-    pub call: Arc<FilterFn>,
+    pub id: FilterId,
+    // pub call: Arc<FilterFn>,
 }
 
 #[derive(Clone)]
-pub struct DynamicFilter {
+pub struct Filter {
     pub call: Arc<FilterFn>,
 }
 
-impl DynamicFilter {
+impl Filter {
     pub fn from_trait<F>(filter: F) -> Self
     where
-        F: Filter + Send + Sync + 'static,
+        F: FilterType + Send + Sync + 'static,
     {
         let filter = Arc::new(filter);
         Self {

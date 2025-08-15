@@ -3,7 +3,7 @@ use std::vec;
 use serde_json::json;
 use switchboard_http::{
     instance::{
-        Instance, InstanceId,
+        NodeInstance, InstanceId,
         class::{ClassId, RouterProperty, ServiceProperty},
         registry::InstanceRegistry,
     },
@@ -48,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let router_object_id = InstanceId::new("router");
     http_objects.service.insert(
         client_object_id.clone(),
-        Instance {
+        NodeInstance {
             id: client_object_id.clone(),
             class: ClassId::std("client"),
             config: "".to_string(),
@@ -59,7 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     http_objects.router.insert(
         router_object_id.clone(),
-        Instance {
+        NodeInstance {
             id: router_object_id.clone(),
             class: ClassId::std("path-match"),
             config: json!(
@@ -84,7 +84,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     http_objects.layer.insert(
         rewrite_object_id.clone(),
-        Instance {
+        NodeInstance {
             id: rewrite_object_id,
             class: ClassId::std("rewrite"),
             config: json!(

@@ -1,12 +1,13 @@
+mod registry;
+
 use std::{
-    fmt::{Debug, Display},
-    sync::Arc,
+    collections::HashMap, fmt::{Debug, Display}, sync::Arc
 };
 
-use schemars::{schema_for, JsonSchema, Schema};
+use schemars::{JsonSchema, Schema, schema_for};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
-use crate::instance::ClassKind;
+use crate::instance::{InstanceType, InstanceValue};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct ClassId {
@@ -48,6 +49,7 @@ pub struct ClassMeta {
     pub repository: Option<String>,
     pub homepage: Option<String>,
 }
+
 impl Default for ClassMeta {
     fn default() -> Self {
         Self::from_env()
@@ -66,14 +68,13 @@ impl ClassMeta {
     }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Class {
+pub struct ClassData {
     pub id: ClassId,
-    pub kind: ClassKind,
     pub meta: ClassMeta,
+    pub instance_type: InstanceType,
     pub config_schema: Schema,
 }
-pub trait SbhClass: Send + Sync + 'static {
-    type Type;
+pub trait Class: Send + Sync + 'static {
     type Config: DeserializeOwned + Serialize + JsonSchema;
     type Error: std::error::Error + Send + Sync + 'static;
     fn id(&self) -> ClassId;
@@ -81,33 +82,29 @@ pub trait SbhClass: Send + Sync + 'static {
         ClassMeta::default()
     }
     fn schema(&self) -> Schema {
-       schema_for!(Self::Config)
+        schema_for!(Self::Config)
     }
-    fn construct(&self, config: Self::Config) -> Result<Self::Type, Self::Error>;
+    fn instance_type(&self) -> InstanceType;
+    fn construct(&self, config: Self::Config) -> Result<InstanceValue, Self::Error>;
 }
 
-pub struct Constructor<C> {
-    constructor: Arc<dyn Fn(&serde_json::Value) -> anyhow::Result<C> + Send + Sync>,
+#[derive(Clone)]
+pub struct Constructor {
+    constructor: Arc<dyn Fn(&serde_json::Value) -> anyhow::Result<InstanceValue> + Send + Sync>,
 }
 
-impl<C> Clone for Constructor<C> {
-    fn clone(&self) -> Self {
-        Self {
-            constructor: self.constructor.clone(),
-        }
-    }
-}
-
-impl<C> Constructor<C> {
+impl Constructor {
     pub fn new<F>(constructor: F) -> Self
     where
-        F: Fn(&serde_json::Value) -> anyhow::Result<C> + Send + Sync + 'static,
+        F: Fn(&serde_json::Value) -> anyhow::Result<InstanceValue> + Send + Sync + 'static,
     {
         Self {
             constructor: Arc::new(constructor),
         }
     }
-    pub fn construct(&self, name: &serde_json::Value) -> anyhow::Result<C> {
+    pub fn construct(&self, name: &serde_json::Value) -> anyhow::Result<InstanceValue> {
         (self.constructor)(name)
     }
 }
+
+

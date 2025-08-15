@@ -52,7 +52,7 @@ pub trait IntoNode {
     fn into_node(self) -> Node;
 }
 
-pub trait NodeClass {
+pub trait NodeType {
     type Config: DeserializeOwned + Serialize + JsonSchema;
     type Error: std::error::Error + Send + Sync + 'static;
     fn id(&self) -> ClassId;
@@ -146,18 +146,18 @@ impl NodeIdentifier {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct NodeInterface {
     pub inputs: HashMap<NodePort, NodeInput>,
     pub outputs: HashMap<NodePort, NodeOutput>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct NodeInput {
     pub filters: Vec<FilterReference>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct NodeOutput {
     pub filters: Vec<FilterReference>,
     pub target: NodeTarget,
@@ -186,7 +186,7 @@ impl NodeInterface {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NodeTarget {
     pub id: NodeId,
     pub port: NodePort,

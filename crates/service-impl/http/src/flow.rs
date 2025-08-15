@@ -10,12 +10,18 @@ use hyper::body::Body;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    box_error, flow::node::{Node, NodeId, NodePort, NodeTarget}, utils::error_response, DynRequest, DynResponse, IntoDynResponse, ERR_FLOW
+    DynRequest, DynResponse, ERR_FLOW, IntoDynResponse, box_error,
+    flow::{
+        filter::{Filter, FilterId},
+        node::{Node, NodeId, NodePort, NodeTarget},
+    },
+    utils::error_response,
 };
 
 #[derive(Clone)]
 pub struct Flow {
     pub nodes: Arc<HashMap<NodeId, Node>>,
+    pub filters: Arc<HashMap<FilterId, Filter>>,
     pub entrypoint: NodeId,
 }
 
@@ -57,6 +63,8 @@ pub struct FlowContextState {
 pub enum FlowError {
     #[error("Node `{0}` not found in the flow")]
     NodeNotFound(NodeId),
+    #[error("Filter `{0}` not found in the flow")]
+    FilterNotFound(FilterId),
     #[error("Invalid port `{0}` for the current node")]
     InvalidPort(NodePort),
     #[error("Loop detected at node {node}, out of limit {limit}, trace: {trace:#?}")]
@@ -102,7 +110,12 @@ impl FlowContext {
             .get(&self.current_state.node)
             .ok_or_else(|| FlowError::NodeNotFound(self.current_state.node.clone()))
     }
-
+    pub fn get_filter(&self, id: &FilterId) -> Result<&Filter, FlowError> {
+        self.flow
+            .filters
+            .get(id)
+            .ok_or_else(|| FlowError::FilterNotFound(id.clone()))
+    }
     pub fn entry(&mut self, target: NodeTarget) {
         let state = FlowContextState {
             node: target.id,

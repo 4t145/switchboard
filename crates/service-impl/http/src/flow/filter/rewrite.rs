@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    DynRequest, DynResponse, ERR_FILTER_REWRITE, flow::filter::Filter, utils::error_response,
+    DynRequest, DynResponse, ERR_FILTER_REWRITE, flow::filter::FilterType, utils::error_response,
 };
 
 #[derive(Clone, Deserialize, Serialize, JsonSchema)]
@@ -57,7 +57,7 @@ pub enum RewriteError {
     InvalidUriParts(#[from] http::uri::InvalidUriParts),
 }
 
-impl Filter for RewriteLayer {
+impl FilterType for RewriteLayer {
     async fn call<'c>(
         self: std::sync::Arc<Self>,
         req: DynRequest,

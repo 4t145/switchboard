@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use hyper::rt::Timer;
 
-use crate::{dynamic_response, flow::filter::Filter, response::IntoResponse};
+use crate::{dynamic_response, flow::filter::FilterType, response::IntoResponse};
 
 pub struct Timeout {
     pub timeout: Duration,
@@ -10,7 +10,7 @@ pub struct Timeout {
     pub timer: Box<dyn Timer + Send + Sync>,
 }
 
-impl Filter for Timeout {
+impl FilterType for Timeout {
     async fn call<'c>(
         self: std::sync::Arc<Self>,
         req: crate::DynRequest,

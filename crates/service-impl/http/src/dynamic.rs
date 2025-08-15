@@ -1,9 +1,8 @@
 use bytes::Bytes;
-use futures::future::BoxFuture;
 use http::{Request, Response};
 use http_body_util::{BodyExt, combinators::UnsyncBoxBody};
 use hyper::body::Body;
-use std::{convert::Infallible, error::Error as StdError};
+use std::error::Error as StdError;
 pub type DynBody = UnsyncBoxBody<bytes::Bytes, BoxedError>;
 pub type DynRequest = Request<DynBody>;
 pub type DynResponse = Response<DynBody>;
