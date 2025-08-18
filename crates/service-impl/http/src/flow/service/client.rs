@@ -1,10 +1,11 @@
+
 use http::StatusCode;
 use http_body_util::BodyExt;
 
 use crate::{
     ERR_HTTP_CLIENT,
-    flow::FlowContext,
-    utils::{HyperHttpsClient, error_response},
+    flow::{FlowContext, node::NodeClass, service::ServiceNode},
+    utils::{HyperHttpsClient, build_client, error_response},
 };
 
 use crate::{DynRequest, DynResponse, box_error};
@@ -26,5 +27,23 @@ impl super::Service for ClientService {
                 Err(e) => error_response(StatusCode::BAD_GATEWAY, e, ERR_HTTP_CLIENT),
             }
         }
+    }
+}
+
+pub struct Client;
+
+impl NodeClass for Client {
+    type Config = ();
+    type Error = std::io::Error;
+    type Node = ServiceNode<ClientService>;
+
+    fn construct(&self, _: Self::Config) -> Result<Self::Node, Self::Error> {
+        Ok(ServiceNode::new(ClientService {
+            client: build_client()?,
+        }))
+    }
+
+    fn id(&self) -> crate::instance::class::ClassId {
+        crate::instance::class::ClassId::std("client")
     }
 }

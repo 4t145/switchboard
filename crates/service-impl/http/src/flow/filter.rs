@@ -3,20 +3,19 @@ pub mod timeout;
 use std::sync::Arc;
 
 use futures::future::BoxFuture;
-use serde::{Deserialize, Serialize};
+use schemars::{JsonSchema, Schema, schema_for};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::{
     DynRequest, DynResponse, IntoDynResponse,
     flow::{FlowContext, NodeTarget, node::NodeFn},
+    instance::{
+        InstanceId, InstanceValue,
+        class::{Class, ClassId, ClassMeta},
+    },
 };
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct FilterId(Arc<str>);
 
-impl std::fmt::Display for FilterId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+pub type FilterId = InstanceId;
 
 pub struct Next {
     pub target: NodeTarget,
@@ -66,7 +65,7 @@ pub type FilterFn = dyn Fn(DynRequest, &'_ mut FlowContext, Next) -> BoxFuture<'
     + Sync
     + 'static;
 
-pub trait FilterType {
+pub trait FilterLike: Send + Sync + 'static {
     fn call<'c>(
         self: Arc<Self>,
         req: DynRequest,
@@ -75,7 +74,8 @@ pub trait FilterType {
     ) -> impl futures::Future<Output = DynResponse> + 'c + Send;
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+
 pub struct FilterReference {
     pub id: FilterId,
     // pub call: Arc<FilterFn>,
@@ -87,13 +87,58 @@ pub struct Filter {
 }
 
 impl Filter {
-    pub fn from_trait<F>(filter: F) -> Self
+    pub fn from_filter_like<F>(filter: F) -> Self
     where
-        F: FilterType + Send + Sync + 'static,
+        F: FilterLike,
     {
         let filter = Arc::new(filter);
         Self {
             call: Arc::new(move |req, ctx, next| Box::pin(filter.clone().call(req, ctx, next))),
         }
+    }
+}
+
+pub trait FilterClass: Send + Sync + 'static {
+    type Filter: FilterLike;
+    type Error: std::error::Error + Send + Sync + 'static;
+    type Config: DeserializeOwned + Serialize + JsonSchema;
+    fn id(&self) -> ClassId;
+    fn meta(&self) -> ClassMeta {
+        ClassMeta::from_env()
+    }
+    fn schema(&self) -> Schema {
+        schema_for!(Self::Config)
+    }
+    fn construct(&self, config: Self::Config) -> Result<Self::Filter, Self::Error>;
+}
+
+pub struct AsFilterClass<F>(pub F);
+
+impl<F> Class for AsFilterClass<F>
+where
+    F: FilterClass,
+{
+    type Config = <F as FilterClass>::Config;
+    type Error = <F as FilterClass>::Error;
+    fn id(&self) -> ClassId {
+        self.0.id()
+    }
+
+    fn meta(&self) -> ClassMeta {
+        ClassMeta::default()
+    }
+    fn schema(&self) -> Schema {
+        self.0.schema()
+    }
+    fn instance_type(&self) -> crate::instance::InstanceType {
+        crate::instance::InstanceType::Filter
+    }
+    fn construct(
+        &self,
+        config: Self::Config,
+    ) -> Result<crate::instance::InstanceValue, Self::Error> {
+        let filter = self.0.construct(config)?;
+        let filter = Filter::from_filter_like(filter);
+        Ok(InstanceValue::Filter(filter))
     }
 }

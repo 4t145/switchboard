@@ -1,7 +1,8 @@
-mod registry;
+pub mod registry;
 
 use std::{
-    collections::HashMap, fmt::{Debug, Display}, sync::Arc
+    fmt::{Debug, Display},
+    sync::Arc,
 };
 
 use schemars::{JsonSchema, Schema, schema_for};
@@ -9,7 +10,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::instance::{InstanceType, InstanceValue};
 
-#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq, JsonSchema)]
 pub struct ClassId {
     pub namespace: Option<String>,
     pub name: String,
@@ -106,5 +107,3 @@ impl Constructor {
         (self.constructor)(name)
     }
 }
-
-

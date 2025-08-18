@@ -1,29 +1,28 @@
-// pub mod config;
+pub mod config;
 mod consts;
-// pub mod layer;
 pub mod instance;
 pub mod response;
-// pub mod router;
-pub mod utils;
+mod dynamic;
 pub mod extension;
 pub mod flow;
-mod dynamic;
+pub mod utils;
 pub use consts::*;
-mod export;
 pub use dynamic::*;
 
 use hyper::server::conn::{http1, http2};
 use hyper_util::rt::{TokioExecutor, TokioIo};
-// use instance::{InstanceId, orchestration::OrchestrationError, registry::InstanceRegistry};
 use rustls::ServerConfig;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use switchboard_service::TcpServiceProvider;
+use std::{ops::Deref, sync::Arc};
+use switchboard_service::{TcpServiceProvider};
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
 use utils::read_version;
 
-use crate::flow::Flow;
+use crate::{
+    flow::{Flow, build::FlowBuildError},
+    instance::class::registry::ClassRegistry,
+};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
@@ -139,17 +138,11 @@ impl switchboard_service::tcp::TcpService for Http {
 
 #[derive(Debug, thiserror::Error)]
 pub enum HttpBuildError {
-    // #[error("Failed to build HTTP service: {0}")]
-    // Orchestration(#[from] OrchestrationError),
+    #[error("Failed to parse config: {0}")]
+    ParseError(#[from] serde_json::Error),
 
-    // #[error("Failed to parse config: {0}")]
-    // ParseError(#[from] serde_json::Error),
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct HttpConfig {
-    // pub objects: InstanceRegistry,
-    // pub entrypoint: InstanceId,
+    #[error("Failed to build flow: {0}")]
+    FlowBuildError(#[from] FlowBuildError),
 }
 
 pub struct HttpProvider;
@@ -159,24 +152,14 @@ impl TcpServiceProvider for HttpProvider {
     type Service = Http;
     type Error = HttpBuildError;
     async fn construct(&self, config: Option<String>) -> Result<Self::Service, Self::Error> {
-        todo!();
-        // let config = config.unwrap_or_default();
-        // let config = serde_json::from_str::<HttpConfig>(&config)?;
-        // let class_registry = crate::instance::registry::ClassRegistry::globol()
-        //     .read_owned()
-        //     .await;
-        // let class_registry = &class_registry;
-        // let object_registry = config.objects;
-        // let mut context = crate::instance::orchestration::OrchestrationContext::new(
-        //     class_registry,
-        //     &object_registry,
-        // );
-        // let mut orchestration = crate::instance::orchestration::Orchestration::default();
-        // orchestration.rebuild_all_target(&mut context)?;
-        // let service = orchestration.get_or_build_service(&config.entrypoint, &mut context)?;
-        // Ok(Http {
-        //     service,
-        //     version: HttpVersion::default(),
-        // })
+        let config = config.unwrap_or_default();
+        let config = serde_json::from_str::<config::Config>(&config)?;
+        let class_registry = ClassRegistry::global();
+        let flow = Flow::build(config.flow_config, class_registry.read_owned().await.deref())?;
+        let service = Http {
+            service: flow,
+            version: config.server.version,
+        };
+        Ok(service)
     }
 }

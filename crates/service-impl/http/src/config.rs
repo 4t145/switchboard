@@ -1,36 +1,17 @@
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
 
-use crate::{
-    HttpVersion,
-    instance::{
-        InstanceId,
-        orchestration::{Orchestration, OrchestrationContext, OrchestrationError},
-        registry::{ClassRegistry, InstanceRegistry},
-    },
-    service::dynamic::SharedService,
-};
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+use crate::{HttpVersion, flow::build::FlowConfig};
+
+#[typeshare]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Config {
-    pub object: InstanceRegistry,
-    pub server: HashMap<InstanceId, ServerConfig>,
+    pub flow_config: FlowConfig,
+    pub server: ServerConfig,
 }
 
+#[typeshare]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ServerConfig {
     pub version: HttpVersion,
-}
-
-impl Config {
-    pub fn build_services(
-        &self,
-        class_reg: &ClassRegistry,
-    ) -> Result<HashMap<InstanceId, SharedService>, OrchestrationError> {
-        let mut orchestration = Orchestration::default();
-        let mut context = OrchestrationContext::new(class_reg, &self.object);
-        orchestration.rebuild_all_target(&mut context)?;
-        let services = orchestration.build_entries(self.server.keys(), &mut context)?;
-        Ok(services)
-    }
 }

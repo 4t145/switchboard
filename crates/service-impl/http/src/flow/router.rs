@@ -1,24 +1,38 @@
 use std::collections::HashMap;
-pub mod host;
+pub mod host_match;
 pub mod path_match;
 pub mod transparent;
+
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
 
 use crate::{
     DynRequest, DynResponse,
     flow::{
         FlowContext, NodePort,
-        node::{NodeIdentifier, NodeInterface, NodeLike, NodeOutput},
+        node::{NodeInterface, NodeLike, NodeOutput},
     },
 };
-
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct WithRoutes<C> {
+    pub router_config: C,
+    pub routes: HashMap<NodePort, NodeOutput>,
+}
 pub trait Router: Send + Sync + 'static {
     fn route(&self, req: &mut http::request::Parts) -> NodePort;
 }
 
 pub struct RouterNode<R: Router> {
-    pub id: NodeIdentifier,
     pub routes: HashMap<NodePort, NodeOutput>,
     pub router: R,
+}
+
+impl<R: Router> RouterNode<R> {
+    pub fn new(routes: HashMap<NodePort, NodeOutput>, router: R) -> Self {
+        Self { routes, router }
+    }
 }
 
 impl<R: Router> NodeLike for RouterNode<R> {
@@ -32,10 +46,6 @@ impl<R: Router> NodeLike for RouterNode<R> {
         let port = self.router.route(&mut parts);
         let req = DynRequest::from_parts(parts, body);
         context.call(req, port)
-    }
-
-    fn identifier(&self) -> NodeIdentifier {
-        self.id.clone()
     }
 
     fn interface(&self) -> NodeInterface {

@@ -3,6 +3,11 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use typeshare::typeshare;
 
+use crate::flow::{
+    node::NodeClass,
+    router::{RouterNode, WithRoutes},
+};
+
 use super::{NodePort, Router};
 use tera::Tera;
 
@@ -103,21 +108,31 @@ pub enum PathRouterConstructError {
 #[typeshare]
 pub type PathMatchRouterConfig = Vec<MatchItem>;
 
-// impl SbhClass for PathMatch {
-//     type Error = PathRouterConstructError;
-//     type Type = SharedRouter;
-//     type Config = PathMatchRouterConfig;
-//     fn id(&self) -> crate::instance::class::ClassId {
-//         crate::instance::class::ClassId::std("path-match")
-//     }
-//     fn construct(&self, mut config: PathMatchRouterConfig) -> Result<Self::Type, Self::Error> {
-//         config.sort_by(|a, b| a.priority.cmp(&b.priority));
-//         let mut tera = Tera::default();
-//         let mut router = matchit::Router::new();
-//         for item in config {
-//             tera.add_raw_template(item.route.as_str(), &item.template)?;
-//             router.insert(item.path, PathRouterEndpoint { route: item.route })?;
-//         }
-//         Ok(SharedRouter::new(PathRouter { router, tera }))
-//     }
-// }
+#[derive(Debug, thiserror::Error)]
+pub enum PathMatchConstructError {
+    #[error("tera template error: {0}")]
+    TeraTemplateError(#[from] tera::Error),
+    #[error("matchit router insert error: {0}")]
+    MatchitRouterInsertError(#[from] matchit::InsertError),
+}
+
+impl NodeClass for PathMatch {
+    type Config = WithRoutes<PathMatchRouterConfig>;
+    type Error = PathMatchConstructError;
+    type Node = RouterNode<PathRouter>;
+    fn construct(&self, config: Self::Config) -> Result<Self::Node, Self::Error> {
+        let mut router_config = config.router_config;
+        router_config.sort_by(|a, b| a.priority.cmp(&b.priority));
+        let mut tera = Tera::default();
+        let mut router = matchit::Router::new();
+        for item in router_config {
+            tera.add_raw_template(item.route.as_str(), &item.template)?;
+            router.insert(item.path, PathRouterEndpoint { route: item.route })?;
+        }
+        Ok(RouterNode::new(config.routes, PathRouter { router, tera }))
+    }
+
+    fn id(&self) -> crate::instance::class::ClassId {
+        crate::instance::class::ClassId::std("path-match")
+    }
+}

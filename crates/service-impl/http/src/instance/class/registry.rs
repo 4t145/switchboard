@@ -1,10 +1,23 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{Arc, OnceLock},
+};
 
 use anyhow::Context as _;
+use tokio::sync::RwLock;
 
-use crate::instance::{
-    InstanceValue,
-    class::{Class, ClassData, ClassId, Constructor},
+use crate::{
+    flow::{
+        filter::{AsFilterClass, FilterClass},
+        filter::{rewrite::Rewrite, timeout::Timeout},
+        node::{AsNodeClass, NodeClass},
+        router::{host_match::HostMatch, path_match::PathMatch},
+        service::client::Client,
+    },
+    instance::{
+        InstanceValue,
+        class::{Class, ClassData, ClassId, Constructor},
+    },
 };
 
 #[derive(Clone)]
@@ -25,13 +38,20 @@ impl std::fmt::Debug for ClassDataWithConstructor {
 pub struct ClassRegistry {
     pub class_data: HashMap<ClassId, ClassDataWithConstructor>,
 }
-
+#[derive(Debug, thiserror::Error)]
 pub enum ClassRegistryError {
-    ConstructError(anyhow::Error),
+    #[error("Construct Error")]
+    ConstructError(#[from] anyhow::Error),
+    #[error("Class `{id}` not found")]
     ClassNotFound { id: ClassId },
 }
 
 impl ClassRegistry {
+    pub fn const_new() -> Self {
+        Self {
+            class_data: HashMap::new(),
+        }
+    }
     pub fn construct(
         &self,
         class_id: ClassId,
@@ -66,4 +86,28 @@ impl ClassRegistry {
             },
         );
     }
+    pub fn register_node<N: NodeClass>(&mut self, class: N) {
+        self.register(AsNodeClass(class));
+    }
+    pub fn register_filter<F: FilterClass>(&mut self, class: F) {
+        self.register(AsFilterClass(class));
+    }
+    pub fn register_prelude(&mut self) {
+        self.register_node(PathMatch);
+        self.register_node(HostMatch);
+        self.register_node(Client);
+        self.register_filter(Rewrite);
+        self.register_filter(Timeout);
+    }
+    pub fn global() -> Arc<RwLock<Self>> {
+        GLOBAL_CLASS_REGISTRY
+            .get_or_init(|| {
+                let mut registry = Self::default();
+                registry.register_prelude();
+                Arc::new(RwLock::new(registry))
+            })
+            .clone()
+    }
 }
+
+static GLOBAL_CLASS_REGISTRY: OnceLock<Arc<RwLock<ClassRegistry>>> = OnceLock::new();

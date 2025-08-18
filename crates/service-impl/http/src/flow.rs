@@ -3,6 +3,7 @@ pub mod filter;
 pub mod node;
 pub mod router;
 pub mod service;
+pub mod build;
 use bytes::Bytes;
 use futures::future::BoxFuture;
 use http::{Request, StatusCode};
@@ -22,7 +23,7 @@ use crate::{
 pub struct Flow {
     pub nodes: Arc<HashMap<NodeId, Node>>,
     pub filters: Arc<HashMap<FilterId, Filter>>,
-    pub entrypoint: NodeId,
+    pub entrypoint: NodeTarget,
 }
 
 impl Flow {}
@@ -46,11 +47,11 @@ pub struct FlowContext {
     pub flow: Flow,
     pub current_state: FlowContextState,
     pub trace: FlowTrace,
-    pub config: FlowConfig,
+    pub config: FlowOptions,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct FlowConfig {
+pub struct FlowOptions {
     pub max_loop: Option<u32>,
 }
 #[derive(Debug, Clone)]
@@ -82,15 +83,15 @@ impl IntoDynResponse for FlowError {
 }
 
 impl FlowContext {
-    pub fn new(flow: Flow, entrypoint: NodeId) -> Self {
+    pub fn new(flow: Flow, entrypoint: NodeTarget) -> Self {
         Self {
             flow,
             current_state: FlowContextState {
-                node: entrypoint,
-                input_port: NodePort::Default,
+                node: entrypoint.id,
+                input_port: entrypoint.port,
             },
             trace: FlowTrace::default(),
-            config: FlowConfig::default(),
+            config: FlowOptions::default(),
         }
     }
 
@@ -101,8 +102,8 @@ impl FlowContext {
     pub fn get_entry_node(&self) -> Result<&Node, FlowError> {
         self.flow
             .nodes
-            .get(&self.flow.entrypoint)
-            .ok_or_else(|| FlowError::NodeNotFound(self.flow.entrypoint.clone()))
+            .get(&self.flow.entrypoint.id)
+            .ok_or_else(|| FlowError::NodeNotFound(self.flow.entrypoint.id.clone()))
     }
     pub fn get_current_node(&self) -> Result<&Node, FlowError> {
         self.flow
@@ -133,7 +134,7 @@ impl FlowContext {
             self.current_state = current;
         } else {
             self.current_state = FlowContextState {
-                node: self.flow.entrypoint.clone(),
+                node: self.flow.entrypoint.id.clone(),
                 input_port: NodePort::Default,
             };
         }

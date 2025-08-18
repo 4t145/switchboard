@@ -8,15 +8,3 @@ impl Router for Transparent {
         NodePort::Default
     }
 }
-
-// impl SbhClass for Transparent {
-//     type Type = SharedRouter;
-//     type Error = serde_json::Error;
-//     type Config = ();
-//     fn id(&self) -> crate::instance::class::ClassId {
-//         crate::instance::class::ClassId::std("transparent")
-//     }
-//     fn construct(&self, _config: ()) -> Result<Self::Type, Self::Error> {
-//         Ok(SharedRouter::new(Transparent))
-//     }
-// }

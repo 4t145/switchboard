@@ -1,18 +1,24 @@
-mod client;
+pub mod client;
+
 use crate::{
     DynRequest, DynResponse,
     flow::{
         FlowContext,
-        node::{NodeIdentifier, NodeInterface, NodeLike},
+        node::{NodeInterface, NodeLike},
     },
 };
 
 pub struct ServiceNode<S> {
-    pub id: NodeIdentifier,
     pub service: S,
 }
 
-pub trait Service {
+impl<S> ServiceNode<S> {
+    pub fn new(service: S) -> Self {
+        Self { service }
+    }
+}
+
+pub trait Service: Send + Sync + 'static {
     fn call<'c>(
         &self,
         req: DynRequest,
@@ -32,10 +38,6 @@ where
         let req = req;
         let fut = self.service.call(req, ctx);
         fut
-    }
-
-    fn identifier(&self) -> NodeIdentifier {
-        self.id.clone()
     }
 
     fn interface(&self) -> NodeInterface {

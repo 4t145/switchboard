@@ -1,18 +1,22 @@
+use std::convert::Infallible;
+
 use http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    DynRequest, DynResponse, ERR_FILTER_REWRITE, flow::filter::FilterType, utils::error_response,
+    DynRequest, DynResponse, ERR_FILTER_REWRITE,
+    flow::filter::{FilterClass, FilterLike},
+    utils::error_response,
 };
 
 #[derive(Clone, Deserialize, Serialize, JsonSchema)]
-pub struct RewriteLayer {
+pub struct RewriteFilter {
     pub host: Option<String>,
     pub schema: Option<String>,
 }
 
-impl RewriteLayer {
+impl RewriteFilter {
     pub async fn rewrite(
         self: std::sync::Arc<Self>,
         req: DynRequest,
@@ -57,7 +61,7 @@ pub enum RewriteError {
     InvalidUriParts(#[from] http::uri::InvalidUriParts),
 }
 
-impl FilterType for RewriteLayer {
+impl FilterLike for RewriteFilter {
     async fn call<'c>(
         self: std::sync::Arc<Self>,
         req: DynRequest,
@@ -72,3 +76,17 @@ impl FilterType for RewriteLayer {
 }
 
 pub struct Rewrite;
+
+impl FilterClass for Rewrite {
+    type Filter = RewriteFilter;
+    type Error = Infallible;
+    type Config = RewriteFilter;
+
+    fn id(&self) -> crate::instance::class::ClassId {
+        crate::instance::class::ClassId::std("rewrite")
+    }
+
+    fn construct(&self, config: Self::Config) -> Result<Self::Filter, Self::Error> {
+        Ok(config.clone())
+    }
+}
