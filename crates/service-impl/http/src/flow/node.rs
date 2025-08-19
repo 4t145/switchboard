@@ -3,6 +3,7 @@ use std::{collections::HashMap, fmt::Display, sync::Arc};
 use futures::future::BoxFuture;
 use schemars::{JsonSchema, Schema, schema_for};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use typeshare::typeshare;
 
 use crate::{
     DynRequest, DynResponse,
@@ -66,8 +67,10 @@ pub trait NodeType {
     fn construct(&self, config: Self::Config) -> Result<Node, Self::Error>;
 }
 
+#[typeshare]
 pub type NodeId = InstanceId;
 
+#[typeshare(serialized_as = "String")]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub enum NodePort {
     Named(Arc<str>),
@@ -145,6 +148,7 @@ pub struct NodeInput {
     pub filters: Vec<FilterReference>,
 }
 
+#[typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct NodeOutput {
     pub filters: Vec<FilterReference>,
@@ -173,7 +177,7 @@ impl NodeInterface {
         Self::with_default_input(Default::default())
     }
 }
-
+#[typeshare]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 pub struct NodeTarget {
     pub id: NodeId,

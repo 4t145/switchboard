@@ -8,7 +8,9 @@ use bytes::Bytes;
 use futures::future::BoxFuture;
 use http::{Request, StatusCode};
 use hyper::body::Body;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
 
 use crate::{
     DynRequest, DynResponse, ERR_FLOW, IntoDynResponse, box_error,
@@ -50,7 +52,9 @@ pub struct FlowContext {
     pub config: FlowOptions,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
+#[serde(rename_all="camelCase")]
 pub struct FlowOptions {
     pub max_loop: Option<u32>,
 }

@@ -13,6 +13,7 @@ use hyper::server::conn::{http1, http2};
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use rustls::ServerConfig;
 use serde::{Deserialize, Serialize};
+use typeshare::typeshare;
 use std::{ops::Deref, sync::Arc};
 use switchboard_service::{TcpServiceProvider};
 use tokio_util::sync::CancellationToken;
@@ -24,6 +25,7 @@ use crate::{
     instance::class::registry::ClassRegistry,
 };
 
+#[typeshare]
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum HttpVersion {

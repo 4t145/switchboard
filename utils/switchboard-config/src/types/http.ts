@@ -3,16 +3,39 @@
 */
 
 
-export type Route = string;
 
-export type HostRouterConfig = Record<string, Route>;
 
-export interface MatchItem {
-	priority: number;
-	template: string;
-	route: Route;
-	path: string;
-}
+// export enum HttpVersion {
+// 	Http1 = "http1",
+// 	Http2 = "http2",
+// 	Auto = "auto",
+// }
 
-export type PathMatchRouterConfig = MatchItem[];
+// export interface ServerConfig {
+// 	version: HttpVersion;
+// }
+
+// export interface Config {
+// 	flow_config: FlowConfig;
+// 	server: ServerConfig;
+// }
+
+// export interface FilterReference {
+// 	id: FilterId;
+// }
+
+// export interface NodeOutput {
+// 	filters: FilterReference[];
+// 	target: NodeTarget;
+// }
+
+// export interface HostRouterConfig {
+// 	map: Record<string, NodePort>;
+// 	routes: Record<NodePort, NodeOutput>;
+// }
+
+// export interface WithRoutes<C> {
+// 	routerConfig: C;
+// 	routes: Record<NodePort, NodeOutput>;
+// }
 

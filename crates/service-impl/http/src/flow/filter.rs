@@ -5,6 +5,7 @@ use std::sync::Arc;
 use futures::future::BoxFuture;
 use schemars::{JsonSchema, Schema, schema_for};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use typeshare::typeshare;
 
 use crate::{
     DynRequest, DynResponse, IntoDynResponse,
@@ -14,7 +15,7 @@ use crate::{
         class::{Class, ClassId, ClassMeta},
     },
 };
-
+#[typeshare]
 pub type FilterId = InstanceId;
 
 pub struct Next {
@@ -75,7 +76,7 @@ pub trait FilterLike: Send + Sync + 'static {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-
+#[typeshare]
 pub struct FilterReference {
     pub id: FilterId,
     // pub call: Arc<FilterFn>,

@@ -6,10 +6,9 @@ use typeshare::typeshare;
 
 use crate::{
     flow::{
-        Flow,
-        node::{NodePort, NodeTarget},
+        node::{NodePort, NodeTarget}, Flow, FlowOptions
     },
-    instance::{self, InstanceData, InstanceId, class::registry::ClassRegistryError},
+    instance::{self, class::registry::ClassRegistryError, InstanceData, InstanceId},
 };
 
 use crate::instance::class::registry::ClassRegistry;
@@ -82,6 +81,7 @@ impl std::fmt::Display for FlowCheckError {
 pub struct FlowConfig {
     entrypoint: NodeTarget,
     instances: HashMap<InstanceId, InstanceData>,
+    options: FlowOptions,
 }
 
 impl Flow {

@@ -7,9 +7,10 @@ use std::{
 
 use schemars::{JsonSchema, Schema, schema_for};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use typeshare::typeshare;
 
 use crate::instance::{InstanceType, InstanceValue};
-
+#[typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq, JsonSchema)]
 pub struct ClassId {
     pub namespace: Option<String>,
@@ -40,8 +41,8 @@ impl ClassId {
         }
     }
 }
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[typeshare]
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ClassMeta {
     pub version: String,
     pub description: Option<String>,
@@ -68,7 +69,9 @@ impl ClassMeta {
         }
     }
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[typeshare]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all="camelCase")]
 pub struct ClassData {
     pub id: ClassId,
     pub meta: ClassMeta,

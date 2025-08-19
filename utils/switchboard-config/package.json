@@ -10,7 +10,7 @@
     "typescript": "^5.9.2"
   },
   "scripts": {
-    "generate-types": "typeshare --lang typescript --output-folder src/types ../../",
+    "generate-types": "typeshare --lang typescript --output-folder src/types ../../ --config-file typeshare.toml",
     "generate-zod": "ts-to-zod src/types/http.ts src/types/http.zod.ts"
   },
   "include": [

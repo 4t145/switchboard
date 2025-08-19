@@ -16,6 +16,7 @@ use crate::{
 };
 #[typeshare]
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all="camelCase")]
 pub struct WithRoutes<C> {
     pub router_config: C,
     pub routes: HashMap<NodePort, NodeOutput>,

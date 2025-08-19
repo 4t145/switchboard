@@ -15,7 +15,7 @@ pub enum InstanceType {
     Node,
     Filter,
 }
-#[typeshare]
+#[typeshare(serialized_as = "String")]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 pub struct InstanceId(pub(crate) Arc<str>);
 
