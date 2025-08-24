@@ -1,9 +1,10 @@
-use std::vec;
+use std::{path::PathBuf, vec};
 
+use clap::Arg;
 use serde_json::json;
 use switchboard_http::{
     instance::{
-        NodeInstance, InstanceId,
+        InstanceId, NodeInstance,
         class::{ClassId, RouterProperty, ServiceProperty},
         registry::InstanceRegistry,
     },
@@ -11,6 +12,24 @@ use switchboard_http::{
 };
 use switchboard_kernel::{KernelContext, config::mem::Mem};
 use switchboard_model::{AnonServiceDescriptor, Bind, NamedService, ServiceDescriptor};
+#[derive(clap::Args)]
+pub struct CliArgs {
+    #[clap(subcommand)]
+    pub command: CliSubCommand,
+}
+
+#[derive(clap::Subcommand)]
+pub enum CliSubCommand {
+    Service(CliSubCommandService),
+    Config(CliSubCommandConfig),
+}
+
+pub struct CliSubCommandService {
+    anon_service: AnonServiceDescriptor,
+}
+pub struct CliSubCommandConfig {
+    path: PathBuf,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

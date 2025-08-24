@@ -1,18 +1,18 @@
 use std::{collections::HashMap, fmt::Debug};
 
 use serde::{Deserialize, Serialize};
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tls {
     pub resolver: TlsResolver,
     pub options: TlsOptions,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TlsResolver {
     Sni(HashMap<String, TlsCertParams>),
     Single(TlsCertParams),
 }
 
-#[derive(Clone, bon::Builder)]
+#[derive(Clone, bon::Builder, Serialize, Deserialize)]
 pub struct TlsCertParams {
     pub certs: Vec<Vec<u8>>,
     pub key: Vec<u8>,

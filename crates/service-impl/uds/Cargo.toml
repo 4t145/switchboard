@@ -1,0 +1,16 @@
+[package]
+name = "switchboard-uds"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+readme.workspace = true
+
+[dependencies]
+tokio = { version = "1", features = ["full"]}
+switchboard-service = { version = "0.1.0", workspace = true }
+tokio-util = { workspace = true, features = ["net", "io"] }
+tracing = { workspace = true }

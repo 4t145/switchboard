@@ -8,6 +8,7 @@ High-performance Easy-to-use Ergonomics Next-generation Post-modern Cross-platfo
 ```sh
 sb bind [::]:10808 socks5
 sb bind [::]:10808 tf/127.0.0.1:10809
+sb bind [::]:9096 uds//run/fc.socket
 sb unbind [::]:10808
 sb bind [::]:10808 @my-static-blog
 sb bind [::]:80 h

@@ -3,8 +3,10 @@ use std::{
     net::{IpAddr, SocketAddr},
 };
 
+use serde::{Deserialize, Serialize};
+
 use crate::descriptor::ServiceDescriptor;
-#[derive(Debug, Clone, bon::Builder)]
+#[derive(Debug, Clone, bon::Builder, Serialize, Deserialize)]
 #[builder(on(String, into))]
 pub struct Bind {
     pub addr: SocketAddr,

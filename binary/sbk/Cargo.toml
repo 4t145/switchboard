@@ -1,0 +1,22 @@
+[package]
+name = "sbk"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+readme.workspace = true
+
+[dependencies]
+switchboard-kernel = { path = "../../crates/kernel" }
+clap = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3", features = [
+    "env-filter",
+    "fmt",
+] }
+rustls = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+serde_json = { workspace = true }

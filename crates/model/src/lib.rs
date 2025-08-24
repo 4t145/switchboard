@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub mod cursor;
 pub use cursor::*;
@@ -7,15 +7,38 @@ pub use descriptor::*;
 pub mod bind;
 pub use bind::*;
 pub mod tag;
+use serde::{Deserialize, Serialize};
 pub use tag::*;
 pub mod named_service;
 pub use named_service::*;
-
+pub mod rbac;
 pub mod tls;
 pub use tls::*;
-use tokio::io::AsyncRead;
 
 pub enum ConfigEvent {}
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct Config {
+    pub named_services: HashMap<String, NamedService>,
+    pub binds: HashMap<String, Bind>,
+    pub enabled: HashSet<String>,
+    pub tls: HashMap<String, Tls>,
+}
+
+impl Config {
+    pub fn get_enabled(&self) -> impl Iterator<Item = (&str, &Bind)> + '_ {
+        self.enabled
+            .iter()
+            .filter_map(|id| self.binds.get(id).map(|bind| (id.as_str(), bind)))
+    }
+
+    pub fn get_named_service(&self, name: &str) -> Option<&NamedService> {
+        self.named_services.get(name)
+    }
+
+    pub fn get_tls(&self, name: &str) -> Option<&Tls> {
+        self.tls.get(name)
+    }
+}
 
 pub trait ConfigListener: Send {
     type Error: std::error::Error;
@@ -28,6 +51,7 @@ pub trait ConfigListener: Send {
 
 pub trait ConfigService {
     type Error: std::error::Error;
+    fn fetch_config(&self) -> impl Future<Output = Result<Config, Self::Error>> + Send + '_;
     // fn get_many_binds(
     //     &self,
     //     query: BindQuery,
@@ -53,10 +77,10 @@ pub trait ConfigService {
     //     &self,
     //     items: HashMap<String, Bind>,
     // ) -> impl Future<Output = Result<Vec<Result<(), Self::Error>>, Self::Error>> + Send + '_;
-    fn get_named_service(
-        &self,
-        name: String,
-    ) -> impl Future<Output = Result<Option<NamedService>, Self::Error>> + Send + '_;
+    // fn get_named_service(
+    //     &self,
+    //     name: String,
+    // ) -> impl Future<Output = Result<Option<NamedService>, Self::Error>> + Send + '_;
     // fn set_named_service_config(
     //     &self,
     //     name: String,
@@ -68,16 +92,18 @@ pub trait ConfigService {
     //     &self,
     //     items: HashMap<String, bool>,
     // ) -> impl Future<Output = Result<(), Self::Error>> + Send + '_;
-    fn get_enabled(
-        &self,
-        query: CursorQuery,
-    ) -> impl Future<Output = Result<PagedResult<Bind>, Self::Error>> + Send + '_;
-    fn get_tls(
-        &self,
-        name: String,
-    ) -> impl Future<Output = Result<Option<Tls>, Self::Error>> + Send + '_;
+    // fn get_enabled(
+    //     &self,
+    //     query: CursorQuery,
+    // ) -> impl Future<Output = Result<PagedResult<Bind>, Self::Error>> + Send + '_;
+    // fn get_tls(
+    //     &self,
+    //     name: String,
+    // ) -> impl Future<Output = Result<Option<Tls>, Self::Error>> + Send + '_;
     // fn listen(
     //     &self,
     //     items: Vec<String>,
     // ) -> impl Future<Output = Result<impl ConfigListener, Self::Error>> + Send + '_;
 }
+
+pub trait ResourceService {}

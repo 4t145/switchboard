@@ -17,6 +17,7 @@ switchboard-model = { workspace = true }
 switchboard-service = { workspace = true }
 switchboard-socks5 = { path = "../service-impl/socks5" }
 switchboard-pf = { path = "../service-impl/pf" }
+switchboard-uds = { path = "../service-impl/uds" }
 switchboard-http = { path = "../service-impl/http" }
 tracing = { workspace = true }
 

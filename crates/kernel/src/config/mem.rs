@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
 
-use switchboard_model::{Bind, ConfigService, Cursor, Indexed, NamedService, Tls};
+use switchboard_model::{Bind, ConfigService, NamedService, Tls};
 
 pub type BindId = String;
 fn next_bind_id() -> String {
@@ -10,20 +10,25 @@ fn next_bind_id() -> String {
 }
 #[derive(Clone, Debug, Default)]
 pub struct Mem {
-    pub named_services: HashMap<String, NamedService>,
-    pub binds: HashMap<BindId, Bind>,
-    pub enabled: Vec<BindId>,
-    pub tls: HashMap<String, Tls>,
+    pub config: switchboard_model::Config,
+}
+
+impl Deref for Mem {
+    type Target = switchboard_model::Config;
+    fn deref(&self) -> &Self::Target {
+        &self.config
+    }
+}
+
+impl DerefMut for Mem {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.config
+    }
 }
 
 impl Mem {
     pub fn new() -> Self {
-        Self {
-            named_services: HashMap::new(),
-            binds: HashMap::new(),
-            enabled: Vec::new(),
-            tls: HashMap::new(),
-        }
+        Self::default()
     }
 
     pub fn add_named_service(&mut self, service: NamedService) {
@@ -33,7 +38,7 @@ impl Mem {
     pub fn add_bind(&mut self, bind: Bind) -> BindId {
         let id = next_bind_id();
         self.binds.insert(id.clone(), bind);
-        self.enabled.push(id.clone());
+        self.enabled.insert(id.clone());
         id
     }
 
@@ -50,61 +55,7 @@ pub enum Error {
 
 impl ConfigService for Mem {
     type Error = Error;
-    async fn get_enabled(
-        &self,
-        query: switchboard_model::CursorQuery,
-    ) -> Result<switchboard_model::PagedResult<switchboard_model::Bind>, Self::Error> {
-        let binds = if let Some(cursor) = query.cursor.next {
-            // from cursor, take <limit>
-            let cursor_index = self
-                .enabled
-                .binary_search(&cursor)
-                .map_err(|_| Error::NotSuchIndex(cursor))?;
-            self.enabled
-                .iter()
-                .skip(cursor_index)
-                .take(query.limit)
-                .filter_map(|id| {
-                    let data = self.binds.get(id)?;
-                    Some(Indexed {
-                        id: id.clone(),
-                        data: data.clone(),
-                    })
-                })
-                .collect::<Vec<_>>()
-        } else {
-            // from start, take <limit>
-            self.enabled
-                .iter()
-                .take(query.limit)
-                .filter_map(|id| {
-                    let data = self.binds.get(id)?;
-                    Some(Indexed {
-                        id: id.clone(),
-                        data: data.clone(),
-                    })
-                })
-                .collect::<Vec<_>>()
-        };
-        let next_cursor = if binds.len() < query.limit || binds.is_empty() {
-            None
-        } else {
-            Some(Cursor {
-                next: binds.last().map(|item| item.id.clone()),
-            })
-        };
-
-        Ok(switchboard_model::PagedResult {
-            items: binds,
-            next_cursor,
-        })
-    }
-
-    async fn get_named_service(&self, name: String) -> Result<Option<NamedService>, Self::Error> {
-        Ok(self.named_services.get(&name).cloned())
-    }
-
-    async fn get_tls(&self, name: String) -> Result<Option<Tls>, Self::Error> {
-        Ok(self.tls.get(&name).cloned())
+    async fn fetch_config(&self) -> Result<switchboard_model::Config, Self::Error> {
+        Ok(self.config.clone())
     }
 }
