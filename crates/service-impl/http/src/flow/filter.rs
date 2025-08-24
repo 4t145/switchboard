@@ -44,20 +44,18 @@ impl Next {
                 Ok(filter) => (filter.call.clone())(req, context, self).await,
                 Err(e) => e.into_dyn_response(),
             }
-        } else {
-            if let Some(filter) = self.input_filters.pop() {
-                match context.get_filter(&filter.id) {
-                    Ok(filter) => (filter.call.clone())(req, context, self).await,
-                    Err(e) => e.into_dyn_response(),
-                }
-            } else {
-                (self.call)(req, context).await
+        } else if let Some(filter) = self.input_filters.pop() {
+            match context.get_filter(&filter.id) {
+                Ok(filter) => (filter.call.clone())(req, context, self).await,
+                Err(e) => e.into_dyn_response(),
             }
+        } else {
+            (self.call)(req, context).await
         };
         if is_boundary {
             context.leave();
         }
-        return response;
+        response
     }
 }
 
