@@ -31,8 +31,3 @@ rustls = { workspace = true }
 
 [features]
 binary = ["dep:tracing-subscriber"]
-
-[[bin]]
-name = "switchboard"
-path = "src/main.rs"
-required-features = ["binary"]

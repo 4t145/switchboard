@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::net::SocketAddr;
 
 use switchboard_model::Tls;
 use switchboard_service::tcp::RunningTcpService;

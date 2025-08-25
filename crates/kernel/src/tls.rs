@@ -71,7 +71,7 @@ fn build_resolver(resolver: TlsResolver) -> Result<Arc<dyn ResolvesServerCert>, 
         }
         TlsResolver::Single(params) => {
             let params = convert_tls_param(params).map_err(|error| TlsBuildError::InvalidKey {
-                context: format!("building key"),
+                context: "building key".to_string(),
                 error,
             })?;
             Ok(single_resolver(provider, params)?)
@@ -84,7 +84,7 @@ fn convert_tls_param(params: TlsCertParams) -> Result<TlsCkParams, &'static str>
     let ocsp = params.ocsp;
     Ok(TlsCkParams { certs, key, ocsp })
 }
-fn sni_resolver<'s>(
+fn sni_resolver(
     provider: &Arc<CryptoProvider>,
     items: impl Iterator<Item = (String, TlsCkParams)>,
 ) -> Result<Arc<dyn ResolvesServerCert>, rustls::Error> {

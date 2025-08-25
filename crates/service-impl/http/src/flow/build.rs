@@ -179,9 +179,9 @@ impl Flow {
         };
         let errors = flow.check();
         if errors.is_empty() {
-            return Ok(flow);
+            Ok(flow)
         } else {
-            return Err(FlowBuildError::InvalidFlow(errors));
+            Err(FlowBuildError::InvalidFlow(errors))
         }
     }
 }

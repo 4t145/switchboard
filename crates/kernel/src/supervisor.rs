@@ -1,5 +1,4 @@
 use std::{collections::HashMap, sync::Arc};
-use switchboard_model::Tls;
 use switchboard_service::{
     registry::{ServiceProviderRegistry, ServiceProviderRegistryError},
     tcp::RunningTcpService,
