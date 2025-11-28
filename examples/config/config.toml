@@ -1,22 +1,25 @@
-[[service]]
-name = "ssh-pf"
-provider = "tf"
-config = "[::1]:22"
-tls = "example.4t145.com"
+# [[service]]
+# name = "ssh-pf"
+# provider = "tf"
+# config = "[::1]:22"
+# tls = "example.4t145.com"
 
-[[bind]]
-addr = "[::]:10022"
-service = "@ssh-pf"
-enable = true
+# [[bind]]
+# addr = "[::]:10022"
+# service = "@ssh-pf"
+# enable = true
 
-[[bind]]
-addr = "[::]:12222"
-service = "tf/[::1]:22"
-enable = true
+# [[bind]]
+# addr = "[::]:12222"
+# service = "tf/[::1]:22"
+# enable = true
 
-[[bind]]
-addr = "[::]:10080"
-service = "@http-gateway"
+# [[bind]]
+# addr = "[::]:10080"
+# service = "@http-gateway"
 
-[[tls]]
-name = "example.4t145.com"
+# [[tls]]
+# name = "example.4t145.com"
+[[named_services]]
+provider = "http"
+name = "http-gateway"

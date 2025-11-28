@@ -14,7 +14,6 @@ pub use named_service::*;
 pub mod rbac;
 pub mod tls;
 pub use tls::*;
-
 pub enum ConfigEvent {
     Reload
 }

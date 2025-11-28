@@ -27,7 +27,8 @@ tracing-subscriber = { version = "0.3", features = [
     "fmt",
 ], optional = true }
 rustls = { workspace = true }
-
-
+deno_core = { version = "0.371" }
+deno_ast = { version = "0.52", features = ["transpiling"] }
 [features]
 binary = ["dep:tracing-subscriber"]
+# typescript = ["dep:deno_core", "dep:deno_ast"]
