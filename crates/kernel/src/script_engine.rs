@@ -1,8 +1,9 @@
 pub mod typescript;
 
-
+#[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
-
+    #[error("typescript error: {0}")]
+    TypescriptError(#[from] typescript::TypescriptError),
 }
 
 pub trait ConfigRender {
