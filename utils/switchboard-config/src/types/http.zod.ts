@@ -14,4 +14,4 @@ export const matchItemSchema = z.object({
 
 export const pathMatchRouterConfigSchema = z.array(matchItemSchema);
 
-z.nullable(z)
+// z.nullable(z)

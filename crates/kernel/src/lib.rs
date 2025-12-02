@@ -10,7 +10,7 @@ pub mod clap;
 pub mod config;
 pub mod supervisor;
 pub mod tls;
-pub mod script_engine;
+pub mod config_engine;
 pub use switchboard_model as model;
 
 pub fn register_prelude(registry: &mut ServiceProviderRegistry) {

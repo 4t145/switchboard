@@ -235,6 +235,6 @@ where
     }
 
     fn instance_type(&self) -> crate::instance::InstanceType {
-        todo!()
+        crate::instance::InstanceType::Node
     }
 }

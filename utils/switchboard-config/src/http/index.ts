@@ -1,6 +1,7 @@
 // import { type ZodType, type z.infer } from "json-schema-to-ts"
 import { z } from "zod/v3";
 import { symbol } from "zod/v4";
+import type { NamedService } from "..";
 
 const KIND: unique symbol = Symbol("kind");
 export const DEFAULT_PORT = "$default" as const;
@@ -153,11 +154,11 @@ export function asTarget(target: TargetLike): NodeTarget {
     return target;
   }
 }
-export type FlowBuilder = {
+export type HttpConfigBuilder = {
   instances: Record<InstanceId, InstanceData>;
   addInstance: <C extends ClassId, T extends InstanceType, S extends z.ZodType>(
     instance: Instance<C, T, S>
-  ) => FlowBuilder;
+  ) => HttpConfigBuilder;
   build(entrypoint: TargetLike, options?: FlowOptions): FlowConfig;
 };
 
@@ -175,8 +176,8 @@ export function resolveAllTargets(value: unknown): NodeTarget | unknown {
   }
 }
 
-export function createFlow(): FlowBuilder {
-  const flow: FlowBuilder = {
+export function createHttpConfig(): HttpConfigBuilder {
+  const flow: HttpConfigBuilder = {
     instances: {},
     addInstance: (instance) => {
       instance.data.config = resolveAllTargets(instance.data.config);
@@ -192,4 +193,23 @@ export function createFlow(): FlowBuilder {
     },
   };
   return flow;
+}
+
+export * as Router from "./router/index";
+export function createHttpNamedService(
+  name: string,
+  flowConfig: FlowConfig,
+  options?: {
+    config?: string;
+    description?: string;
+    tls?: string;
+  }
+): NamedService {
+  const config = JSON.stringify(flowConfig, null, 2);
+  return {
+    provider: "http",
+    name,
+    config,
+    ...options,
+  };
 }

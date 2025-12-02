@@ -20,7 +20,7 @@ switchboard-pf = { path = "../service-impl/pf" }
 switchboard-uds = { path = "../service-impl/uds" }
 switchboard-http = { path = "../service-impl/http" }
 tracing = { workspace = true }
-
+toml = { workspace = true }
 serde_json = { version = "1", features = ["preserve_order"] }
 tracing-subscriber = { version = "0.3", features = [
     "env-filter",
@@ -29,6 +29,8 @@ tracing-subscriber = { version = "0.3", features = [
 rustls = { workspace = true }
 deno_core = { version = "0.371" }
 deno_ast = { version = "0.52", features = ["transpiling"] }
+# deno_fetch = { version = "0.245" }
+v8 = { version = "142.2" }
 [features]
 binary = ["dep:tracing-subscriber"]
 # typescript = ["dep:deno_core", "dep:deno_ast"]

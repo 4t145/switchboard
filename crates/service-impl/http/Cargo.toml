@@ -8,9 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 categories.workspace = true
 readme.workspace = true
-[[bin]]
-name = "export-types"
-path = "scripts/export-types.rs"
+
 [dependencies]
 typeshare = "1"
 bytes = "1.10.1"

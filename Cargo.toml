@@ -4,7 +4,7 @@ members = [
     "crates/config/*",
     "crates/model",
     "crates/kernel",
-    "crates/service", "binary/sbk",
+    "crates/service", "binary/sbk", "binary/sbr",
     # "crates/kernel/src/main.rs",
 ]
 resolver = "2"
