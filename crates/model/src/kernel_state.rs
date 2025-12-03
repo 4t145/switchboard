@@ -1,6 +1,6 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-#[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
 pub enum KernelStateKind {
     WaitingConfig,
     Running {
@@ -14,7 +14,7 @@ pub enum KernelStateKind {
     Stopped,
 }
 
-#[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
 pub struct KernelState {
     pub kind: KernelStateKind,
     #[bincode(with_serde)]

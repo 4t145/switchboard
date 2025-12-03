@@ -234,7 +234,7 @@ impl Supervisor {
             }
         }
     }
-    pub async fn shutdown(&mut self) {
+    pub async fn shutdown(&self) {
         let mut task_set = tokio::task::JoinSet::new();
         for (_, handle) in self.tcp_services.write().await.drain() {
             if let Ok(service) = handle.service {

@@ -39,10 +39,20 @@ pub struct KernelContext {
     pub supervisor: Supervisor,
     pub kernel_config: Arc<KernelConfig>,
     pub controller_handle: Arc<tokio::sync::RwLock<Option<controller::ControllerHandle>>>,
-    pub global_cancel_token: tokio_util::sync::CancellationToken,
 }
 
 impl KernelContext {
+    pub fn new(config: KernelConfig) -> Self {
+        Self {
+            supervisor: Supervisor::new(),
+            kernel_config: Arc::new(config),
+            controller_handle: Arc::new(tokio::sync::RwLock::new(None)),
+        }
+    }
+    pub async fn get_state(&self) -> KernelState {
+        use std::ops::Deref;
+        self.supervisor.state.read().await.deref().clone()
+    }
     pub async fn load_config(&self, sb_config: model::Config) -> Result<(), Error> {
         let _registry = self.supervisor.registry.read().await;
         for (id, bind) in sb_config.get_enabled() {
@@ -108,13 +118,13 @@ impl KernelContext {
         Ok(())
     }
     pub async fn update_config(&self, sb_config: model::Config) -> Result<(), Error> {
-        
         self.load_config(sb_config).await
     }
+    pub async fn shutdown(&self) {
+        self.supervisor.shutdown().await;
+        let controller_handle = self.controller_handle.write().await.take();
+        if let Some(handle) = controller_handle {
+            handle.shutdown().await;
+        }
+    }
 }
-
-// impl<C: ConfigService> KernelContext<C> {
-//     pub async fn startup(config: C) -> Result<Self, Error<C>> {
-//         startup(config).await
-//     }
-// }

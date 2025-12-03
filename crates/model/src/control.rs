@@ -6,7 +6,7 @@ use std::{
 use hmac::{Mac, digest::MacError};
 use serde::{Deserialize, Serialize};
 
-use crate::{Config, kernel_state::KernelStateKind};
+use crate::{Config, kernel_state::{KernelState, KernelStateKind}};
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ControllerMessage {
     HeartBeat,
@@ -17,14 +17,13 @@ pub enum ControllerMessage {
 
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ControlCommandData {
-    Restart,
     Quit,
     UpdateConfig(UpdateConfig),
 }
 
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum KernelMessage {
-    HeartBeat(KernelStateKind),
+    HeartBeat(KernelState),
     Auth(KernelAuth),
     ControlCommandAccepted(ControlCommandAccepted),
     BeenTookOver(BeenTookOver),
@@ -108,7 +107,6 @@ pub struct ControlSigner {
 }
 pub struct ControlVerifier {
     pub sign_key: Vec<u8>,
-    pub signer_name: String,
 }
 
 

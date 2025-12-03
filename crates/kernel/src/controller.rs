@@ -3,7 +3,7 @@ use std::{any, ops::Deref, sync::Arc};
 
 use deno_core::serde::{Deserialize, Serialize};
 use futures::{Sink, Stream};
-use switchboard_model::control::*;
+use switchboard_model::{control::*, kernel_state::KernelState};
 
 use crate::KernelContext;
 
@@ -16,7 +16,6 @@ pub trait ControllerPort: Send + 'static {
     fn receive(&mut self) -> impl Future<Output = Result<ControllerMessage, Self::Error>> + Send;
     fn close(self) -> impl Future<Output = Result<(), Self::Error>> + Send;
 }
-
 
 #[derive(Debug, thiserror::Error)]
 pub enum ProtocolError {
@@ -32,6 +31,8 @@ pub enum ConnectError {
     Port(#[from] anyhow::Error),
     #[error("authentication error: {0}")]
     AuthError(String),
+    #[error("controller timeout after {} seconds", after.as_secs())]
+    Timeout { after: std::time::Duration },
 }
 
 impl ConnectError {
@@ -53,6 +54,22 @@ pub struct ControllerConfig {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ConnectConfig {
     pub psk: Vec<u8>,
+    /// Heartbeat interval in seconds, default to 5 seconds
+    #[serde(default)]
+    pub heartbeat_interval: u32,
+    #[serde(default)]
+    /// Channel capacity for sending messages to controller, default to be 32
+    pub channel_capacity: u32,
+}
+
+impl Default for ConnectConfig {
+    fn default() -> Self {
+        Self {
+            psk: rand::random::<[u8; 16]>().to_vec(),
+            heartbeat_interval: 5,
+            channel_capacity: 32,
+        }
+    }
 }
 pub async fn start_up_connection<C: ControllerPort>(
     controller_port: &mut C,
@@ -112,57 +129,140 @@ pub async fn report_been_took_over<C: ControllerPort>(
     Ok(())
 }
 
-pub struct ControllerConnection {
-
-}
-impl ControllerConnection {
-    pub fn spawn<C: ControllerPort>(mut controller_port: C, ) {
-        tokio::spawn(async move {
-            
-        });
-    }
-}
-
 pub struct ControllerHandle {
-    pub message_sender: tokio::sync::mpsc::Sender<KernelMessage>,
+    pub message_sender: tokio::sync::mpsc::Sender<ControllerEvent>,
     pub ct: tokio_util::sync::CancellationToken,
     task_handle: tokio::task::JoinHandle<Result<(), ConnectError>>,
 }
+
+pub(crate) enum ControllerEvent {
+    TakeOver(TakeOver),
+    UpdateState(KernelState),
+    HeartBeat,
+    ReceiveMessage(ControllerMessage),
+}
+
 impl ControllerHandle {
-    pub async fn spawn<C: ControllerPort>(
-        mut controller_port: C,
-        ct: tokio_util::sync::CancellationToken,
-    ) -> Self {
-        // todo:
-        // 1. 双向心跳机制
-        // 2. 接收controller消息并且执行对应动作
-        let (message_sender, mut message_receiver) =
-            tokio::sync::mpsc::channel::<KernelMessage>(16);
+    pub async fn shutdown(self) {
+        self.ct.cancel();
+        self.task_handle.await.inspect_err(|err| {
+            tracing::error!(
+                "Controller connection task ended with error during shutdown: {}",
+                err
+            );
+        });
+    }
+    pub async fn spawn<C: ControllerPort>(mut controller_port: C, context: KernelContext) -> Self {
+        let (message_sender, mut message_receiver) = tokio::sync::mpsc::channel::<ControllerEvent>(
+            context.kernel_config.controller.connect.channel_capacity as usize,
+        );
+        let ct = tokio_util::sync::CancellationToken::new();
         let ct_child = ct.child_token();
+        let mut hb_interval = tokio::time::interval(std::time::Duration::from_secs(
+            context.kernel_config.controller.connect.heartbeat_interval as u64,
+        ));
+        let mut controller_heartbeat_timeout =
+            tokio::time::interval(std::time::Duration::from_secs(
+                (context.kernel_config.controller.connect.heartbeat_interval as u64) * 3,
+            ));
+        let verifier = switchboard_model::control::ControlVerifier {
+            sign_key: context.kernel_config.controller.connect.psk.clone(),
+        };
         let task_handle = tokio::spawn(async move {
             loop {
-                tokio::select! {
+                let next_event = tokio::select! {
+                    // task cancelled
                     _ = ct_child.cancelled() => {
                         tracing::info!("controller connection task is cancelled, shutting down");
                         break;
                     }
-                    maybe_message = message_receiver.recv() => {
-                        match maybe_message {
-                            Some(message) => {
-                                let is_been_took_over = message.is_been_took_over();
-                                controller_port.send(message).await.map_err(ConnectError::when("sending normal message"))?;
-                                if is_been_took_over {
-                                    tracing::info!("been took over message sent, shutting down controller connection task");
-                                    controller_port.close().await.map_err(ConnectError::when("closing after been took over"))?;
-                                    break;
-                                }
-                            }
-                            None => {
-                                tracing::info!("message sender dropped, shutting down controller connection task");
-                                break;
-                            }
-                        }
+                    // heartbeat interval
+                    _ = hb_interval.tick() => {
+                        ControllerEvent::HeartBeat
                     }
+                    _ = controller_heartbeat_timeout.tick() => {
+                        return Err(ConnectError::Timeout {
+                            after: controller_heartbeat_timeout.period(),
+                        });
+                    }
+                    controller_message = controller_port.receive() => {
+                        let message = controller_message
+                            .map_err(ConnectError::when("receiving controller message"))?;
+                        ControllerEvent::ReceiveMessage(message)
+                    }
+                    maybe_message = message_receiver.recv() => {
+                        let Some(event) = maybe_message else {
+                            tracing::info!("message receiver dropped, shutting down controller connection task");
+                            break;
+                        };
+                        event
+                    }
+                };
+                match next_event {
+                    ControllerEvent::TakeOver(take_over) => {
+                        controller_port
+                            .send(KernelMessage::BeenTookOver(BeenTookOver {
+                                new_controller_name: take_over.controller_name,
+                            }))
+                            .await
+                            .map_err(ConnectError::when("sending take over message"))?;
+                        tracing::info!(
+                            "been took over message sent, shutting down controller connection task"
+                        );
+                        controller_port
+                            .close()
+                            .await
+                            .map_err(ConnectError::when("closing after been took over"))?;
+                        break;
+                    }
+                    ControllerEvent::UpdateState(kernel_state) => {
+                        controller_port
+                            .send(KernelMessage::HeartBeat(kernel_state))
+                            .await
+                            .map_err(ConnectError::when("sending take over message"))?;
+                        hb_interval.reset();
+                    }
+                    ControllerEvent::HeartBeat => {
+                        let kernel_state = context.get_state().await;
+                        controller_port
+                            .send(KernelMessage::HeartBeat(kernel_state))
+                            .await
+                            .map_err(ConnectError::when("sending heartbeat message"))?;
+                    }
+                    ControllerEvent::ReceiveMessage(controller_message) => match controller_message
+                    {
+                        ControllerMessage::HeartBeat => {
+                            controller_heartbeat_timeout.reset();
+                        }
+                        ControllerMessage::ControlCommand(cmd) => {
+                            let seq = cmd.seq;
+
+                            let verify_result = verifier.verify_command(&cmd);
+                            if let Err(e) = verify_result {
+                                tracing::warn!(
+                                    "fail to verify command: {} from {}",
+                                    e,
+                                    cmd.signer_name
+                                );
+                                continue;
+                            }
+                            context.handle_control_command(cmd).await;
+                            controller_port
+                                .send(KernelMessage::ControlCommandAccepted(
+                                    ControlCommandAccepted { seq },
+                                ))
+                                .await
+                                .map_err(ConnectError::when(
+                                    "sending control command accepted message",
+                                ))?;
+                        }
+                        _ => {
+                            tracing::warn!(
+                                "received unexpected controller message in the controller connection event loop: {:?}",
+                                controller_message
+                            );
+                        }
+                    },
                 }
             }
             Ok(())
@@ -173,14 +273,10 @@ impl ControllerHandle {
             task_handle,
         }
     }
-    pub async fn take_over(
-        self,
-        take_over: TakeOver,
-    ) -> Result<(), ConnectError> {
+    pub async fn take_over(self, take_over: TakeOver) -> Result<(), ConnectError> {
         self.message_sender
-            .send(KernelMessage::BeenTookOver(BeenTookOver {
-                new_controller_name: take_over.controller_name,
-            })).await
+            .send(ControllerEvent::TakeOver(take_over))
+            .await
             .map_err(|e| {
                 ConnectError::Port(anyhow::Error::new(e).context("sending been took over message"))
             })?;
@@ -190,24 +286,39 @@ impl ControllerHandle {
     }
 }
 impl KernelContext {
-
+    pub async fn handle_control_command(&self, cmd: ControlCommand) {
+        match cmd.data {
+            ControlCommandData::Quit => {
+                tracing::info!("received quit command from controller");
+                self.shutdown().await;
+            }
+            ControlCommandData::UpdateConfig(update_config) => {
+                tracing::info!("received update config command from controller");
+                if let Err(e) = self.update_config(update_config.config).await {
+                    tracing::error!("failed to update config: {}", e);
+                }
+            }
+        }
+    }
     pub async fn spawn_controller_port_event_loop<C: ControllerPort>(
         &self,
         mut controller_port: C,
     ) -> Result<(), ConnectError> {
         let context = self.clone();
-        let take_over = start_up_connection(&mut controller_port, &context.kernel_config.controller.connect).await?;
+        let take_over = start_up_connection(
+            &mut controller_port,
+            &context.kernel_config.controller.connect,
+        )
+        .await?;
         if let Some(handle) = context.controller_handle.write().await.take() {
             tokio::spawn(async move {
-                let result = handle.take_over(take_over).await;
-                if let Err(error) = result {
-                    tracing::error!("Failed to report been took over to old controller: {}", error);
-                } else {
-                    tracing::info!("Reported been took over to old controller");
+                if let Err(e) = handle.take_over(take_over).await {
+                    tracing::error!("failed to take over existing controller connection: {}", e);
                 }
             });
         }
-        
+        let new_controller_handle = ControllerHandle::spawn(controller_port, context.clone()).await;
+        *context.controller_handle.write().await = Some(new_controller_handle);
         Ok(())
     }
 }
