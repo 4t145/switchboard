@@ -133,6 +133,9 @@ impl ControllerHandle {
         mut controller_port: C,
         ct: tokio_util::sync::CancellationToken,
     ) -> Self {
+        // todo:
+        // 1. 双向心跳机制
+        // 2. 接收controller消息并且执行对应动作
         let (message_sender, mut message_receiver) =
             tokio::sync::mpsc::channel::<KernelMessage>(16);
         let ct_child = ct.child_token();
