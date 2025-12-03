@@ -129,57 +129,74 @@ pub trait TcpServiceExt: Sized {
         }
     }
 }
+
+async fn listen_with_updater(mut service_updater: tokio::sync::watch::Receiver<Arc<dyn DynTcpService>>, listener: TcpListener, ct: CancellationToken) {
+    let mut task_set = tokio::task::JoinSet::new();
+    let mut service = service_updater.borrow().clone();
+    loop {
+        let (stream, peer) = tokio::select! {
+
+            _ = ct.cancelled() => {
+                tracing::debug!("Cancellation token triggered, shutting down server");
+                break;
+            }
+            update = service_updater.changed() => {
+                match update {
+                    Ok(()) => {
+                        service = service_updater.borrow().clone();
+                        tracing::info!("TCP service updated");
+                    }
+                    Err(_) => {
+                        tracing::warn!("Service updater channel closed, keeping existing service");
+                    }
+                }
+                continue;
+            }
+            next_income_result = listener.accept() => {
+                match next_income_result {
+                    Err(error) => {
+                        tracing::error!(%error, "Failed to accept connection");
+                        continue;
+                    }
+                    Ok((stream, peer)) => {
+                        tracing::debug!(%peer, "new connection");
+                        (stream, peer)
+                    }
+                }
+            }
+            finished = task_set.join_next_with_id(), if !task_set.is_empty()=> {
+                if let Some(result) = finished {
+                    logging_joined_task(result);
+                };
+                continue;
+            }
+        };
+        let service = service
+            .clone()
+            .serve(BoxedAsyncStream::new(stream), peer, ct.child_token());
+        task_set.spawn(service);
+    }
+    while let Some(result) = task_set.join_next_with_id().await {
+        logging_joined_task(result);
+    }
+}
 impl dyn DynTcpService {
     pub async fn bind(self: Arc<Self>, addr: SocketAddr) -> io::Result<RunningTcpService> {
         let listener = TcpListener::bind(addr).await?;
         tracing::debug!(%addr, "Listening on TCP");
         let ct = CancellationToken::new();
         let service = self.clone();
+        let (updater, update_receiver) = tokio::sync::watch::channel(service);
         let join_handle = tokio::spawn({
             let ct = ct.child_token();
-            async move { service.listen(listener, ct).await }
+            async move { listen_with_updater(update_receiver, listener, ct).await }
         });
         Ok(RunningTcpService {
             bind: addr,
             ct,
             join_handle,
+            updater,
         })
-    }
-    pub async fn listen(self: Arc<Self>, listener: TcpListener, ct: CancellationToken) {
-        let mut task_set = tokio::task::JoinSet::new();
-        loop {
-            let (stream, peer) = tokio::select! {
-                _ = ct.cancelled() => {
-                    tracing::debug!("Cancellation token triggered, shutting down server");
-                    break;
-                }
-                next_income_result = listener.accept() => {
-                    match next_income_result {
-                        Err(error) => {
-                            tracing::error!(%error, "Failed to accept connection");
-                            continue;
-                        }
-                        Ok((stream, peer)) => {
-                            tracing::debug!(%peer, "new connection");
-                            (stream, peer)
-                        }
-                    }
-                }
-                finished = task_set.join_next_with_id(), if !task_set.is_empty()=> {
-                    if let Some(result) = finished {
-                        logging_joined_task(result);
-                    };
-                    continue;
-                }
-            };
-            let service = self
-                .clone()
-                .serve(BoxedAsyncStream::new(stream), peer, ct.child_token());
-            task_set.spawn(service);
-        }
-        while let Some(result) = task_set.join_next_with_id().await {
-            logging_joined_task(result);
-        }
     }
 }
 
@@ -202,9 +219,19 @@ pub struct RunningTcpService {
     bind: SocketAddr,
     ct: CancellationToken,
     join_handle: tokio::task::JoinHandle<()>,
+    updater: tokio::sync::watch::Sender<Arc<dyn DynTcpService>>,
+}
+
+impl std::fmt::Debug for dyn DynTcpService {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "DynTcpService")
+    }
 }
 
 impl RunningTcpService {
+    pub fn update_service(&self, service: Arc<dyn DynTcpService>) -> Result<(), tokio::sync::watch::error::SendError<Arc<dyn DynTcpService>>> {
+        self.updater.send(service)
+    }
     pub fn bind(&self) -> SocketAddr {
         self.bind
     }

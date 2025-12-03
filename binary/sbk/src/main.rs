@@ -58,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_max_level(tracing::Level::DEBUG)
         .init();
     let config = retrieve_service_config().await?;
-    let mut context = KernelContext::startup(config).await?;
+    let mut context = KernelContext::load_config(config).await?;
     tracing::info!("Kernel startup complete");
     tracing::info!("Kernel running, press Ctrl+C to exit");
     tokio::signal::ctrl_c()

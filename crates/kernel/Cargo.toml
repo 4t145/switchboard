@@ -12,6 +12,7 @@ readme.workspace = true
 [dependencies]
 clap = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true }
 thiserror = { workspace = true }
 switchboard-model = { workspace = true }
 switchboard-service = { workspace = true }
@@ -19,14 +20,19 @@ switchboard-socks5 = { path = "../service-impl/socks5" }
 switchboard-pf = { path = "../service-impl/pf" }
 switchboard-uds = { path = "../service-impl/uds" }
 switchboard-http = { path = "../service-impl/http" }
+futures = { workspace = true }
 tracing = { workspace = true }
 toml = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
+rand = { version  = "0.9" }
 tracing-subscriber = { version = "0.3", features = [
     "env-filter",
     "fmt",
 ], optional = true }
 rustls = { workspace = true }
+anyhow = { version = "1" }
+bincode = { version = "2", features = ["serde"] }
 deno_core = { version = "0.371" }
 deno_ast = { version = "0.52", features = ["transpiling"] }
 # deno_fetch = { version = "0.245" }

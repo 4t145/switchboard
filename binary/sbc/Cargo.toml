@@ -1,5 +1,5 @@
 [package]
-name = "sbr"
+name = "sbc"
 edition.workspace = true
 version.workspace = true
 authors.workspace = true
@@ -13,3 +13,5 @@ readme.workspace = true
 tokio = { workspace = true, features = ["full"] }
 futures = { workspace = true }
 thiserror = { workspace = true }
+switchboard-model = { workspace = true }
+tracing = { workspace = true }

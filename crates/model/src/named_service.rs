@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq)]
 #[derive(bon::Builder)]
 #[builder(on(String, into))]
 pub struct NamedService {

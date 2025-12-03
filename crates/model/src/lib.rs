@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 pub mod cursor;
 pub use cursor::*;
@@ -14,15 +14,17 @@ pub use named_service::*;
 pub mod rbac;
 pub mod tls;
 pub use tls::*;
+pub mod control;
+pub mod kernel_state;
 pub enum ConfigEvent {
     Reload
 }
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode)]
 pub struct Config {
-    pub named_services: HashMap<String, NamedService>,
-    pub binds: HashMap<String, Bind>,
-    pub enabled: HashSet<String>,
-    pub tls: HashMap<String, Tls>,
+    pub named_services: BTreeMap<String, NamedService>,
+    pub binds: BTreeMap<String, Bind>,
+    pub enabled: BTreeSet<String>,
+    pub tls: BTreeMap<String, Tls>,
 }
 
 impl Config {

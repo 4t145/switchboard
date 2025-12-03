@@ -1,7 +1,7 @@
 use std::{convert::Infallible, fmt::Display, str::FromStr};
 
 use serde::{Deserialize, Serialize};
-#[derive(Serialize, Deserialize, Debug, Clone, bon::Builder)]
+#[derive(Serialize, Deserialize, Debug, Clone, Hash, bon::Builder, bincode::Encode, bincode::Decode, PartialEq, Eq)]
 #[builder(on(String, into))]
 pub struct AnonServiceDescriptor {
     pub provider: String,
@@ -11,7 +11,7 @@ pub struct AnonServiceDescriptor {
 
 pub type NamedServiceDescriptor = String;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq)]
 pub enum ServiceDescriptor {
     Anon(AnonServiceDescriptor),
     Named(NamedServiceDescriptor),
