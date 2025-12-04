@@ -10,8 +10,13 @@ categories.workspace = true
 readme.workspace = true
 
 [dependencies]
+tracing-subscriber = { version = "0.3", features = [
+    "env-filter",
+    "fmt",
+] }
 tokio = { workspace = true, features = ["full"] }
 futures = { workspace = true }
 thiserror = { workspace = true }
 switchboard-model = { workspace = true }
 tracing = { workspace = true }
+switchboard-controller = { path = "../../crates/controller" }

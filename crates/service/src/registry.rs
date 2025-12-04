@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 
 use crate::{
     BoxTcpServiceProvider, BoxedError, DynTcpServiceProvider, TcpServiceProvider,

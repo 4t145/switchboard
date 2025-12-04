@@ -1,14 +1,19 @@
 use std::{path::PathBuf, str::FromStr};
 
 use clap::Parser;
-use switchboard_kernel::{KernelContext, config::mem::Mem, model::*};
+use switchboard_kernel::{
+    KernelContext,
+    config::{KernelConfig, mem::MemConfig},
+    controller::ControllerConfig,
+    model::*,
+};
 #[derive(clap::Parser)]
 pub struct CliArgs {
     #[clap(subcommand)]
     pub command: CliSubCommand,
 }
 
-/// swk serve -b [::]:8080 -s pf/[::]:9090
+/// sbk serve -b [::]:8080 -s pf/[::]:9090
 #[derive(clap::Subcommand)]
 pub enum CliSubCommand {
     Serve(CliSubCommandServe),
@@ -28,17 +33,17 @@ pub struct CliSubCommandConfig {
     path: PathBuf,
 }
 
-pub async fn retrieve_service_config() -> Result<Mem, Box<dyn std::error::Error>> {
+pub async fn retrieve_kernel_config() -> Result<KernelConfig, Box<dyn std::error::Error>> {
     let args = CliArgs::parse();
     match args.command {
         CliSubCommand::Config(cmd) => {
             let path = cmd.path;
             let config_str = tokio::fs::read_to_string(path).await?;
-            let config: Config = serde_json::from_str(&config_str)?;
-            Ok(Mem { config })
+            let config: KernelConfig = toml::from_str(&config_str)?;
+            Ok(config)
         }
         CliSubCommand::Serve(cmd) => {
-            let mut config = Mem::new();
+            let mut config = MemConfig::new();
             let service = ServiceDescriptor::from_str(&cmd.service)?;
             config.add_bind(
                 Bind::builder()
@@ -47,7 +52,12 @@ pub async fn retrieve_service_config() -> Result<Mem, Box<dyn std::error::Error>
                     .service(service)
                     .build(),
             );
-            Ok(config)
+
+            Ok(KernelConfig {
+                info: kernel::KernelInfo::default(),
+                controller: ControllerConfig::default(),
+                startup: config.into_inner(),
+            })
         }
     }
 }
@@ -57,8 +67,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
         .init();
-    let config = retrieve_service_config().await?;
-    let mut context = KernelContext::load_config(config).await?;
+    let config = retrieve_kernel_config().await?;
+    tracing::debug!("Starting kernel with config: {:?}", config);
+    let context = KernelContext::new(config);
+    tracing::info!("Kernel starting up...");
+    context.startup().await?;
     tracing::info!("Kernel startup complete");
     tracing::info!("Kernel running, press Ctrl+C to exit");
     tokio::signal::ctrl_c()

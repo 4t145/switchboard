@@ -1,6 +1,6 @@
 use std::{borrow::Cow, sync::Arc};
 
-use futures::{FutureExt, TryFutureExt, future::BoxFuture};
+use futures::{FutureExt, future::BoxFuture};
 use tcp::{DynTcpService, TcpService};
 use tokio::io::AsyncRead;
 use udp::UdpService;

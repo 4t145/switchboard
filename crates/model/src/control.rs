@@ -1,18 +1,16 @@
-use std::{
-    hash::{DefaultHasher, Hash},
-    sync::atomic::AtomicU32,
-};
+use std::{hash::Hash, sync::atomic::AtomicU32};
 
 use hmac::{Mac, digest::MacError};
 use serde::{Deserialize, Serialize};
 
-use crate::{Config, kernel_state::{KernelState, KernelStateKind}};
+use crate::{Config, controller::ControllerInfo, kernel::KernelState};
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ControllerMessage {
     HeartBeat,
     TakeOver(TakeOver),
     AuthResponse(KernelAuthResponse),
     ControlCommand(ControlCommand),
+    // todo: controller can notice kernel when itself is going to shutdown
 }
 
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -32,22 +30,23 @@ pub enum KernelMessage {
 impl KernelMessage {
     pub fn is_been_took_over(&self) -> bool {
         matches!(self, KernelMessage::BeenTookOver(_))
-    }   
+    }
 }
 
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct TakeOver {
-    pub controller_name: String,
+    pub controller_info: ControllerInfo,
 }
 
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct BeenTookOver {
-    pub new_controller_name: String,
+    pub new_controller_info: ControllerInfo,
 }
 
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, Clone)]
 pub struct KernelAuth {
     pub random_bytes: Vec<u8>,
+    pub kernel_info: crate::kernel::KernelInfo,
 }
 
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -72,15 +71,12 @@ impl KernelAuthResponse {
     }
 }
 
-
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct UpdateConfig {
     pub config: Config,
 }
 
-pub struct UpdateConfigFinished {
-
-}
+pub struct UpdateConfigFinished {}
 
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct UpdateConfigBuilder {
@@ -108,7 +104,6 @@ pub struct ControlSigner {
 pub struct ControlVerifier {
     pub sign_key: Vec<u8>,
 }
-
 
 impl ControlSigner {
     pub fn sign_command(&self, data: ControlCommandData) -> ControlCommand {
@@ -141,12 +136,27 @@ impl ControlVerifier {
         mac.update(&command.seq.to_be_bytes());
         mac.update(&command.ts.to_be_bytes());
         mac.update(command.signer_name.as_bytes());
-        bincode::encode_into_std_write(
-            &command.data,
-            &mut mac,
-            bincode::config::standard(),
-        ).expect("control data should be always serializable");
+        bincode::encode_into_std_write(&command.data, &mut mac, bincode::config::standard())
+            .expect("control data should be always serializable");
         mac.verify_slice(&command.signature)
     }
+}
 
+impl Config {
+    pub fn sign(&self, key: &[u8]) -> Vec<u8> {
+        let config_as_bytes = bincode::encode_to_vec(self, bincode::config::standard())
+            .expect("Config should be always serializable");
+        let mut mac =
+            hmac::Hmac::<sha2::Sha256>::new_from_slice(key).expect("HMAC can take key of any size");
+        mac.update(&config_as_bytes);
+        mac.finalize().into_bytes().to_vec()
+    }
+    pub fn verify_signature(&self, signature: &[u8], key: &[u8]) -> Result<(), MacError> {
+        let config_as_bytes = bincode::encode_to_vec(self, bincode::config::standard())
+            .expect("Config should be always serializable");
+        let mut mac =
+            hmac::Hmac::<sha2::Sha256>::new_from_slice(key).expect("HMAC can take key of any size");
+        mac.update(&config_as_bytes);
+        mac.verify_slice(signature)
+    }
 }

@@ -9,24 +9,24 @@ fn next_bind_id() -> String {
     format!("bind-{}", id)
 }
 #[derive(Clone, Debug, Default)]
-pub struct Mem {
+pub struct MemConfig {
     pub config: switchboard_model::Config,
 }
 
-impl Deref for Mem {
+impl Deref for MemConfig {
     type Target = switchboard_model::Config;
     fn deref(&self) -> &Self::Target {
         &self.config
     }
 }
 
-impl DerefMut for Mem {
+impl DerefMut for MemConfig {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.config
     }
 }
 
-impl Mem {
+impl MemConfig {
     pub fn new() -> Self {
         Self::default()
     }
@@ -45,6 +45,10 @@ impl Mem {
     pub fn add_tls(&mut self, name: String, tls: Tls) {
         self.tls.insert(name, tls);
     }
+
+    pub fn into_inner(self) -> switchboard_model::Config {
+        self.config
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -53,7 +57,7 @@ pub enum Error {
     NotSuchIndex(String),
 }
 
-impl ConfigService for Mem {
+impl ConfigService for MemConfig {
     type Error = Error;
     async fn fetch_config(&self) -> Result<switchboard_model::Config, Self::Error> {
         Ok(self.config.clone())

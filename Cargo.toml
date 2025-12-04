@@ -1,11 +1,13 @@
 [workspace]
 members = [
     "crates/service-impl/*",
-    "crates/config/*",
     "crates/model",
     "crates/kernel",
-    "crates/service", "binary/sbk", "binary/sbc",
-    # "crates/kernel/src/main.rs",
+    "crates/service",
+    "crates/ext/switchboard-deno",
+    "crates/controller",
+    "binary/sbk",
+    "binary/sbc",
 ]
 resolver = "2"
 

@@ -1,6 +1,5 @@
-use bincode::config;
 use std::{collections::HashMap, sync::Arc};
-use switchboard_model::kernel_state::KernelState;
+use switchboard_model::kernel::KernelState;
 use switchboard_service::{
     registry::{ServiceProviderRegistry, ServiceProviderRegistryError},
     tcp::{DynTcpService, RunningTcpService},
@@ -77,7 +76,7 @@ impl Supervisor {
             .await?;
         if let Some(old_service) = self.tcp_services.write().await.get(&info.id) {
             if let Ok(old_service) = &old_service.service {
-                old_service.update_service(new_service);
+                old_service.update_service(new_service)?;
             }
         }
         Ok(())
@@ -96,7 +95,9 @@ impl Supervisor {
             .await?;
         // shutdown old service so we can rebind
         if let Some(old_service) = self.tcp_services.write().await.remove(&info.id) {
-            old_service.service?.cancel().await;
+            let _ = old_service.service?.cancel().await.inspect_err(|e| {
+                tracing::error!("fail to join old TCP service: {e}")
+            });
         }
         let running_service = new_service.bind(info.bind).await?;
         self.tcp_services.write().await.insert(

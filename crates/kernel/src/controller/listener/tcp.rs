@@ -1,62 +1,59 @@
-use std::path::PathBuf;
+use std::net::{IpAddr, Ipv6Addr};
 
 use serde::{Deserialize, Serialize};
 use switchboard_model::control::{ControllerMessage, KernelMessage};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
-    net::UnixStream,
+    net::TcpStream,
 };
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct UdsListenerConfig {
-    #[serde(default = "default_path")]
-    pub path: PathBuf,
+pub struct TcpListenerConfig {
+    #[serde(default = "default_port")]
+    pub port: u16,
+    #[serde(default = "default_host")]
+    pub host: IpAddr,
     #[serde(default = "default_max_frame_size")]
     pub max_frame_size: u32,
 }
 
-fn default_path() -> PathBuf {
-    PathBuf::from("/var/run/switchboard/default.sock")
+const fn default_port() -> u16 {
+    8056
+}
+
+const fn default_host() -> IpAddr {
+    IpAddr::V6(Ipv6Addr::LOCALHOST)
 }
 
 const fn default_max_frame_size() -> u32 {
     1 << 22
 }
-pub struct UdsListener {
-    pub config: UdsListenerConfig,
-    pub listener: tokio::net::UnixListener,
+
+pub struct TcpListener {
+    pub config: TcpListenerConfig,
+    pub listener: tokio::net::TcpListener,
 }
 
-impl UdsListener {
-    pub async fn new(config: UdsListenerConfig) -> std::io::Result<Self> {
-        // check if the socket dir exists
-        if let Some(parent) = config.path.parent() {
-            if !parent.exists() {
-                tokio::fs::create_dir_all(parent).await?;
-            }
-        }
-        let listener = tokio::net::UnixListener::bind(&config.path)?;
+impl TcpListener {
+    pub async fn new(config: TcpListenerConfig) -> std::io::Result<Self> {
+        let listener = tokio::net::TcpListener::bind((config.host, config.port)).await?;
         Ok(Self { config, listener })
     }
-    pub async fn accept(&self) -> std::io::Result<UdsConnection> {
+    pub async fn accept(&self) -> std::io::Result<TcpConnection> {
         let (stream, peer) = self.listener.accept().await?;
-        Ok(UdsConnection::new(stream, peer, self.config.clone()))
+        Ok(TcpConnection::new(stream, peer, self.config.clone()))
     }
 }
 
-pub struct UdsConnection {
-    pub stream: UnixStream,
-    pub addr: tokio::net::unix::SocketAddr,
-    pub config: UdsListenerConfig,
+pub struct TcpConnection {
+    pub stream: TcpStream,
+    pub addr: std::net::SocketAddr,
+    pub config: TcpListenerConfig,
     pub write_buffer: Vec<u8>,
     pub read_buffer: Vec<u8>,
 }
 
-impl UdsConnection {
-    pub fn new(
-        stream: UnixStream,
-        addr: tokio::net::unix::SocketAddr,
-        config: UdsListenerConfig,
-    ) -> Self {
+impl TcpConnection {
+    pub fn new(stream: TcpStream, addr: std::net::SocketAddr, config: TcpListenerConfig) -> Self {
         const INITIAL_BUFFER_SIZE: usize = 1 << 10;
         Self {
             stream,
@@ -66,10 +63,10 @@ impl UdsConnection {
             read_buffer: Vec::with_capacity(INITIAL_BUFFER_SIZE),
         }
     }
-    async fn receive_next(&mut self) -> Result<ControllerMessage, UdsConnectionReadError> {
+    async fn receive_next(&mut self) -> Result<ControllerMessage, TcpConnectionReadError> {
         let size = self.stream.read_u32().await?;
         if size > self.config.max_frame_size {
-            return Err(UdsConnectionReadError::FrameSizeExceeded {
+            return Err(TcpConnectionReadError::FrameSizeExceeded {
                 max_size: self.config.max_frame_size,
                 actual_size: size,
             });
@@ -90,12 +87,12 @@ impl UdsConnection {
     async fn send_and_flush(
         &mut self,
         message: &KernelMessage,
-    ) -> Result<(), UdsConnectionWriteError> {
+    ) -> Result<(), TcpConnectionWriteError> {
         self.write_buffer.clear();
         bincode::encode_into_slice(message, &mut self.write_buffer, bincode::config::standard())?;
         let size = self.write_buffer.len() as u32;
         if size > self.config.max_frame_size {
-            return Err(UdsConnectionWriteError::FrameSizeExceeded {
+            return Err(TcpConnectionWriteError::FrameSizeExceeded {
                 max_size: self.config.max_frame_size,
                 actual_size: size,
             });
@@ -107,8 +104,8 @@ impl UdsConnection {
     }
 }
 
-impl crate::controller::ControllerConnection for UdsConnection {
-    type Error = UdsConnectionError;
+impl crate::controller::ControllerConnection for TcpConnection {
+    type Error = TcpConnectionError;
     async fn send(
         &mut self,
         message: switchboard_model::control::KernelMessage,
@@ -128,15 +125,15 @@ impl crate::controller::ControllerConnection for UdsConnection {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum UdsConnectionError {
+pub enum TcpConnectionError {
     #[error("read error: {0}")]
-    Read(#[from] UdsConnectionReadError),
+    Read(#[from] TcpConnectionReadError),
     #[error("write error: {0}")]
-    Write(#[from] UdsConnectionWriteError),
+    Write(#[from] TcpConnectionWriteError),
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum UdsConnectionReadError {
+pub enum TcpConnectionReadError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     #[error("bincode decode error: {0}")]
@@ -146,7 +143,7 @@ pub enum UdsConnectionReadError {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum UdsConnectionWriteError {
+pub enum TcpConnectionWriteError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     #[error("bincode encode error: {0}")]

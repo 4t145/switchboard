@@ -1,5 +1,5 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-
+use std::collections::{BTreeMap, BTreeSet};
+pub const MODEL_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub mod cursor;
 pub use cursor::*;
 pub mod descriptor;
@@ -14,10 +14,12 @@ pub use named_service::*;
 pub mod rbac;
 pub mod tls;
 pub use tls::*;
+pub mod bytes;
 pub mod control;
-pub mod kernel_state;
+pub mod kernel;
+pub mod controller;
 pub enum ConfigEvent {
-    Reload
+    Reload,
 }
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode)]
 pub struct Config {

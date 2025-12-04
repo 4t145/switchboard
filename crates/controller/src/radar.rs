@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use switchboard_model::Config;
 
-use crate::sbk_discovery::SbkInstance;
+use crate::kernel::KernelAddr;
 
 pub struct Radar {
     pub config: RadarConfig,
@@ -16,7 +16,7 @@ impl RadarConfig {
     pub async fn spawn(self)  {
         let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<RadarEvent>(self.event_channel_capacity);
         let event_handle_task = tokio::spawn(async move {
-            let mut discovered_sbks: HashMap<String, SbkInstance> = HashMap::new();
+            let mut discovered_sbks: HashMap<String, KernelAddr> = HashMap::new();
             while let Some(event) = event_rx.recv().await {
                 match event {
                     RadarEvent::SbkListUpdate(update) => {
@@ -27,18 +27,19 @@ impl RadarConfig {
                     }
                 }
             }
+            discovered_sbks.clear();
         });
 
     }
 }
 
 pub struct SbkConnection {
-    pub instance: SbkInstance,
+    pub instance: KernelAddr,
     
 }
 
 pub struct SbkListUpdate {
-    pub discovered: HashMap<String, SbkInstance>,
+    pub discovered: HashMap<String, KernelAddr>,
     pub lost: HashSet<String>,
 }
 

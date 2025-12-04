@@ -1,5 +1,5 @@
 [package]
-name = "switchboard-config-fs"
+name = "switchboard-controller"
 edition.workspace = true
 version.workspace = true
 authors.workspace = true
@@ -10,9 +10,12 @@ categories.workspace = true
 readme.workspace = true
 
 [dependencies]
-switchboard-model = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
-toml = { workspace = true, features = ["preserve_order"] }
-tokio = { workspace = true, features = ["io-util", "fs", "sync"] }
+tokio = { workspace = true, features = ["full"] }
+futures = { workspace = true }
 thiserror = { workspace = true }
-pin-project-lite = { workspace = true }
+switchboard-model = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+bincode = { version = "2", features = ["serde"] }
+anyhow = { version = "1" }
+rand = { version  = "0.9" }

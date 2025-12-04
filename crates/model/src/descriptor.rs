@@ -1,7 +1,7 @@
 use std::{convert::Infallible, fmt::Display, str::FromStr};
 
 use serde::{Deserialize, Serialize};
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, bon::Builder, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, bon::Builder, bincode::Encode, bincode::Decode, PartialEq, Eq)]
 #[builder(on(String, into))]
 pub struct AnonServiceDescriptor {
     pub provider: String,
@@ -11,7 +11,7 @@ pub struct AnonServiceDescriptor {
 
 pub type NamedServiceDescriptor = String;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq)]
 pub enum ServiceDescriptor {
     Anon(AnonServiceDescriptor),
     Named(NamedServiceDescriptor),
@@ -85,6 +85,27 @@ impl FromStr for ServiceDescriptor {
                 config,
             }))
         }
+    }
+}
+
+
+impl<'de> Deserialize<'de> for ServiceDescriptor {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        ServiceDescriptor::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+
+impl Serialize for ServiceDescriptor {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let s = self.to_string();
+        serializer.serialize_str(&s)
     }
 }
 

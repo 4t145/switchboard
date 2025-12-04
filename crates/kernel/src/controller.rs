@@ -1,13 +1,9 @@
 pub mod listener;
-use std::{any, ops::Deref, sync::Arc};
-
-use deno_core::serde::{Deserialize, Serialize};
-use futures::{Sink, Stream};
-use switchboard_model::{control::*, kernel_state::KernelState};
-
 use crate::KernelContext;
+use serde::{Deserialize, Serialize};
+use switchboard_model::{bytes::Base64Bytes, control::*, kernel::KernelState};
 
-pub trait ControllerPort: Send + 'static {
+pub trait ControllerConnection: Send + 'static {
     type Error: std::error::Error + Send + Sync + 'static;
     fn send(
         &mut self,
@@ -45,7 +41,7 @@ impl ConnectError {
         move |e| ConnectError::Port(anyhow::Error::new(e).context(context))
     }
 }
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
 pub struct ControllerConfig {
     pub connect: ConnectConfig,
     pub listen: Option<listener::ListenerConfig>,
@@ -53,7 +49,7 @@ pub struct ControllerConfig {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ConnectConfig {
-    pub psk: Vec<u8>,
+    pub psk: Base64Bytes,
     /// Heartbeat interval in seconds, default to 5 seconds
     #[serde(default)]
     pub heartbeat_interval: u32,
@@ -65,60 +61,20 @@ pub struct ConnectConfig {
 impl Default for ConnectConfig {
     fn default() -> Self {
         Self {
-            psk: rand::random::<[u8; 16]>().to_vec(),
+            psk: Base64Bytes(rand::random::<[u8; 16]>().to_vec()),
             heartbeat_interval: 5,
             channel_capacity: 32,
         }
     }
 }
-pub async fn start_up_connection<C: ControllerPort>(
-    controller_port: &mut C,
-    config: &ConnectConfig,
-) -> Result<TakeOver, ConnectError> {
-    // expect take over message
-    let maybe_takeover = controller_port
-        .receive()
-        .await
-        .map_err(ConnectError::when("receiving take over message"))?;
-    let take_over = match maybe_takeover {
-        ControllerMessage::TakeOver(take_over) => take_over,
-        other => {
-            return Err(ProtocolError::ExpectTakeOver { actual: other }.into());
-        }
-    };
-    let random_bytes: [u8; 16] = rand::random();
-    let auth = KernelAuth {
-        random_bytes: random_bytes.to_vec(),
-    };
-    controller_port
-        .send(KernelMessage::Auth(auth.clone()))
-        .await
-        .map_err(ConnectError::when("sending auth message"))?;
-    let maybe_auth_response = controller_port
-        .receive()
-        .await
-        .map_err(ConnectError::when("receiving auth response"))?;
-    let auth_response = match maybe_auth_response {
-        ControllerMessage::AuthResponse(r) => r,
-        other => {
-            return Err(ProtocolError::ExpectTakeOver { actual: other }.into());
-        }
-    };
-    // verify auth response
-    auth_response
-        .verify(&auth, &config.psk)
-        .map_err(|e| ConnectError::AuthError(e.to_string()))?;
-    // send
-    Ok(take_over)
-}
 
-pub async fn report_been_took_over<C: ControllerPort>(
+pub async fn report_been_took_over<C: ControllerConnection>(
     mut controller_port: C,
     take_over: TakeOver,
 ) -> Result<(), ConnectError> {
     controller_port
         .send(KernelMessage::BeenTookOver(BeenTookOver {
-            new_controller_name: take_over.controller_name,
+            new_controller_info: take_over.controller_info.clone(),
         }))
         .await
         .map_err(ConnectError::when("sending been took over message"))?;
@@ -130,8 +86,8 @@ pub async fn report_been_took_over<C: ControllerPort>(
 }
 
 pub struct ControllerHandle {
-    pub message_sender: tokio::sync::mpsc::Sender<ControllerEvent>,
-    pub ct: tokio_util::sync::CancellationToken,
+    message_sender: tokio::sync::mpsc::Sender<ControllerEvent>,
+    ct: tokio_util::sync::CancellationToken,
     task_handle: tokio::task::JoinHandle<Result<(), ConnectError>>,
 }
 
@@ -145,14 +101,17 @@ pub(crate) enum ControllerEvent {
 impl ControllerHandle {
     pub async fn shutdown(self) {
         self.ct.cancel();
-        self.task_handle.await.inspect_err(|err| {
+        let _ = self.task_handle.await.inspect_err(|err| {
             tracing::error!(
                 "Controller connection task ended with error during shutdown: {}",
                 err
             );
         });
     }
-    pub async fn spawn<C: ControllerPort>(mut controller_port: C, context: KernelContext) -> Self {
+    pub async fn spawn<C: ControllerConnection>(
+        mut controller_port: C,
+        context: KernelContext,
+    ) -> Self {
         let (message_sender, mut message_receiver) = tokio::sync::mpsc::channel::<ControllerEvent>(
             context.kernel_config.controller.connect.channel_capacity as usize,
         );
@@ -166,7 +125,7 @@ impl ControllerHandle {
                 (context.kernel_config.controller.connect.heartbeat_interval as u64) * 3,
             ));
         let verifier = switchboard_model::control::ControlVerifier {
-            sign_key: context.kernel_config.controller.connect.psk.clone(),
+            sign_key: context.kernel_config.controller.connect.psk.0.clone(),
         };
         let task_handle = tokio::spawn(async move {
             loop {
@@ -202,7 +161,7 @@ impl ControllerHandle {
                     ControllerEvent::TakeOver(take_over) => {
                         controller_port
                             .send(KernelMessage::BeenTookOver(BeenTookOver {
-                                new_controller_name: take_over.controller_name,
+                                new_controller_info: take_over.controller_info.clone(),
                             }))
                             .await
                             .map_err(ConnectError::when("sending take over message"))?;
@@ -284,7 +243,17 @@ impl ControllerHandle {
         self.task_handle.await.ok();
         Ok(())
     }
+    pub async fn update_state(&self, kernel_state: KernelState) -> Result<(), ConnectError> {
+        self.message_sender
+            .send(ControllerEvent::UpdateState(kernel_state))
+            .await
+            .map_err(|e| {
+                ConnectError::Port(anyhow::Error::new(e).context("sending update state message"))
+            })?;
+        Ok(())
+    }
 }
+
 impl KernelContext {
     pub async fn handle_control_command(&self, cmd: ControlCommand) {
         match cmd.data {
@@ -300,16 +269,64 @@ impl KernelContext {
             }
         }
     }
-    pub async fn spawn_controller_port_event_loop<C: ControllerPort>(
+    pub async fn start_up_connection<C: ControllerConnection>(
         &self,
-        mut controller_port: C,
+        controller_port: &mut C,
+        config: &ConnectConfig,
+    ) -> Result<TakeOver, ConnectError> {
+        // expect take over message
+        let maybe_takeover = controller_port
+            .receive()
+            .await
+            .map_err(ConnectError::when("receiving take over message"))?;
+        let take_over = match maybe_takeover {
+            ControllerMessage::TakeOver(take_over) => take_over,
+            other => {
+                return Err(ProtocolError::ExpectTakeOver { actual: other }.into());
+            }
+        };
+        let random_bytes: [u8; 16] = rand::random();
+        let auth = KernelAuth {
+            random_bytes: random_bytes.to_vec(),
+            kernel_info: self.kernel_config.info.clone(),
+        };
+        controller_port
+            .send(KernelMessage::Auth(auth.clone()))
+            .await
+            .map_err(ConnectError::when("sending auth message"))?;
+        let maybe_auth_response = controller_port
+            .receive()
+            .await
+            .map_err(ConnectError::when("receiving auth response"))?;
+        let auth_response = match maybe_auth_response {
+            ControllerMessage::AuthResponse(r) => r,
+            other => {
+                return Err(ProtocolError::ExpectTakeOver { actual: other }.into());
+            }
+        };
+        // verify auth response
+        auth_response
+            .verify(&auth, &config.psk)
+            .map_err(|e| ConnectError::AuthError(e.to_string()))?;
+        // send a heartbeat immediately after authentication
+        let state = self.get_state().await;
+        controller_port
+            .send(KernelMessage::HeartBeat(state))
+            .await
+            .map_err(ConnectError::when("sending initial heartbeat message"))?;
+        Ok(take_over)
+    }
+    pub async fn spawn_controller_connection_event_loop<C: ControllerConnection>(
+        &self,
+        mut controller_connection: C,
     ) -> Result<(), ConnectError> {
         let context = self.clone();
-        let take_over = start_up_connection(
-            &mut controller_port,
-            &context.kernel_config.controller.connect,
-        )
-        .await?;
+        let take_over = context
+            .start_up_connection(
+                &mut controller_connection,
+                &context.kernel_config.controller.connect,
+            )
+            .await?;
         if let Some(handle) = context.controller_handle.write().await.take() {
             tokio::spawn(async move {
                 if let Err(e) = handle.take_over(take_over).await {
@@ -317,8 +334,14 @@ impl KernelContext {
                 }
             });
         }
-        let new_controller_handle = ControllerHandle::spawn(controller_port, context.clone()).await;
+        let new_controller_handle =
+            ControllerHandle::spawn(controller_connection, context.clone()).await;
         *context.controller_handle.write().await = Some(new_controller_handle);
         Ok(())
+    }
+    pub async fn shutdown_controller(&self) {
+        if let Some(handle) = self.controller_handle.write().await.take() {
+            handle.shutdown().await;
+        }
     }
 }

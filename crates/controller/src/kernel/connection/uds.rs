@@ -6,56 +6,39 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::UnixStream,
 };
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct UdsListenerConfig {
-    #[serde(default = "default_path")]
+
+pub struct UdsTransposeConfig {
     pub path: PathBuf,
-    #[serde(default = "default_max_frame_size")]
     pub max_frame_size: u32,
 }
 
-fn default_path() -> PathBuf {
-    PathBuf::from("/var/run/switchboard/default.sock")
-}
-
-const fn default_max_frame_size() -> u32 {
-    1 << 22
-}
-pub struct UdsListener {
-    pub config: UdsListenerConfig,
-    pub listener: tokio::net::UnixListener,
-}
-
-impl UdsListener {
-    pub async fn new(config: UdsListenerConfig) -> std::io::Result<Self> {
-        // check if the socket dir exists
-        if let Some(parent) = config.path.parent() {
-            if !parent.exists() {
-                tokio::fs::create_dir_all(parent).await?;
-            }
+impl Default for UdsTransposeConfig {
+    fn default() -> Self {
+        Self {
+            path: PathBuf::from("/var/run/switchboard/default.sock"),
+            max_frame_size: 1 << 22,
         }
-        let listener = tokio::net::UnixListener::bind(&config.path)?;
-        Ok(Self { config, listener })
-    }
-    pub async fn accept(&self) -> std::io::Result<UdsConnection> {
-        let (stream, peer) = self.listener.accept().await?;
-        Ok(UdsConnection::new(stream, peer, self.config.clone()))
     }
 }
 
-pub struct UdsConnection {
+pub struct UdsTranspose {
     pub stream: UnixStream,
     pub addr: tokio::net::unix::SocketAddr,
-    pub config: UdsListenerConfig,
+    pub config: UdsTransposeConfig,
     pub write_buffer: Vec<u8>,
     pub read_buffer: Vec<u8>,
 }
 
-impl UdsConnection {
+impl UdsTranspose {
+    pub async fn connect(config: UdsTransposeConfig) -> Result<Self, UdsEstablishTransposeError> {
+        let stream = UnixStream::connect(&config.path).await?;
+        let addr = stream.peer_addr()?;
+        Ok(Self::new(stream, addr, config))
+    }
     pub fn new(
         stream: UnixStream,
         addr: tokio::net::unix::SocketAddr,
-        config: UdsListenerConfig,
+        config: UdsTransposeConfig,
     ) -> Self {
         const INITIAL_BUFFER_SIZE: usize = 1 << 10;
         Self {
@@ -66,10 +49,10 @@ impl UdsConnection {
             read_buffer: Vec::with_capacity(INITIAL_BUFFER_SIZE),
         }
     }
-    async fn receive_next(&mut self) -> Result<ControllerMessage, UdsConnectionReadError> {
+    async fn receive_next(&mut self) -> Result<KernelMessage, UdsTransposeReadError> {
         let size = self.stream.read_u32().await?;
         if size > self.config.max_frame_size {
-            return Err(UdsConnectionReadError::FrameSizeExceeded {
+            return Err(UdsTransposeReadError::FrameSizeExceeded {
                 max_size: self.config.max_frame_size,
                 actual_size: size,
             });
@@ -89,13 +72,13 @@ impl UdsConnection {
     }
     async fn send_and_flush(
         &mut self,
-        message: &KernelMessage,
-    ) -> Result<(), UdsConnectionWriteError> {
+        message: &ControllerMessage,
+    ) -> Result<(), UdsTransposeWriteError> {
         self.write_buffer.clear();
         bincode::encode_into_slice(message, &mut self.write_buffer, bincode::config::standard())?;
         let size = self.write_buffer.len() as u32;
         if size > self.config.max_frame_size {
-            return Err(UdsConnectionWriteError::FrameSizeExceeded {
+            return Err(UdsTransposeWriteError::FrameSizeExceeded {
                 max_size: self.config.max_frame_size,
                 actual_size: size,
             });
@@ -107,18 +90,16 @@ impl UdsConnection {
     }
 }
 
-impl crate::controller::ControllerConnection for UdsConnection {
-    type Error = UdsConnectionError;
+impl super::KernelTranspose for UdsTranspose {
+    type Error = UdsTransposeError;
     async fn send(
         &mut self,
-        message: switchboard_model::control::KernelMessage,
+        message: switchboard_model::control::ControllerMessage,
     ) -> Result<(), Self::Error> {
         self.send_and_flush(&message).await?;
         Ok(())
     }
-    async fn receive(
-        &mut self,
-    ) -> Result<switchboard_model::control::ControllerMessage, Self::Error> {
+    async fn receive(&mut self) -> Result<switchboard_model::control::KernelMessage, Self::Error> {
         let message = self.receive_next().await?;
         Ok(message)
     }
@@ -128,15 +109,22 @@ impl crate::controller::ControllerConnection for UdsConnection {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum UdsConnectionError {
+pub enum UdsTransposeError {
     #[error("read error: {0}")]
-    Read(#[from] UdsConnectionReadError),
+    Read(#[from] UdsTransposeReadError),
     #[error("write error: {0}")]
-    Write(#[from] UdsConnectionWriteError),
+    Write(#[from] UdsTransposeWriteError),
+    #[error("connect error: {0}")]
+    Connect(#[from] UdsEstablishTransposeError),
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum UdsConnectionReadError {
+pub enum UdsEstablishTransposeError {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+}
+#[derive(Debug, thiserror::Error)]
+pub enum UdsTransposeReadError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     #[error("bincode decode error: {0}")]
@@ -146,7 +134,7 @@ pub enum UdsConnectionReadError {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum UdsConnectionWriteError {
+pub enum UdsTransposeWriteError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     #[error("bincode encode error: {0}")]
