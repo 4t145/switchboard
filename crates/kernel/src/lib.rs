@@ -152,7 +152,7 @@ impl KernelContext {
         let original_config_signature = self.sign_config(&self.kernel_config.startup);
         let new_config_signature = self.sign_config(&sb_config);
         let new_state = KernelState::new(KernelStateKind::Updating {
-            original_config_signature: original_config_signature,
+            original_config_signature,
             new_config_signature: new_config_signature.clone(),
         });
         self.set_state(new_state).await?;

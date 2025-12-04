@@ -74,10 +74,10 @@ impl Supervisor {
             .await
             .construct_tcp(&info.provider, info.config.clone(), tls_config)
             .await?;
-        if let Some(old_service) = self.tcp_services.write().await.get(&info.id) {
-            if let Ok(old_service) = &old_service.service {
-                old_service.update_service(new_service)?;
-            }
+        if let Some(old_service) = self.tcp_services.write().await.get(&info.id)
+            && let Ok(old_service) = &old_service.service
+        {
+            old_service.update_service(new_service)?;
         }
         Ok(())
     }
@@ -95,9 +95,11 @@ impl Supervisor {
             .await?;
         // shutdown old service so we can rebind
         if let Some(old_service) = self.tcp_services.write().await.remove(&info.id) {
-            let _ = old_service.service?.cancel().await.inspect_err(|e| {
-                tracing::error!("fail to join old TCP service: {e}")
-            });
+            let _ = old_service
+                .service?
+                .cancel()
+                .await
+                .inspect_err(|e| tracing::error!("fail to join old TCP service: {e}"));
         }
         let running_service = new_service.bind(info.bind).await?;
         self.tcp_services.write().await.insert(
@@ -224,14 +226,14 @@ impl Supervisor {
         }
     }
     pub async fn remove_tcp_service(&self, id: &str) {
-        if let Some(handle) = self.tcp_services.write().await.remove(id) {
-            if let Ok(service) = handle.service {
-                tracing::info!(id = id, "Shutting down TCP service");
-                if let Err(error) = service.cancel().await {
-                    tracing::error!(id = id, %error, "Failed to shutdown TCP service");
-                } else {
-                    tracing::info!(id = id, "TCP service shut down successfully");
-                }
+        if let Some(handle) = self.tcp_services.write().await.remove(id)
+            && let Ok(service) = handle.service
+        {
+            tracing::info!(id = id, "Shutting down TCP service");
+            if let Err(error) = service.cancel().await {
+                tracing::error!(id = id, %error, "Failed to shutdown TCP service");
+            } else {
+                tracing::info!(id = id, "TCP service shut down successfully");
             }
         }
     }

@@ -23,8 +23,8 @@ pub enum ProtocolError {
 pub enum ConnectError {
     #[error("protocol error: {0}")]
     Protocol(#[from] ProtocolError),
-    #[error("controller port error: {0}")]
-    Port(#[from] anyhow::Error),
+    #[error("controller transport error: {0}")]
+    Transport(#[from] anyhow::Error),
     #[error("authentication error: {0}")]
     AuthError(String),
     #[error("controller timeout after {} seconds", after.as_secs())]
@@ -38,7 +38,10 @@ impl ConnectError {
     >(
         context: C,
     ) -> impl FnOnce(E) -> Self {
-        move |e| ConnectError::Port(anyhow::Error::new(e).context(context))
+        move |e| {
+            tracing::error!("error when {}: {}", context, e);
+            ConnectError::Transport(anyhow::Error::new(e).context(context))
+        }
     }
 }
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
@@ -237,7 +240,9 @@ impl ControllerHandle {
             .send(ControllerEvent::TakeOver(take_over))
             .await
             .map_err(|e| {
-                ConnectError::Port(anyhow::Error::new(e).context("sending been took over message"))
+                ConnectError::Transport(
+                    anyhow::Error::new(e).context("sending been took over message"),
+                )
             })?;
         self.ct.cancel();
         self.task_handle.await.ok();
@@ -248,7 +253,9 @@ impl ControllerHandle {
             .send(ControllerEvent::UpdateState(kernel_state))
             .await
             .map_err(|e| {
-                ConnectError::Port(anyhow::Error::new(e).context("sending update state message"))
+                ConnectError::Transport(
+                    anyhow::Error::new(e).context("sending update state message"),
+                )
             })?;
         Ok(())
     }

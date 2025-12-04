@@ -29,10 +29,10 @@ pub struct UdsListener {
 impl UdsListener {
     pub async fn new(config: UdsListenerConfig) -> std::io::Result<Self> {
         // check if the socket dir exists
-        if let Some(parent) = config.path.parent() {
-            if !parent.exists() {
-                tokio::fs::create_dir_all(parent).await?;
-            }
+        if let Some(parent) = config.path.parent()
+            && !parent.exists()
+        {
+            tokio::fs::create_dir_all(parent).await?;
         }
         let listener = tokio::net::UnixListener::bind(&config.path)?;
         Ok(Self { config, listener })
