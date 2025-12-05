@@ -19,6 +19,7 @@ pub mod control;
 pub mod kernel;
 pub mod controller;
 pub mod protocol;
+pub mod error;
 pub enum ConfigEvent {
     Reload,
 }

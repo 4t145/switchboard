@@ -1,9 +1,16 @@
 mod discovery;
-use std::{collections::{BTreeMap, HashMap}, fmt::Display, net::SocketAddr};
+use std::{
+    collections::{BTreeMap, HashMap},
+    fmt::Display,
+    net::SocketAddr,
+    str::FromStr,
+};
 
 pub use discovery::*;
 mod connection;
 pub use connection::*;
+use futures::FutureExt;
+use serde::Serialize;
 use switchboard_model::kernel::KernelConnectionAndState;
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum KernelAddr {
@@ -18,6 +25,55 @@ impl Display for KernelAddr {
             KernelAddr::Tcp(addr) => write!(f, "tcp://{}", addr),
         }
     }
+}
+
+impl Serialize for KernelAddr {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl FromStr for KernelAddr {
+    type Err = KernelAddrParseError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some((schema, path)) = s.split_once("://") {
+            match schema {
+                "uds" => Ok(KernelAddr::Uds(std::path::PathBuf::from(path))),
+                "tcp" => {
+                    let addr: SocketAddr = path.parse()?;
+                    Ok(KernelAddr::Tcp(addr))
+                }
+                _ => Err(KernelAddrParseError::UnknownFormat {
+                    format: schema.to_string(),
+                }),
+            }
+        } else {
+            Err(KernelAddrParseError::NoScheme)
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for KernelAddr {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        KernelAddr::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum KernelAddrParseError {
+    #[error("unknown kernel address format: {format}")]
+    UnknownFormat { format: String },
+    #[error("missing scheme in kernel address")]
+    NoScheme,
+    #[error("invalid tcp address: {0}")]
+    InvalidTcpAddress(#[from] std::net::AddrParseError),
 }
 
 pub struct KernelManager {
@@ -49,12 +105,12 @@ impl KernelManager {
     }
     pub async fn remove_kernel(&mut self, addr: &KernelAddr) {
         let handle = self.kernels.remove(addr);
-        if let Some(handle) = handle {
-            if let KernelHandleState::Connected(connected) = handle.state {
-                let close_result = connected.close().await;
-                if let Err(e) = close_result {
-                    tracing::error!("Error closing connection to kernel at {:?}: {}", addr, e);
-                }
+        if let Some(handle) = handle
+            && let KernelHandleState::Connected(connected) = handle.state
+        {
+            let close_result = connected.close().await;
+            if let Err(e) = close_result {
+                tracing::error!("Error closing connection to kernel at {:?}: {}", addr, e);
             }
         }
     }
@@ -75,6 +131,24 @@ impl KernelManager {
             let _ = std::mem::replace(&mut handle.state, KernelHandleState::Disconnected);
         }
     }
+    pub async fn update_config(
+        &self,
+        new_config: switchboard_model::Config,
+    ) -> Vec<(KernelAddr, Result<(), KernelConnectionError>)> {
+        let mut task_set = tokio::task::JoinSet::new();
+        for (addr, kernel) in &self.kernels {
+            if let Some(handle) = kernel.get_connected_handle() {
+                let addr = addr.clone();
+                task_set.spawn(
+                    handle
+                        .update_config(new_config.clone())
+                        .map(|result| (addr, result)),
+                );
+            }
+        }
+        task_set.join_all().await.into_iter().collect()
+    }
+
     pub async fn shutdown_all(&mut self) {
         let addrs: Vec<KernelAddr> = self.kernels.keys().cloned().collect();
         for addr in addrs {

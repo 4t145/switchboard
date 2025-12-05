@@ -10,7 +10,7 @@ use switchboard_model::{
     kernel::{self, KernelInfoAndState},
 };
 use tokio::sync::RwLock;
-use tracing::Instrument;
+use tracing::{Instrument, event};
 
 use crate::kernel::{KernelAddr, connection::uds::UdsTransposeConfig};
 pub trait KernelTranspose: Send + 'static {
@@ -163,39 +163,40 @@ pub enum KernelConnectionRequest {
 }
 
 impl KernelConnectionHandle {
-    pub async fn get_info_and_state(
-        &self,
-    ) -> KernelInfoAndState {
+    pub async fn get_info_and_state(&self) -> KernelInfoAndState {
         let state = self.kernel_state.read().await.clone();
         KernelInfoAndState {
             info: self.info.clone(),
             state,
         }
     }
-    pub(crate) async fn send_command(
+    pub(crate) fn send_command(
         &self,
         command: ControlCommandData,
-    ) -> Result<(), KernelConnectionError> {
-        let (ack_sender, ack_receiver) = tokio::sync::oneshot::channel();
-        let request = KernelConnectionRequest::SendCommand {
-            command,
-            ack: ack_sender,
-        };
-        self.event_sender
-            .send(request)
-            .await
-            .map_err(|_e| KernelConnectionError::ConnectionClosed)?;
-        ack_receiver
-            .await
-            .map_err(|_e| KernelConnectionError::ConnectionClosed)?;
-        Ok(())
+    ) -> impl Future<Output = Result<(), KernelConnectionError>> + Send + 'static {
+        let event_sender = self.event_sender.clone();
+        async move {
+            let (ack_sender, ack_receiver) = tokio::sync::oneshot::channel();
+            let request = KernelConnectionRequest::SendCommand {
+                command,
+                ack: ack_sender,
+            };
+            event_sender
+                .send(request)
+                .await
+                .map_err(|_e| KernelConnectionError::ConnectionClosed)?;
+            ack_receiver
+                .await
+                .map_err(|_e| KernelConnectionError::ConnectionClosed)?;
+            Ok(())
+        }
     }
-    pub async fn update_config(
+    pub fn update_config(
         &self,
         new_config: switchboard_model::Config,
-    ) -> Result<(), KernelConnectionError> {
+    ) -> impl Future<Output = Result<(), KernelConnectionError>> + Send + 'static {
         let command = ControlCommandData::UpdateConfig(UpdateConfig { config: new_config });
-        self.send_command(command).await
+        self.send_command(command)
     }
     pub async fn get_state(&self) -> switchboard_model::kernel::KernelState {
         self.kernel_state.read().await.clone()
