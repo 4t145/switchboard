@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use switchboard_model::{bytes::Base64Bytes, controller::ControllerInfo, protocol::DEFAULT_HEARTBEAT_INTERVAL_SECS};
 
+use crate::interface::InterfaceConfig;
+
 
 
 
@@ -27,6 +29,7 @@ pub struct ControllerConfig {
     pub info: ControllerInfo,
     #[serde(default)]
     pub kernel: KernelConfig,
+    pub interface: InterfaceConfig,
 }
 
 

@@ -1,10 +1,7 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use axum::{Json, extract::State, response::Response};
-use switchboard_model::{
-    error::{ErrorStack, ResultObject},
-    kernel::KernelConnectionAndState,
-};
+use switchboard_model::{error::ResultObject, kernel::KernelConnectionAndState};
 
 use crate::{interface::http::HttpState, kernel::KernelAddr};
 
@@ -50,13 +47,13 @@ pub fn router() -> axum::Router<HttpState> {
             "/kernels",
             axum::routing::get(get_kernel_states).put(update_config),
         )
-        .route("/kernels/refresh", axum::routing::post(refresh_kernels))
+        .route("/refresh", axum::routing::post(refresh_kernels))
         .route(
-            "/kernels/take_over_all",
+            "/take_over_all",
             axum::routing::post(take_over_all_kernels),
         )
         .route(
-            "/kernels/take_over/{addr}",
+            "/take_over/{addr}",
             axum::routing::post(take_over_kernel),
         )
 }

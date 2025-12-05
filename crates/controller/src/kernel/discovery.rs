@@ -10,8 +10,6 @@ use crate::{ControllerContext, kernel::KernelAddr};
 pub enum KernelDiscoveryError {
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
-    #[error("socket not found at path: {0}")]
-    SocketNotFound(std::path::PathBuf),
     #[error("socket without file stem at path: {0}")]
     SocketWithoutFileStem(std::path::PathBuf),
 }
@@ -20,6 +18,14 @@ pub enum KernelDiscoveryError {
 pub async fn scan_uds(
     socket_dir: &std::path::Path,
 ) -> Result<HashMap<String, crate::kernel::KernelAddr>, KernelDiscoveryError> {
+    // check if the socket dir exists
+    if !socket_dir.exists() {
+        tracing::warn!(
+            "UDS socket dir {:?} does not exist, skipping UDS kernel discovery",
+            socket_dir
+        );
+        return Ok(HashMap::new())
+    }
     let mut dir = tokio::fs::read_dir(socket_dir).await?;
     let mut instances = HashMap::default();
     while let Some(entry) = dir.next_entry().await? {

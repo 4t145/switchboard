@@ -3,13 +3,22 @@ pub mod kernel_manager;
 use std::net::SocketAddr;
 
 use axum::response::IntoResponse as _;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
 
 use crate::ControllerContext;
-
+#[derive(Debug, Clone, Deserialize, Serialize, Hash, PartialEq, Eq)]
+#[serde(default)]
 pub struct HttpInterfaceConfig {
     pub bind: SocketAddr,
+}
+
+impl Default for HttpInterfaceConfig {
+    fn default() -> Self {
+        HttpInterfaceConfig {
+            bind: SocketAddr::from(([0, 0, 0, 0], 8056)),
+        }
+    }
 }
 
 pub struct HttpInterface {
@@ -33,6 +42,26 @@ impl ControllerContext {
         axum::Router::new()
             .nest("/kernel_manager", kernel_manager::router())
             .with_state(self.http_state())
+    }
+    pub async fn start_up_http_interface(
+        &self,
+        config: HttpInterfaceConfig,
+    ) -> crate::Result<HttpInterface> {
+        let ct = tokio_util::sync::CancellationToken::new();
+        let router = self.build_axum_router();
+        let bind_addr = config.bind;
+        let listener = tokio::net::TcpListener::bind(&bind_addr)
+            .await
+            .map_err(crate::Error::StartupHttpInterfaceError)?;
+        tracing::info!("HTTP interface listening on {}", bind_addr);
+        let server = axum::serve(listener, router);
+        let graceful = server.with_graceful_shutdown(ct.clone().cancelled_owned());
+        let handle = tokio::spawn(async move {
+            if let Err(e) = graceful.await {
+                tracing::error!("HTTP server error: {}", e);
+            }
+        });
+        Ok(HttpInterface { config, ct, handle })
     }
 }
 
