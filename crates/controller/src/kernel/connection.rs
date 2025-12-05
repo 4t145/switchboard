@@ -163,6 +163,15 @@ pub enum KernelConnectionRequest {
 }
 
 impl KernelConnectionHandle {
+    pub async fn get_info_and_state(
+        &self,
+    ) -> KernelInfoAndState {
+        let state = self.kernel_state.read().await.clone();
+        KernelInfoAndState {
+            info: self.info.clone(),
+            state,
+        }
+    }
     pub(crate) async fn send_command(
         &self,
         command: ControlCommandData,

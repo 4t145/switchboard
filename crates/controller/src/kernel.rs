@@ -1,10 +1,11 @@
 mod discovery;
-use std::{collections::HashMap, fmt::Display, net::SocketAddr};
+use std::{collections::{BTreeMap, HashMap}, fmt::Display, net::SocketAddr};
 
 pub use discovery::*;
 mod connection;
 pub use connection::*;
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+use switchboard_model::kernel::KernelConnectionAndState;
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum KernelAddr {
     Uds(std::path::PathBuf),
     Tcp(SocketAddr),
@@ -18,6 +19,7 @@ impl Display for KernelAddr {
         }
     }
 }
+
 pub struct KernelManager {
     kernels: HashMap<KernelAddr, KernelHandle>,
 }
@@ -27,6 +29,19 @@ impl KernelManager {
         Self {
             kernels: HashMap::new(),
         }
+    }
+    pub async fn get_kernel_states(&self) -> BTreeMap<KernelAddr, KernelConnectionAndState> {
+        let mut states = BTreeMap::new();
+        for (addr, handle) in self.kernels.iter() {
+            let state = match &handle.state {
+                KernelHandleState::Disconnected => KernelConnectionAndState::Disconnected,
+                KernelHandleState::Connected(handle) => {
+                    KernelConnectionAndState::Connected(handle.get_info_and_state().await)
+                }
+            };
+            states.insert(addr.clone(), state);
+        }
+        states
     }
     pub fn add_new_kernel(&mut self, addr: KernelAddr) {
         tracing::debug!("Adding new kernel at addr: {:?}", addr);

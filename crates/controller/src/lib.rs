@@ -3,6 +3,7 @@ use tokio::sync::RwLock;
 use crate::kernel::KernelDiscoveryError;
 pub mod config;
 pub mod kernel;
+pub mod interface;
 
 #[derive(Clone)]
 pub struct ControllerContext {

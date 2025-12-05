@@ -83,3 +83,10 @@ pub struct KernelInfoAndState {
     pub info: KernelInfo,
     pub state: KernelState,
 }
+
+#[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[serde(tag = "connection", content = "state")]
+pub enum KernelConnectionAndState {
+    Connected(KernelInfoAndState),
+    Disconnected,
+}

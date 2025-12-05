@@ -20,3 +20,9 @@ bincode = { version = "2", features = ["serde"] }
 anyhow = { version = "1" }
 rand = { version  = "0.9" }
 tokio-util = { workspace = true }
+
+# user interface
+## http
+axum = { version  = "0.8" }
+## mcp
+# rmcp = { version = "0.10" }
