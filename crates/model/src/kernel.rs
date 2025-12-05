@@ -1,8 +1,8 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
-pub const UDS_DEFAULT_PATH: &str = "/var/run/switchboard/default.sock";
-pub const UDS_DEFAULT_DIR: &str = "/var/run/switchboard/";
+pub const UDS_DEFAULT_PATH: &str = "/var/run/switchboard/kernel/default.sock";
+pub const UDS_DEFAULT_DIR: &str = "/var/run/switchboard/kernel/";
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
 #[serde(default)]
 pub struct KernelInfo {

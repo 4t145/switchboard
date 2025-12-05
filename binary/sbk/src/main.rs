@@ -78,6 +78,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .expect("failed to install Ctrl+C signal handler");
     tracing::info!("Ctrl+C signal received, shutting down...");
-    context.supervisor.shutdown().await;
+    context.shutdown().await;
     Ok(())
 }

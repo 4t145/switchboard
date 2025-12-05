@@ -1,22 +1,19 @@
 use std::sync::Arc;
-
 use tokio::sync::RwLock;
-
 use crate::kernel::KernelDiscoveryError;
-
 pub mod config;
 pub mod kernel;
-pub mod radar;
+
 #[derive(Clone)]
 pub struct ControllerContext {
-    pub controller_config: config::ControllerConfig,
+    pub controller_config: Arc<config::ControllerConfig>,
     pub kernel_manager: Arc<RwLock<kernel::KernelManager>>,
 }
 
 impl ControllerContext {
     pub fn new(controller_config: config::ControllerConfig) -> Self {
         Self {
-            controller_config,
+            controller_config: controller_config.into(),
             kernel_manager: Arc::new(RwLock::new(kernel::KernelManager::new())),
         }
     }

@@ -10,6 +10,7 @@ pub enum ControllerMessage {
     TakeOver(TakeOver),
     AuthResponse(KernelAuthResponse),
     ControlCommand(ControlCommand),
+    Disconnect,
     // todo: controller can notice kernel when itself is going to shutdown
 }
 
@@ -25,6 +26,7 @@ pub enum KernelMessage {
     Auth(KernelAuth),
     ControlCommandAccepted(ControlCommandAccepted),
     BeenTookOver(BeenTookOver),
+    Disconnect,
 }
 
 impl KernelMessage {
@@ -106,6 +108,13 @@ pub struct ControlVerifier {
 }
 
 impl ControlSigner {
+    pub fn new(sign_key: Vec<u8>, signer_name: String) -> Self {
+        Self {
+            sign_key,
+            next_seq: AtomicU32::new(1),
+            signer_name,
+        }
+    }
     pub fn sign_command(&self, data: ControlCommandData) -> ControlCommand {
         let seq = self
             .next_seq

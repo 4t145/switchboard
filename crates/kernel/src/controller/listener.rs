@@ -7,6 +7,14 @@ pub mod tcp;
 pub mod uds;
 pub mod ws;
 
+#[derive(Debug, thiserror::Error)]
+pub enum TransportError {
+    #[error("tcp transport error: {0}")]
+    TcpTransportError(#[from] tcp::TcpTransportError),
+    #[error("uds transport error: {0}")]
+    UdsTransportError(#[from] uds::UdsTransportError),
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ListenerConfig {
     pub uds: Option<uds::UdsListenerConfig>,
@@ -94,7 +102,6 @@ impl ListenerHandle {
                     } => {
                         match accept_uds_result {
                             Ok(controller_connection) => {
-                                tracing::info!("accepted new controller connection");
                                 if let Err(e) = context.spawn_controller_connection_event_loop(controller_connection).await {
                                     tracing::error!("failed to spawn controller connection event loop: {}", e);
                                 }
@@ -113,7 +120,6 @@ impl ListenerHandle {
                     } => {
                         match accept_tcp_result {
                             Ok(controller_connection) => {
-                                tracing::info!("accepted new controller connection");
                                 if let Err(e) = context.spawn_controller_connection_event_loop(controller_connection).await {
                                     tracing::error!("failed to spawn controller connection event loop: {}", e);
                                 }

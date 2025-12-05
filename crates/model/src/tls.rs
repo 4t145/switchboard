@@ -1,18 +1,32 @@
-use std::{collections::{BTreeMap, HashMap}, fmt::Debug};
+use std::{collections::BTreeMap, fmt::Debug};
 
 use serde::{Deserialize, Serialize};
-#[derive(Debug, Clone, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq,
+)]
 pub struct Tls {
     pub resolver: TlsResolver,
     pub options: TlsOptions,
 }
-#[derive(Debug, Clone, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq,
+)]
 pub enum TlsResolver {
     Sni(BTreeMap<String, TlsCertParams>),
     Single(TlsCertParams),
 }
 
-#[derive(Clone, bon::Builder, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[derive(
+    Clone,
+    bon::Builder,
+    Serialize,
+    Deserialize,
+    Hash,
+    bincode::Encode,
+    bincode::Decode,
+    PartialEq,
+    Eq,
+)]
 pub struct TlsCertParams {
     pub certs: Vec<Vec<u8>>,
     pub key: Vec<u8>,
@@ -27,7 +41,18 @@ impl Debug for TlsCertParams {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, bon::Builder, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    bon::Builder,
+    Hash,
+    bincode::Encode,
+    bincode::Decode,
+    PartialEq,
+    Eq,
+)]
 #[builder(on(String, into))]
 pub struct TlsOptions {
     #[builder(default)]

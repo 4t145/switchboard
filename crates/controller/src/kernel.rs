@@ -1,5 +1,5 @@
 mod discovery;
-use std::{collections::HashMap, net::SocketAddr};
+use std::{collections::HashMap, fmt::Display, net::SocketAddr};
 
 pub use discovery::*;
 mod connection;
@@ -10,6 +10,14 @@ pub enum KernelAddr {
     Tcp(SocketAddr),
 }
 
+impl Display for KernelAddr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            KernelAddr::Uds(path) => write!(f, "uds://{}", path.display()),
+            KernelAddr::Tcp(addr) => write!(f, "tcp://{}", addr),
+        }
+    }
+}
 pub struct KernelManager {
     kernels: HashMap<KernelAddr, KernelHandle>,
 }
@@ -28,11 +36,28 @@ impl KernelManager {
         let handle = self.kernels.remove(addr);
         if let Some(handle) = handle {
             if let KernelHandleState::Connected(connected) = handle.state {
-                let close_result = connected.transpose.close().await;
+                let close_result = connected.close().await;
                 if let Err(e) = close_result {
                     tracing::error!("Error closing connection to kernel at {:?}: {}", addr, e);
                 }
             }
+        }
+    }
+    pub async fn disconnect_kernel(&mut self, addr: &KernelAddr) {
+        if let Some(handle) = self.kernels.get_mut(addr) {
+            let old_state = std::mem::replace(&mut handle.state, KernelHandleState::Disconnected);
+            if let KernelHandleState::Connected(connected) = old_state {
+                let close_result = connected.close().await;
+                if let Err(e) = close_result {
+                    tracing::error!("Error disconnecting kernel at {:?}: {}", addr, e);
+                }
+            }
+        }
+    }
+    // this is specially used when kernel requests disconnection, we can close the connection from the task side, so need to avoid close it from here
+    pub(crate) fn disconnect_kernel_without_close_connection(&mut self, addr: &KernelAddr) {
+        if let Some(handle) = self.kernels.get_mut(addr) {
+            let _ = std::mem::replace(&mut handle.state, KernelHandleState::Disconnected);
         }
     }
     pub async fn shutdown_all(&mut self) {
@@ -70,20 +95,20 @@ impl KernelHandle {
         }
         let mut transpose = self.addr.connect(config).await?;
         let info_and_state = transpose.take_over(context).await?;
-        self.state = KernelHandleState::Connected(Connected {
-            transpose,
-            info_and_state,
-        });
+        let connection_handle =
+            KernelConnectionHandle::spawn(transpose, self.addr.clone(), info_and_state, context);
+        self.state = KernelHandleState::Connected(connection_handle);
         Ok(())
+    }
+    pub fn get_connected_handle(&self) -> Option<&KernelConnectionHandle> {
+        match &self.state {
+            KernelHandleState::Connected(handle) => Some(handle),
+            _ => None,
+        }
     }
 }
 
 pub enum KernelHandleState {
     Disconnected,
-    Connected(Connected),
-}
-
-pub struct Connected {
-    pub transpose: Transpose,
-    pub info_and_state: switchboard_model::kernel::KernelInfoAndState,
+    Connected(KernelConnectionHandle),
 }

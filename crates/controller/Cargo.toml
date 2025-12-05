@@ -19,3 +19,4 @@ serde = { workspace = true, features = ["derive"] }
 bincode = { version = "2", features = ["serde"] }
 anyhow = { version = "1" }
 rand = { version  = "0.9" }
+tokio-util = { workspace = true }

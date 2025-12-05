@@ -145,7 +145,7 @@ impl KernelContext {
         Ok(())
     }
     pub fn sign_config(&self, config: &model::Config) -> Vec<u8> {
-        config.sign(&self.kernel_config.controller.connect.psk)
+        config.sign(&self.kernel_config.controller.psk)
     }
 
     pub async fn update_config(&self, sb_config: model::Config) -> Result<(), Error> {

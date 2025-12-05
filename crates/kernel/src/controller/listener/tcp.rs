@@ -38,13 +38,13 @@ impl TcpListener {
         let listener = tokio::net::TcpListener::bind((config.host, config.port)).await?;
         Ok(Self { config, listener })
     }
-    pub async fn accept(&self) -> std::io::Result<TcpConnection> {
+    pub async fn accept(&self) -> std::io::Result<TcpTransport> {
         let (stream, peer) = self.listener.accept().await?;
-        Ok(TcpConnection::new(stream, peer, self.config.clone()))
+        Ok(TcpTransport::new(stream, peer, self.config.clone()))
     }
 }
 
-pub struct TcpConnection {
+pub struct TcpTransport {
     pub stream: TcpStream,
     pub addr: std::net::SocketAddr,
     pub config: TcpListenerConfig,
@@ -52,7 +52,7 @@ pub struct TcpConnection {
     pub read_buffer: Vec<u8>,
 }
 
-impl TcpConnection {
+impl TcpTransport {
     pub fn new(stream: TcpStream, addr: std::net::SocketAddr, config: TcpListenerConfig) -> Self {
         const INITIAL_BUFFER_SIZE: usize = 1 << 10;
         Self {
@@ -63,10 +63,10 @@ impl TcpConnection {
             read_buffer: Vec::with_capacity(INITIAL_BUFFER_SIZE),
         }
     }
-    async fn receive_next(&mut self) -> Result<ControllerMessage, TcpConnectionReadError> {
+    async fn receive_next(&mut self) -> Result<ControllerMessage, TcpTransportReadError> {
         let size = self.stream.read_u32().await?;
         if size > self.config.max_frame_size {
-            return Err(TcpConnectionReadError::FrameSizeExceeded {
+            return Err(TcpTransportReadError::FrameSizeExceeded {
                 max_size: self.config.max_frame_size,
                 actual_size: size,
             });
@@ -87,12 +87,11 @@ impl TcpConnection {
     async fn send_and_flush(
         &mut self,
         message: &KernelMessage,
-    ) -> Result<(), TcpConnectionWriteError> {
+    ) -> Result<(), TcpTransportWriteError> {
         self.write_buffer.clear();
-        bincode::encode_into_slice(message, &mut self.write_buffer, bincode::config::standard())?;
-        let size = self.write_buffer.len() as u32;
+        let size = bincode::encode_into_std_write(message, &mut self.write_buffer, bincode::config::standard())? as u32;
         if size > self.config.max_frame_size {
-            return Err(TcpConnectionWriteError::FrameSizeExceeded {
+            return Err(TcpTransportWriteError::FrameSizeExceeded {
                 max_size: self.config.max_frame_size,
                 actual_size: size,
             });
@@ -104,8 +103,11 @@ impl TcpConnection {
     }
 }
 
-impl crate::controller::ControllerConnection for TcpConnection {
-    type Error = TcpConnectionError;
+impl crate::controller::ControllerTransport for TcpTransport {
+    type Error = TcpTransportError;
+    fn peer(&self) -> impl std::fmt::Display + Send + Sync + 'static {
+        self.addr
+    }
     async fn send(
         &mut self,
         message: switchboard_model::control::KernelMessage,
@@ -125,15 +127,15 @@ impl crate::controller::ControllerConnection for TcpConnection {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum TcpConnectionError {
+pub enum TcpTransportError {
     #[error("read error: {0}")]
-    Read(#[from] TcpConnectionReadError),
+    Read(#[from] TcpTransportReadError),
     #[error("write error: {0}")]
-    Write(#[from] TcpConnectionWriteError),
+    Write(#[from] TcpTransportWriteError),
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum TcpConnectionReadError {
+pub enum TcpTransportReadError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     #[error("bincode decode error: {0}")]
@@ -143,7 +145,7 @@ pub enum TcpConnectionReadError {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum TcpConnectionWriteError {
+pub enum TcpTransportWriteError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     #[error("bincode encode error: {0}")]

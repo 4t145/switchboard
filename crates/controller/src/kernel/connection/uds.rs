@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
-use serde::{Deserialize, Serialize};
-use switchboard_model::control::{ControllerMessage, KernelMessage};
+use switchboard_model::{
+    control::{ControllerMessage, KernelMessage},
+    kernel::UDS_DEFAULT_PATH,
+};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::UnixStream,
@@ -15,7 +17,7 @@ pub struct UdsTransposeConfig {
 impl Default for UdsTransposeConfig {
     fn default() -> Self {
         Self {
-            path: PathBuf::from("/var/run/switchboard/default.sock"),
+            path: PathBuf::from(UDS_DEFAULT_PATH),
             max_frame_size: 1 << 22,
         }
     }
@@ -75,8 +77,11 @@ impl UdsTranspose {
         message: &ControllerMessage,
     ) -> Result<(), UdsTransposeWriteError> {
         self.write_buffer.clear();
-        bincode::encode_into_slice(message, &mut self.write_buffer, bincode::config::standard())?;
-        let size = self.write_buffer.len() as u32;
+        let size = bincode::encode_into_std_write(
+            message,
+            &mut self.write_buffer,
+            bincode::config::standard(),
+        )? as u32;
         if size > self.config.max_frame_size {
             return Err(UdsTransposeWriteError::FrameSizeExceeded {
                 max_size: self.config.max_frame_size,
@@ -103,7 +108,11 @@ impl super::KernelTranspose for UdsTranspose {
         let message = self.receive_next().await?;
         Ok(message)
     }
-    async fn close(self) -> Result<(), Self::Error> {
+    async fn close(mut self) -> Result<(), Self::Error> {
+        self.stream
+            .shutdown()
+            .await
+            .map_err(UdsTransposeError::Close)?;
         Ok(())
     }
 }
@@ -116,6 +125,8 @@ pub enum UdsTransposeError {
     Write(#[from] UdsTransposeWriteError),
     #[error("connect error: {0}")]
     Connect(#[from] UdsEstablishTransposeError),
+    #[error("close error: {0}")]
+    Close(#[source] std::io::Error),
 }
 
 #[derive(Debug, thiserror::Error)]
