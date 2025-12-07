@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Config, controller::ControllerInfo, kernel::KernelState};
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "kind", content = "data")]
 pub enum ControllerMessage {
     HeartBeat,
     TakeOver(TakeOver),
@@ -15,12 +17,16 @@ pub enum ControllerMessage {
 }
 
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "kind", content = "data")]
 pub enum ControlCommandData {
     Quit,
     UpdateConfig(UpdateConfig),
 }
 
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "kind", content = "data")]
 pub enum KernelMessage {
     HeartBeat(KernelState),
     Auth(KernelAuth),
@@ -36,16 +42,19 @@ impl KernelMessage {
 }
 
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(rename_all = "camelCase")]
 pub struct TakeOver {
     pub controller_info: ControllerInfo,
 }
 
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(rename_all = "camelCase")]
 pub struct BeenTookOver {
     pub new_controller_info: ControllerInfo,
 }
 
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct KernelAuth {
     pub random_bytes: Vec<u8>,
     pub kernel_info: crate::kernel::KernelInfo,
@@ -74,6 +83,7 @@ impl KernelAuthResponse {
 }
 
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateConfig {
     pub config: Config,
 }
@@ -81,11 +91,13 @@ pub struct UpdateConfig {
 pub struct UpdateConfigFinished {}
 
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateConfigBuilder {
     pub config: Config,
 }
 
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(rename_all = "camelCase")]
 pub struct ControlCommand {
     pub seq: u32,
     pub ts: i64,
@@ -94,6 +106,7 @@ pub struct ControlCommand {
     pub signature: Vec<u8>,
 }
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(rename_all = "camelCase")]
 pub struct ControlCommandAccepted {
     pub seq: u32,
 }

@@ -1,4 +1,4 @@
-<script module>
+<script lang="ts" module>
 	export type LayerNodeType = Node<
 		{
 			class: string;

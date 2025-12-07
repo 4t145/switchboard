@@ -1,4 +1,4 @@
-<script module>
+<script lang="ts" module>
 	import type { BuiltInNode, BuiltInEdge } from '@xyflow/svelte';
 
 	// Custom nodes

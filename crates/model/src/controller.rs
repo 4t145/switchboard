@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 #[serde(default)]
 pub struct ControllerInfo {
     pub name: String,
@@ -9,6 +10,7 @@ pub struct ControllerInfo {
 }
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 #[serde(default)]
 pub struct ControllerMeta {
     pub version: String,

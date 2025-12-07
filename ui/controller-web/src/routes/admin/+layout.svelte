@@ -60,12 +60,12 @@
 		{
 			label: 'Services',
 			icon: 'activity',
-			href: '/admin/services',
+			href: '/admin/instances',
 			subItems: [
-				{ label: 'All Services', href: '/admin/services' },
-				{ label: 'Health Checks', href: '/admin/services/health' },
-				{ label: 'Route Builder', href: '/admin/services/builder' }, // 新增
-				{ label: 'Logs', href: '/admin/services/logs' }
+				{ label: 'All Services', href: '/admin/instances' },
+				{ label: 'Health Checks', href: '/admin/instances/health' },
+				{ label: 'Route Builder', href: '/admin/instances/builder' }, // 新增
+				{ label: 'Logs', href: '/admin/instances/logs' }
 			]
 		},
 		{ label: 'Users', icon: 'users', href: '/admin/users' },

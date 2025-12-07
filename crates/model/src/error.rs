@@ -1,11 +1,13 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct ErrorStack {
     pub frames: Vec<ErrorStackFrame>,
 }
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct ErrorStackFrame {
     pub error: String,
     pub type_name: String,
@@ -27,7 +29,7 @@ impl ErrorStack {
 }
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "camelCase")]
 pub enum ResultObject<T> {
     Data(T),
     Error(ErrorStack),

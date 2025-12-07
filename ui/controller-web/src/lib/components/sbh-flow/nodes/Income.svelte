@@ -1,4 +1,4 @@
-<script module>
+<script lang="ts" module>
 	export type IncomeNodeType = Node<
 		{
 			class: string;

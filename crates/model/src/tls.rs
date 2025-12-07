@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(
     Debug, Clone, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq,
 )]
+#[serde(rename_all = "camelCase")]
 pub struct Tls {
     pub resolver: TlsResolver,
     pub options: TlsOptions,
@@ -11,6 +12,7 @@ pub struct Tls {
 #[derive(
     Debug, Clone, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq,
 )]
+#[serde(rename_all = "camelCase")]
 pub enum TlsResolver {
     Sni(BTreeMap<String, TlsCertParams>),
     Single(TlsCertParams),
@@ -27,6 +29,7 @@ pub enum TlsResolver {
     PartialEq,
     Eq,
 )]
+#[serde(rename_all = "camelCase")]
 pub struct TlsCertParams {
     pub certs: Vec<Vec<u8>>,
     pub key: Vec<u8>,

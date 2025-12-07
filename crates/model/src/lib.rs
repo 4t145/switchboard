@@ -24,6 +24,7 @@ pub enum ConfigEvent {
     Reload,
 }
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode)]
+#[serde(rename_all = "camelCase")]
 pub struct Config {
     pub named_services: BTreeMap<String, NamedService>,
     pub binds: BTreeMap<String, Bind>,

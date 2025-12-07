@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::descriptor::ServiceDescriptor;
 #[derive(Debug, Clone, bon::Builder, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 #[builder(on(String, into))]
 pub struct Bind {
     pub addr: SocketAddr,
