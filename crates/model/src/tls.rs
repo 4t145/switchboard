@@ -1,6 +1,8 @@
 use std::{collections::BTreeMap, fmt::Debug};
 
 use serde::{Deserialize, Serialize};
+
+use crate::bytes::Base64Bytes;
 #[derive(
     Debug, Clone, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq,
 )]
@@ -31,9 +33,9 @@ pub enum TlsResolver {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct TlsCertParams {
-    pub certs: Vec<Vec<u8>>,
-    pub key: Vec<u8>,
-    pub ocsp: Option<Vec<u8>>,
+    pub certs: Vec<Base64Bytes>,
+    pub key: Base64Bytes,
+    pub ocsp: Option<Base64Bytes>,
 }
 
 impl Debug for TlsCertParams {

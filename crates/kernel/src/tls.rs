@@ -79,9 +79,14 @@ fn build_resolver(resolver: TlsResolver) -> Result<Arc<dyn ResolvesServerCert>, 
     }
 }
 fn convert_tls_param(params: TlsCertParams) -> Result<TlsCkParams, &'static str> {
-    let key = PrivateKeyDer::try_from(params.key)?;
-    let certs = params.certs.into_iter().map(CertificateDer::from).collect();
-    let ocsp = params.ocsp;
+    let key = PrivateKeyDer::try_from(params.key.0)?;
+    let certs = params
+        .certs
+        .into_iter()
+        .map(|x| x.0)
+        .map(CertificateDer::from)
+        .collect();
+    let ocsp = params.ocsp.map(|x| x.0);
     Ok(TlsCkParams { certs, key, ocsp })
 }
 fn sni_resolver(

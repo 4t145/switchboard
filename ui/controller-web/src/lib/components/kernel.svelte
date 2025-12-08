@@ -1,6 +1,8 @@
 <script lang="ts" module>
     import type { KernelInfo, KernelInfoAndState, KernelConnectionAndState } from '$lib/api/types';
-    import  {} from 'bits-ui';
+    import  {Button} from 'bits-ui';
+    import KernelStateLabel from './kernel-state-label.svelte';
+    import { Info } from 'lucide-svelte';
     interface Props {
         addr: string;
         kernel: KernelConnectionAndState;
@@ -12,19 +14,27 @@
     const { kernel, addr } = props;
 
 
-  const fmtTime = (v?: string) =>
-    v ? new Date(v).toLocaleString() : '—';
+
 </script>
 
 <div class="kernel-item p-4 border-b last:border-0 hover:bg-gray-50">
-    {#if kernel.connection === 'Connected'}
+    {#if kernel.connection === 'connected'}
 
     <div class="flex justify-between items-center mb-2">
-        <div class="font-medium text-lg">{kernel.state.info.name}</div>
-        <div class="text-sm text-gray-500">ID: {kernel.state.info.id}</div>
+        <div class="font-medium text-lg">
+            {kernel.state.info.name}
+            <span class ="text-sm text-gray-500">
+                {addr}
+            </span>
+        </div>
+        
+        <div class="text-sm text-gray-500">
+
+            <Button.Root ><Info/></Button.Root>
+        </div>
     </div>
     <div class="text-sm text-gray-500">
-        最后更新: {fmtTime(kernel.state.state.since)}
+        <KernelStateLabel {...kernel.state.state} />
     </div>
     {:else}
     <div class="flex justify-between items-center mb-2">

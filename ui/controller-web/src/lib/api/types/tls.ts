@@ -1,9 +1,9 @@
-import type { Bytes } from "./bytes";
+import type { Base64Bytes } from "./bytes";
 
 export type TlsCertParams = {
-    certs: Bytes[];
-    key: Bytes;
-    ocsp: Bytes | null;
+    certs: Base64Bytes[];
+    key: Base64Bytes;
+    ocsp: Base64Bytes | null;
 };
 
 export type TlsOptions = {

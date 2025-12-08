@@ -2,7 +2,6 @@
     import type { KernelInfo, KernelInfoAndState, KernelConnectionAndState } from '$lib/api/types';
 	import Kernel from './kernel.svelte';
     import { api } from "$lib/api/routes";
-    
     interface Props {
         // kernels: Record<string, KernelConnectionAndState>;
     } 
@@ -13,7 +12,7 @@
 
 </script>
 
-<div class="panel">
+<div class="kernel-list border rounded-md overflow-hidden shadow-sm bg-white">
     {#await  api.kernelManager.listKernels()}
         <div>Loading...</div>
     {:then kernels} 

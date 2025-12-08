@@ -25,10 +25,9 @@ export type KernelStateKind =
     | { kind: "stopped" };
 
 export type KernelState = {
-    kind: KernelStateKind;
     // Serialized as RFC3339 timestamp string
     since: string;
-};
+} & KernelStateKind;
 
 export type KernelInfoAndState = {
     info: KernelInfo;
@@ -36,5 +35,5 @@ export type KernelInfoAndState = {
 };
 
 export type KernelConnectionAndState =
-    | { connection: "Connected"; state: KernelInfoAndState }
-    | { connection: "Disconnected" };
+    | { connection: "connected"; state: KernelInfoAndState }
+    | { connection: "disconnected" };

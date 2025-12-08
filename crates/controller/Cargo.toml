@@ -20,7 +20,7 @@ bincode = { version = "2", features = ["serde"] }
 anyhow = { version = "1" }
 rand = { version  = "0.9" }
 tokio-util = { workspace = true }
-
+dirs = { version = "6" }
 # user interface
 ## http
 axum = { version  = "0.8" }

@@ -40,7 +40,10 @@ impl ControllerContext {
     }
     pub fn build_axum_router(&self) -> axum::Router<()> {
         axum::Router::new()
-            .nest("/kernel_manager", kernel_manager::router())
+            .nest(
+                "/api",
+                axum::Router::new().nest("/kernel_manager", kernel_manager::router()),
+            )
             .with_state(self.http_state())
     }
     pub async fn start_up_http_interface(

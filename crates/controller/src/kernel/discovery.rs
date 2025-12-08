@@ -106,4 +106,12 @@ impl ControllerContext {
         }
         Ok(())
     }
+    pub async fn update_config(
+        &self,
+        new_config: switchboard_model::Config,
+    ) -> Result<Vec<(KernelAddr, std::result::Result<(), crate::kernel::KernelConnectionError>)>, crate::Error> {
+        let kernel_manager = self.kernel_manager.read().await;
+        let results = kernel_manager.update_config(new_config).await;
+        Ok(results)
+    }
 }

@@ -4,7 +4,7 @@ use tokio::sync::RwLock;
 pub mod config;
 pub mod interface;
 pub mod kernel;
-
+pub mod resource;
 #[derive(Clone)]
 pub struct ControllerContext {
     pub controller_config: Arc<config::ControllerConfig>,

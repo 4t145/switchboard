@@ -61,7 +61,6 @@ impl KernelContext {
         Ok(())
     }
     pub async fn load_config(&self, sb_config: model::Config) -> Result<(), Error> {
-        let _registry = self.supervisor.registry.read().await;
         for (id, bind) in sb_config.get_enabled() {
             tracing::info!(%id, %bind, "Adding bind to supervisor");
             let sd = &bind.service;
