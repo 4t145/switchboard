@@ -38,6 +38,35 @@ pub struct TlsCertParams {
     pub ocsp: Option<Base64Bytes>,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum TlsCertParamsError {
+    #[error("Fail to parse certs file: {0}")]
+    CertParseError(pem::PemError),
+    #[error("Fail to parse key file: {0}")]
+    KeyParseError(pem::PemError),
+}
+impl TlsCertParams {
+    pub fn from_pem_file(
+        cert_bytes: &[u8],
+        key_bytes: &[u8],
+    ) -> Result<Self, TlsCertParamsError> {
+        let mut certs = Vec::new();
+        for pem in pem::parse_many(cert_bytes).map_err(TlsCertParamsError::CertParseError)? {
+            let bytes = pem.into_contents();
+            certs.push(Base64Bytes(bytes));
+        }
+        let key = pem::parse(key_bytes)
+            .map_err(TlsCertParamsError::KeyParseError)?
+            .into_contents();
+        let key = Base64Bytes(key);
+        Ok(TlsCertParams {
+            certs,
+            key,
+            ocsp: None,
+        })
+    }
+}
+
 impl Debug for TlsCertParams {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TlsCertParams")

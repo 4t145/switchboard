@@ -1,0 +1,28 @@
+# Git
+.git/
+.gitignore
+
+# Rust
+target/debug/
+target/*/incremental/
+target/flycheck*/
+Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 文档
+README.md
+*.md
+docs/
+
+# 测试
+tests/
+benches/
+
+# 临时文件
+tmp/
+*.log

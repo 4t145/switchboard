@@ -1,0 +1,28 @@
+# Switchboard Kernel Runtime Image (Alpine - Smaller Size)
+FROM alpine:3.19
+
+# 安装运行时依赖
+RUN apk add --no-cache \
+    ca-certificates \
+    libgcc \
+    libssl3
+
+# 创建应用用户
+RUN adduser -D -u 1000 -s /bin/false switchboard
+
+# 创建必要的目录
+RUN mkdir -p /etc/switchboard /var/lib/switchboard /var/run/switchboard && \
+    chown -R switchboard:switchboard /var/lib/switchboard /var/run/switchboard
+
+# 复制本地编译好的二进制文件
+COPY --chown=switchboard:switchboard target/release/sbk /usr/local/bin/sbk
+
+# 设置工作目录
+WORKDIR /var/lib/switchboard
+
+# 切换到非 root 用户
+USER switchboard
+
+# 启动命令
+ENTRYPOINT ["/usr/local/bin/sbk"]
+CMD ["--help"]

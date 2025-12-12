@@ -33,7 +33,7 @@ tracing-subscriber = { version = "0.3", features = [
 rustls = { workspace = true }
 anyhow = { version = "1" }
 bincode = { version = "2", features = ["serde"] }
-base64 = { version = "0.22" }
+base64 = { workspace = true }
 # deno_fetch = { version = "0.245" }
 [features]
 binary = ["dep:tracing-subscriber"]

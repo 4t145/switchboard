@@ -35,6 +35,9 @@ thiserror = { version = "2" }
 # Futures
 pin-project-lite = "0.2.16"
 
+# Codec
+base64 = { version = "0.22" }
+
 [workspace.package]
 edition = "2024"
 version = "0.1.0"

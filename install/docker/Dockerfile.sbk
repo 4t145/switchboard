@@ -1,0 +1,40 @@
+# Switchboard Kernel Runtime Image
+FROM debian:bookworm-slim
+
+# 安装运行时依赖
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# 创建应用用户
+RUN useradd -r -u 1000 -s /bin/false switchboard
+
+# 创建必要的目录
+RUN mkdir -p /etc/switchboard /var/lib/switchboard /var/run/switchboard && \
+    chown -R switchboard:switchboard /var/lib/switchboard /var/run/switchboard
+
+# 复制本地编译好的二进制文件
+COPY --chown=switchboard:switchboard target/release/sbk /usr/local/bin/sbk
+
+# 可选：复制配置文件模板
+# COPY --chown=switchboard:switchboard examples/config/ /etc/switchboard/
+
+# 设置工作目录
+WORKDIR /var/lib/switchboard
+
+# 切换到非 root 用户
+USER switchboard
+
+# 暴露端口（根据实际需要调整）
+# EXPOSE 8080
+# EXPOSE 8443
+
+# 健康检查（可选）
+# HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+#   CMD ["/usr/local/bin/sbk", "health"]
+
+# 启动命令
+ENTRYPOINT ["/usr/local/bin/sbk"]
+CMD ["--help"]
