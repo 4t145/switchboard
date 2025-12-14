@@ -36,7 +36,7 @@ export type FlowOptions = {
   maxLoop?: number;
 };
 
-export type InstanceType = "Node" | "Filter";
+export type InstanceType = "node" | "filter";
 export type ClassData<
   C extends ClassId = ClassId,
   T extends InstanceType = InstanceType,

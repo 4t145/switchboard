@@ -23,6 +23,7 @@ tokio-util = { workspace = true }
 dirs = { version = "6" }
 # user interface
 ## http
+http = { workspace = true }
 axum = { version  = "0.8" }
 ## mcp
 # rmcp = { version = "0.10" }
@@ -30,3 +31,7 @@ base64 = { workspace = true }
 # k8s
 kube = { version = "2", features = ["runtime", "derive", "client", "config"] }
 k8s-openapi = { version = "0.26", default-features = false, features = ["v1_34"] }
+gateway-api = "0.19.0"
+
+switchboard-http-router = { workspace = true }
+regex = { version = "1"}

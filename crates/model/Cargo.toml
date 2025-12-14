@@ -20,3 +20,7 @@ bincode = { version = "2", features = ["serde"] }
 base64 = { workspace = true }
 pem = { version = "3" }
 thiserror = { workspace = true }
+schemars = { version = "1", features = [] }
+serde_json = { version = "1", features = ["preserve_order"] }
+regex = { version = "1" }
+http = { version = "1"}

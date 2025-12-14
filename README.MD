@@ -14,6 +14,12 @@ sb bind [::]:10808 @my-static-blog
 sb bind [::]:80 h
 sb list
 sb reload
+
+sbc list services
+sbc context use default
+sbc 
+sbc context use remote
+
 ```
 
 sb => sb-kernel

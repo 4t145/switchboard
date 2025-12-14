@@ -8,6 +8,7 @@ members = [
     "crates/controller",
     "binary/sbk",
     "binary/sbc",
+    "crates/libs/switchboard-http-router",
 ]
 resolver = "2"
 
@@ -15,6 +16,7 @@ resolver = "2"
 switchboard-service = { path = "crates/service" }
 switchboard-socks5 = { path = "crates/service-impl/socks5" }
 switchboard-model = { path = "crates/model" }
+switchboard-http-router = { path = "crates/libs/switchboard-http-router" }
 
 tokio = { version = "1" }
 tokio-util = { version = "0.7" }
@@ -24,11 +26,14 @@ tokio-rustls = { version = "0.26" }
 clap = { version = "4", features = ["derive", "env"] }
 futures = { version = "0" }
 
+# http
+http = { version = "1" }
+
 # Serde
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
 toml = { version = "0.9" }
-
+bincode = { version = "2", features = ["serde"] }
 # Error
 thiserror = { version = "2" }
 

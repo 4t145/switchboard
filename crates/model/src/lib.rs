@@ -20,6 +20,10 @@ pub mod kernel;
 pub mod controller;
 pub mod protocol;
 pub mod error;
+pub mod regex;
+pub mod services;
+pub mod http;
+
 pub enum ConfigEvent {
     Reload,
 }
