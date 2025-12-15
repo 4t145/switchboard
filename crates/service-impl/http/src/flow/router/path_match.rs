@@ -1,11 +1,12 @@
 use http::request::Parts;
-use schemars::JsonSchema;
+
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
+use switchboard_model::services::http::{ClassId, WithRoutes};
+
 
 use crate::flow::{
     node::NodeClass,
-    router::{RouterNode, WithRoutes},
+    router::{RouterNode},
 };
 
 use super::{NodePort, Router};
@@ -20,8 +21,7 @@ pub struct PathRouterEndpoint {
     pub route: NodePort,
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[typeshare]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct MatchItem {
     pub priority: i32,
@@ -105,7 +105,6 @@ pub enum PathRouterConstructError {
     #[error("matchit router insert error: {0}")]
     MatchitRouterInsertError(#[from] matchit::InsertError),
 }
-#[typeshare]
 pub type PathMatchRouterConfig = Vec<MatchItem>;
 
 #[derive(Debug, thiserror::Error)]
@@ -132,7 +131,7 @@ impl NodeClass for PathMatch {
         Ok(RouterNode::new(config.routes, PathRouter { router, tera }))
     }
 
-    fn id(&self) -> crate::instance::class::ClassId {
-        crate::instance::class::ClassId::std("path-match")
+    fn id(&self) -> ClassId {
+        ClassId::std("path-match")
     }
 }

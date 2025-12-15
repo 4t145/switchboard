@@ -1,26 +1,19 @@
 use std::collections::HashMap;
-pub mod host_match;
-pub mod path_match;
+// pub mod host_match;
+// pub mod path_match;
+pub mod tree;
 pub mod transparent;
 
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
+
 
 use crate::{
     DynRequest, DynResponse,
-    flow::{
-        FlowContext, NodePort,
-        node::{NodeInterface, NodeLike, NodeOutput},
-    },
+    flow::{FlowContext, node::NodeLike},
 };
-#[typeshare]
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all="camelCase")]
-pub struct WithRoutes<C> {
-    pub router_config: C,
-    pub routes: HashMap<NodePort, NodeOutput>,
-}
+
+use switchboard_model::services::http::{NodeInterface, NodeOutput, NodePort};
+
 pub trait Router: Send + Sync + 'static {
     fn route(&self, req: &mut http::request::Parts) -> NodePort;
 }

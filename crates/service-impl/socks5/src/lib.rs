@@ -6,7 +6,7 @@ use std::{
 };
 
 use switchboard_service::{
-    TcpServiceProvider,
+    BytesPayload, TcpServiceProvider,
     tcp::{AsyncStream, TcpService},
 };
 use tokio::io::{self, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -335,7 +335,7 @@ impl TcpServiceProvider for Socks5Provider {
 
     type Error = Infallible;
 
-    async fn construct(&self, _config: Option<String>) -> Result<Self::Service, Self::Error> {
+    async fn construct(&self, _config: Option<BytesPayload>) -> Result<Self::Service, Self::Error> {
         Ok(Socks5::no_auth())
     }
 }

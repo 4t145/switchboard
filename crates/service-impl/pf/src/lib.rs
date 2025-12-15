@@ -1,7 +1,7 @@
 use std::{net::SocketAddr, sync::Arc};
 
 use switchboard_service::{
-    TcpServiceProvider,
+    BytesPayload, PayloadError, TcpServiceProvider,
     tcp::{AsyncStream, TcpService},
 };
 use tokio::{io, net::TcpStream};
@@ -45,11 +45,10 @@ pub struct PortForwardProvider;
 impl TcpServiceProvider for PortForwardProvider {
     const NAME: &'static str = "pf";
     type Service = PortForward;
-    type Error = std::net::AddrParseError;
+    type Error = PayloadError;
 
-    async fn construct(&self, config: Option<String>) -> Result<Self::Service, Self::Error> {
-        let config = config.unwrap_or_default();
-        let to = config.parse()?;
+    async fn construct(&self, config: Option<BytesPayload>) -> Result<Self::Service, Self::Error> {
+        let to = config.unwrap_or_default().decode()?;
         Ok(PortForward { to })
     }
 }

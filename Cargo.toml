@@ -8,7 +8,7 @@ members = [
     "crates/controller",
     "binary/sbk",
     "binary/sbc",
-    "crates/libs/switchboard-http-router",
+    "crates/libs/switchboard-http-router", "crates/libs/switchboard-payload",
 ]
 resolver = "2"
 
@@ -17,6 +17,7 @@ switchboard-service = { path = "crates/service" }
 switchboard-socks5 = { path = "crates/service-impl/socks5" }
 switchboard-model = { path = "crates/model" }
 switchboard-http-router = { path = "crates/libs/switchboard-http-router" }
+switchboard-payload = { path = "crates/libs/switchboard-payload" }
 
 tokio = { version = "1" }
 tokio-util = { version = "0.7" }

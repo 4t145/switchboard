@@ -1,6 +1,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use futures::{FutureExt, future::BoxFuture};
+pub use switchboard_payload::{BytesPayload, Error as PayloadError, formats::PayloadObject};
 use tcp::{DynTcpService, TcpService};
 use tokio::io::AsyncRead;
 use udp::UdpService;
@@ -52,7 +53,7 @@ pub trait TcpServiceProvider: Send + Sync + 'static {
     }
     fn construct(
         &self,
-        config: Option<String>,
+        config: Option<BytesPayload>,
     ) -> impl Future<Output = Result<Self::Service, Self::Error>> + Send + '_;
 }
 
@@ -63,7 +64,7 @@ pub trait DynTcpServiceProvider: Send + Sync + 'static {
     fn name(&self) -> Cow<'static, str>;
     fn construct(
         &self,
-        config: Option<String>,
+        config: Option<BytesPayload>,
     ) -> BoxFuture<'_, Result<Arc<dyn DynTcpService>, BoxedError>>;
 }
 
@@ -76,7 +77,7 @@ impl<T: TcpServiceProvider> DynTcpServiceProvider for T {
     }
     fn construct(
         &self,
-        config: Option<String>,
+        config: Option<BytesPayload>,
     ) -> BoxFuture<'_, Result<Arc<dyn DynTcpService>, BoxedError>> {
         self.construct(config)
             .map(|result| {

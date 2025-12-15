@@ -1,17 +1,13 @@
 use std::{collections::HashMap, convert::Infallible};
 
 use http::request::Parts;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
 
-use crate::flow::{
-    node::{NodeClass, NodeOutput, NodePort},
-    router::{RouterNode, WithRoutes},
-};
 
+use crate::flow::{node::NodeClass, router::RouterNode};
+use switchboard_model::services::http::{NodeOutput, NodePort, WithRoutes, ClassId};
 use super::Router;
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HostRouter {
     map: HashMap<String, NodePort>,
 }
@@ -28,8 +24,7 @@ impl Router for HostRouter {
 }
 
 pub struct HostMatch;
-#[typeshare]
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HostRouterConfig {
     pub map: HashMap<String, NodePort>,
     pub routes: HashMap<NodePort, NodeOutput>,
@@ -43,7 +38,7 @@ impl NodeClass for HostMatch {
         Ok(RouterNode::new(config.routes, config.router_config))
     }
 
-    fn id(&self) -> crate::instance::class::ClassId {
-        crate::instance::class::ClassId::std("host-match")
+    fn id(&self) -> ClassId {
+        ClassId::std("host-match")
     }
 }

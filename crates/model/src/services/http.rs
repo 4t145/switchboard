@@ -1,20 +1,25 @@
 use schemars::{JsonSchema, Schema};
 use serde::{Deserialize, Serialize};
+use switchboard_payload::BytesPayload;
 
 pub mod rule_router;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(rename_all = "camelCase")]
 pub struct Config {
-    pub flow: FlowConfig,
+    pub flow_config: FlowConfig,
     pub server: ServerConfig,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(rename_all = "camelCase")]
 pub struct ServerConfig {
     pub version: HttpVersion,
 }
 
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Default)]
+#[derive(bincode::Encode, bincode::Decode)]
 #[serde(rename_all = "lowercase")]
 pub enum HttpVersion {
     Http1,
@@ -25,7 +30,8 @@ pub enum HttpVersion {
 }
 
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(bincode::Encode, bincode::Decode)]
 #[serde(rename_all="camelCase")]
 pub struct FlowConfig {
     pub entrypoint: NodeTarget,
@@ -33,7 +39,8 @@ pub struct FlowConfig {
     pub options: FlowOptions,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(bincode::Encode, bincode::Decode)]
 #[serde(rename_all="camelCase")]
 pub struct FlowOptions {
     pub max_loop: Option<u32>,
@@ -42,14 +49,16 @@ pub struct FlowOptions {
 use std::{collections::HashMap, fmt::Display, sync::Arc};
 
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(bincode::Encode, bincode::Decode)]
 #[serde(rename_all="camelCase")]
 pub enum InstanceType {
     Node,
     Filter,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(bincode::Encode, bincode::Decode)]
 pub struct InstanceId(pub(crate) Arc<str>);
 
 impl InstanceId {
@@ -64,17 +73,19 @@ impl std::fmt::Display for InstanceId {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(bincode::Encode, bincode::Decode)]
 pub struct InstanceData {
     pub name: Option<String>,
     pub class: ClassId,
     pub r#type: InstanceType,
-    pub config: serde_json::Value,
+    pub config: BytesPayload,
 }
 
 pub type NodeId = InstanceId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[derive(bincode::Encode, bincode::Decode)]
 pub enum NodePort {
     Named(Arc<str>),
     #[default]
@@ -141,17 +152,20 @@ impl std::fmt::Display for NodePort {
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(bincode::Encode, bincode::Decode)]
 pub struct NodeInterface {
     pub inputs: HashMap<NodePort, NodeInput>,
     pub outputs: HashMap<NodePort, NodeOutput>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(bincode::Encode, bincode::Decode)]
 pub struct NodeInput {
     pub filters: Vec<FilterReference>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(bincode::Encode, bincode::Decode)]
 pub struct NodeOutput {
     pub filters: Vec<FilterReference>,
     pub target: NodeTarget,
@@ -180,7 +194,8 @@ impl NodeInterface {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(bincode::Encode, bincode::Decode)]
 pub struct NodeTarget {
     pub id: NodeId,
     pub port: NodePort,
@@ -194,15 +209,89 @@ impl Display for NodeTarget {
 
 pub type FilterId = InstanceId;
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(bincode::Encode, bincode::Decode)]
 pub struct FilterReference {
     pub id: FilterId,
     // pub call: Arc<FilterFn>,
 }
 
 
-#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
+#[derive(bincode::Encode, bincode::Decode)]
 pub struct ClassId {
     pub namespace: Option<String>,
     pub name: String,
+}
+
+impl ClassId {
+    pub fn std(name: impl Into<String>) -> Self {
+        Self {
+            namespace: None,
+            name: name.into(),
+        }
+    }
+    pub fn new(namespace: impl Into<String>, name: impl Into<String>) -> Self {
+        Self {
+            namespace: Some(namespace.into()),
+            name: name.into(),
+        }
+    }
+}
+
+impl std::fmt::Display for ClassId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(namespace) = &self.namespace {
+            write!(f, "{}.{}", namespace, self.name)
+        } else {
+            write!(f, "{}", self.name)
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all="camelCase")]
+#[derive(bincode::Encode, bincode::Decode)]
+pub struct ClassMeta {
+    pub version: String,
+    pub description: Option<String>,
+    pub author: Option<String>,
+    pub license: Option<String>,
+    pub repository: Option<String>,
+    pub homepage: Option<String>,
+}
+
+impl Default for ClassMeta {
+    fn default() -> Self {
+        Self::from_env()
+    }
+}
+impl ClassMeta {
+    pub fn from_env() -> Self {
+        Self {
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            description: Some(env!("CARGO_PKG_DESCRIPTION").to_string()),
+            author: Some(env!("CARGO_PKG_AUTHORS").to_string()),
+            license: Some(env!("CARGO_PKG_LICENSE").to_string()),
+            repository: Some(env!("CARGO_PKG_REPOSITORY").to_string()),
+            homepage: Some(env!("CARGO_PKG_HOMEPAGE").to_string()),
+        }
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all="camelCase")]
+// #[derive(bincode::Encode, bincode::Decode)]
+pub struct ClassData {
+    pub id: ClassId,
+    pub meta: ClassMeta,
+    pub instance_type: InstanceType,
+    // pub config_schema: Schema,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(bincode::Encode, bincode::Decode)]
+#[serde(rename_all = "camelCase")]
+pub struct WithRoutes<C> {
+    pub router_config: C,
+    pub routes: HashMap<NodePort, NodeOutput>,
 }

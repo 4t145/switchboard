@@ -28,8 +28,11 @@ uuid = { version = "1", features = ["v4"] }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true }
 switchboard-service = { version = "0.1.0", workspace = true }
+switchboard-http-router = { workspace = true }
+switchboard-model = { workspace = true }
 tracing = { workspace = true }
 tokio-rustls = { workspace = true }
 hyper-rustls = { version = "0.27", features = ["http2"] }
 matchit = "0.9"
 tera = "1.20.0"
+bincode = { workspace = true }

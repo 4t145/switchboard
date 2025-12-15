@@ -1,23 +1,20 @@
 use std::{collections::HashMap, convert::Infallible, sync::Arc};
+pub mod build;
 pub mod filter;
 pub mod node;
 pub mod router;
 pub mod service;
-pub mod build;
 use bytes::Bytes;
 use futures::future::BoxFuture;
 use http::{Request, StatusCode};
 use hyper::body::Body;
-use schemars::JsonSchema;
+
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
+use switchboard_model::services::http::{FilterId, NodeId, NodePort, NodeTarget};
 
 use crate::{
     DynRequest, DynResponse, ERR_FLOW, IntoDynResponse, box_error,
-    flow::{
-        filter::{Filter, FilterId},
-        node::{Node, NodeId, NodePort, NodeTarget},
-    },
+    flow::{filter::Filter, node::Node},
     utils::error_response,
 };
 
@@ -52,9 +49,8 @@ pub struct FlowContext {
     pub config: FlowOptions,
 }
 
-#[typeshare]
-#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
-#[serde(rename_all="camelCase")]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct FlowOptions {
     pub max_loop: Option<u32>,
 }

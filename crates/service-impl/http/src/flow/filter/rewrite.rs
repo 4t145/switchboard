@@ -1,8 +1,9 @@
 use std::convert::Infallible;
 
 use http::StatusCode;
-use schemars::JsonSchema;
+
 use serde::{Deserialize, Serialize};
+use switchboard_model::services::http::ClassId;
 
 use crate::{
     DynRequest, DynResponse, ERR_FILTER_REWRITE,
@@ -10,7 +11,7 @@ use crate::{
     utils::error_response,
 };
 
-#[derive(Clone, Deserialize, Serialize, JsonSchema)]
+#[derive(Clone, Deserialize, Serialize, bincode::Encode, bincode::Decode)]
 pub struct RewriteFilter {
     pub host: Option<String>,
     pub schema: Option<String>,
@@ -82,8 +83,8 @@ impl FilterClass for Rewrite {
     type Error = Infallible;
     type Config = RewriteFilter;
 
-    fn id(&self) -> crate::instance::class::ClassId {
-        crate::instance::class::ClassId::std("rewrite")
+    fn id(&self) -> ClassId {
+        ClassId::std("rewrite")
     }
 
     fn construct(&self, config: Self::Config) -> Result<Self::Filter, Self::Error> {

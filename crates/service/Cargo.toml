@@ -11,6 +11,7 @@ readme.workspace = true
 
 [dependencies]
 tokio = { workspace = true, features = ["full"] }
+switchboard-payload = { workspace = true }
 tokio-util = { workspace = true, features = [] }
 tracing = { workspace = true }
 rustls = { workspace = true }

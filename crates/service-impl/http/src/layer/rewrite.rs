@@ -1,4 +1,4 @@
-use schemars::JsonSchema;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -10,7 +10,7 @@ use super::{
     dynamic::SharedLayer,
     function::{FunctionLayer, Inner, LayerMethod},
 };
-#[derive(Clone, Deserialize, Serialize, JsonSchema)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct RewriteLayer {
     pub host: Option<String>,
     pub schema: Option<String>,

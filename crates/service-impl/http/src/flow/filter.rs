@@ -5,18 +5,15 @@ use std::sync::Arc;
 use futures::future::BoxFuture;
 use schemars::{JsonSchema, Schema, schema_for};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use typeshare::typeshare;
+use switchboard_model::services::http::*;
+
 
 use crate::{
     DynRequest, DynResponse, IntoDynResponse,
-    flow::{FlowContext, NodeTarget, node::NodeFn},
-    instance::{
-        InstanceId, InstanceValue,
-        class::{Class, ClassId, ClassMeta},
-    },
+    flow::{FlowContext, node::NodeFn},
+    instance::{InstanceValue, class::Class},
 };
-#[typeshare]
-pub type FilterId = InstanceId;
+
 
 pub struct Next {
     pub target: NodeTarget,
@@ -73,13 +70,6 @@ pub trait FilterLike: Send + Sync + 'static {
     ) -> impl futures::Future<Output = DynResponse> + 'c + Send;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[typeshare]
-pub struct FilterReference {
-    pub id: FilterId,
-    // pub call: Arc<FilterFn>,
-}
-
 #[derive(Clone)]
 pub struct Filter {
     pub call: Arc<FilterFn>,
@@ -100,13 +90,10 @@ impl Filter {
 pub trait FilterClass: Send + Sync + 'static {
     type Filter: FilterLike;
     type Error: std::error::Error + Send + Sync + 'static;
-    type Config: DeserializeOwned + Serialize + JsonSchema;
+    type Config: switchboard_service::PayloadObject;
     fn id(&self) -> ClassId;
     fn meta(&self) -> ClassMeta {
         ClassMeta::from_env()
-    }
-    fn schema(&self) -> Schema {
-        schema_for!(Self::Config)
     }
     fn construct(&self, config: Self::Config) -> Result<Self::Filter, Self::Error>;
 }
@@ -126,11 +113,8 @@ where
     fn meta(&self) -> ClassMeta {
         ClassMeta::default()
     }
-    fn schema(&self) -> Schema {
-        self.0.schema()
-    }
-    fn instance_type(&self) -> crate::instance::InstanceType {
-        crate::instance::InstanceType::Filter
+    fn instance_type(&self) -> InstanceType {
+        InstanceType::Filter
     }
     fn construct(
         &self,

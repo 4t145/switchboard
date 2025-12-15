@@ -1,14 +1,11 @@
 use std::{collections::HashMap, sync::Arc};
 
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
+use switchboard_model::services::http::{FlowConfig, InstanceId, NodePort, NodeTarget};
 
 use crate::{
-    flow::{
-        node::{NodePort, NodeTarget}, Flow, FlowOptions
-    },
-    instance::{self, class::registry::ClassRegistryError, InstanceData, InstanceId},
+    flow::{Flow, FlowOptions},
+    instance::{self, class::registry::ClassRegistryError},
 };
 
 use crate::instance::class::registry::ClassRegistry;
@@ -74,14 +71,6 @@ impl std::fmt::Display for FlowCheckError {
             }
         }
     }
-}
-
-#[typeshare]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-pub struct FlowConfig {
-    entrypoint: NodeTarget,
-    instances: HashMap<InstanceId, InstanceData>,
-    options: FlowOptions,
 }
 
 impl Flow {

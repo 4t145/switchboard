@@ -2,10 +2,15 @@ use std::{convert::Infallible, time::Duration};
 
 use hyper::rt::Timer;
 use hyper_util::rt::TokioTimer;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
-use crate::{dynamic_response, flow::filter::{FilterClass, FilterLike}, response::IntoResponse};
+use serde::{Deserialize, Serialize};
+use switchboard_model::services::http::ClassId;
+
+use crate::{
+    dynamic_response,
+    flow::filter::{FilterClass, FilterLike},
+    response::IntoResponse,
+};
 
 pub struct TimeoutFilter {
     pub timeout: Duration,
@@ -35,7 +40,7 @@ impl FilterLike for TimeoutFilter {
         }
     }
 }
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, bincode::Encode, bincode::Decode)]
 pub struct TimeoutConfig {
     pub timeout: Duration,
     pub timeout_message: String,
@@ -47,8 +52,8 @@ impl FilterClass for Timeout {
     type Error = Infallible;
     type Config = TimeoutConfig;
 
-    fn id(&self) -> crate::instance::class::ClassId {
-        crate::instance::class::ClassId::std("timeout")
+    fn id(&self) -> ClassId {
+        ClassId::std("timeout")
     }
 
     fn construct(&self, config: Self::Config) -> Result<Self::Filter, Self::Error> {

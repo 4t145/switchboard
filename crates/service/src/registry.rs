@@ -3,6 +3,7 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
+use switchboard_payload::BytesPayload;
 use tokio::sync::RwLock;
 
 use crate::{
@@ -25,7 +26,7 @@ impl ServiceProviderRegistry {
     pub async fn construct_tcp(
         &self,
         name: &str,
-        config: Option<String>,
+        config: Option<BytesPayload>,
         tls_config: Option<Arc<rustls::ServerConfig>>,
     ) -> Result<Arc<dyn DynTcpService>, ServiceProviderRegistryError> {
         let provider = self.tcp.get(name).ok_or_else(|| {

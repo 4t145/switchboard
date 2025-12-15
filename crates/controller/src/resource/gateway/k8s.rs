@@ -196,7 +196,7 @@ pub fn build_router_from_k8s(
         } else {
             router.hostname_tree.insert("*".to_string(), path_tree);
         }
-    }
+    }   
     Ok(router)
 }
 

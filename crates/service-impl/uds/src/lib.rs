@@ -1,5 +1,4 @@
 use std::{
-    convert::Infallible,
     net::SocketAddr,
     path::{Path, PathBuf},
     str::FromStr,
@@ -7,7 +6,7 @@ use std::{
 };
 
 use switchboard_service::{
-    TcpServiceProvider,
+    BytesPayload, PayloadError, TcpServiceProvider,
     tcp::{AsyncStream, TcpService},
 };
 
@@ -64,11 +63,11 @@ pub struct UdsProvider;
 impl TcpServiceProvider for UdsProvider {
     const NAME: &'static str = "uds";
     type Service = Uds;
-    type Error = Infallible;
+    type Error = PayloadError;
 
-    async fn construct(&self, config: Option<String>) -> Result<Self::Service, Self::Error> {
-        let config = config.unwrap_or_default();
-        let to = PathBuf::from_str(&config)?;
+    async fn construct(&self, config: Option<BytesPayload>) -> Result<Self::Service, Self::Error> {
+        let config: String = config.unwrap_or_default().decode()?;
+        let to = PathBuf::from_str(&config).expect("infallible error");
         Ok(Uds { to })
     }
 }

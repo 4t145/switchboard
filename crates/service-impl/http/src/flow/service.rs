@@ -1,10 +1,9 @@
 pub mod client;
+use switchboard_model::services::http::NodeInterface;
+
 use crate::{
     DynRequest, DynResponse,
-    flow::{
-        FlowContext,
-        node::{NodeInterface, NodeLike},
-    },
+    flow::{FlowContext, node::NodeLike},
 };
 
 pub struct ServiceNode<S> {

@@ -24,3 +24,5 @@ schemars = { version = "1", features = [] }
 serde_json = { version = "1", features = ["preserve_order"] }
 regex = { version = "1" }
 http = { version = "1"}
+
+switchboard-payload = { workspace = true }

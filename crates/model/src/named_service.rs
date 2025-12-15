@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 pub struct NamedService {
     pub provider: String,
     pub name: String,
-    pub config: Option<String>,
+    pub config: Option<switchboard_payload::BytesPayload>,
     pub description: Option<String>,
     pub tls: Option<String>,
 }

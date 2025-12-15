@@ -1,10 +1,10 @@
 pub mod config;
 mod consts;
-pub mod instance;
-pub mod response;
 mod dynamic;
 pub mod extension;
 pub mod flow;
+pub mod instance;
+pub mod response;
 pub mod utils;
 pub use consts::*;
 pub use dynamic::*;
@@ -12,10 +12,9 @@ pub use dynamic::*;
 use hyper::server::conn::{http1, http2};
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use rustls::ServerConfig;
-use serde::{Deserialize, Serialize};
-use typeshare::typeshare;
 use std::{ops::Deref, sync::Arc};
-use switchboard_service::{TcpServiceProvider};
+use switchboard_model::services::http::HttpVersion;
+use switchboard_service::{BytesPayload, PayloadError, TcpServiceProvider};
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
 use utils::read_version;
@@ -24,17 +23,6 @@ use crate::{
     flow::{Flow, build::FlowBuildError},
     instance::class::registry::ClassRegistry,
 };
-
-#[typeshare]
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum HttpVersion {
-    Http1,
-    #[serde(alias = "h2")]
-    Http2,
-    #[default]
-    Auto,
-}
 
 pub enum Tls {
     Tls { config: Arc<ServerConfig> },
@@ -140,8 +128,8 @@ impl switchboard_service::tcp::TcpService for Http {
 
 #[derive(Debug, thiserror::Error)]
 pub enum HttpBuildError {
-    #[error("Failed to parse config: {0}")]
-    ParseError(#[from] serde_json::Error),
+    #[error("Failed to decode config: {0}")]
+    PayloadDecodeError(#[from] PayloadError),
 
     #[error("Failed to build flow: {0}")]
     FlowBuildError(#[from] FlowBuildError),
@@ -153,11 +141,13 @@ impl TcpServiceProvider for HttpProvider {
     const NAME: &'static str = "http";
     type Service = Http;
     type Error = HttpBuildError;
-    async fn construct(&self, config: Option<String>) -> Result<Self::Service, Self::Error> {
-        let config = config.unwrap_or_default();
-        let config = serde_json::from_str::<config::Config>(&config)?;
+    async fn construct(&self, config: Option<BytesPayload>) -> Result<Self::Service, Self::Error> {
+        let config: config::Config = config.unwrap_or_default().decode()?;
         let class_registry = ClassRegistry::global();
-        let flow = Flow::build(config.flow_config, class_registry.read_owned().await.deref())?;
+        let flow = Flow::build(
+            config.flow_config,
+            class_registry.read_owned().await.deref(),
+        )?;
         let service = Http {
             service: flow,
             version: config.server.version,

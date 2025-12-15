@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::Context as _;
+use switchboard_service::BytesPayload;
 use tokio::sync::RwLock;
 
 use crate::{
@@ -11,7 +12,7 @@ use crate::{
         filter::{AsFilterClass, FilterClass},
         filter::{rewrite::Rewrite, timeout::Timeout},
         node::{AsNodeClass, NodeClass},
-        router::{host_match::HostMatch, path_match::PathMatch},
+        // router::{host_match::HostMatch, path_match::PathMatch},
         service::client::Client,
     },
     instance::{
@@ -55,7 +56,7 @@ impl ClassRegistry {
     pub fn construct(
         &self,
         class_id: ClassId,
-        config: serde_json::Value,
+        config: BytesPayload,
     ) -> Result<InstanceValue, ClassRegistryError> {
         let class_data = self
             .class_data
@@ -72,7 +73,7 @@ impl ClassRegistry {
             id: class_id.clone(),
             meta: class.meta(),
             instance_type: class.instance_type(),
-            config_schema: class.schema(),
+            // config_schema: class.schema(),
         };
         self.class_data.insert(
             class_id,
@@ -80,7 +81,7 @@ impl ClassRegistry {
                 data: class_data,
                 constructor: Constructor::new(move |config| {
                     let config =
-                        serde_json::from_value(config.clone()).context("deserializing config")?;
+                        config.decode().context("deserializing config")?;
                     class.construct(config).context("constructing class")
                 }),
             },
@@ -93,8 +94,8 @@ impl ClassRegistry {
         self.register(AsFilterClass(class));
     }
     pub fn register_prelude(&mut self) {
-        self.register_node(PathMatch);
-        self.register_node(HostMatch);
+        // self.register_node(PathMatch);
+        // self.register_node(HostMatch);
         self.register_node(Client);
         self.register_filter(Rewrite);
         self.register_filter(Timeout);

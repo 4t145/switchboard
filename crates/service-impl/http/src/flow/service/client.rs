@@ -1,6 +1,7 @@
 
 use http::StatusCode;
 use http_body_util::BodyExt;
+use switchboard_model::services::http::ClassId;
 
 use crate::{
     ERR_HTTP_CLIENT,
@@ -43,7 +44,7 @@ impl NodeClass for Client {
         }))
     }
 
-    fn id(&self) -> crate::instance::class::ClassId {
-        crate::instance::class::ClassId::std("client")
+    fn id(&self) -> ClassId {
+        ClassId::std("client")
     }
 }
