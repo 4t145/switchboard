@@ -54,6 +54,15 @@ pub struct RuleBucketMatched<'c, T> {
     pub matched: RuleMatched<'c>,
 }
 
+impl<'c, T> RuleBucketMatched<'c, T> {
+    pub fn get_data(&self) -> &T
+    where
+        T: Clone,
+    {
+        &self.data
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct RuleMatch {
     pub method: Option<http::Method>,

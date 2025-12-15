@@ -30,6 +30,16 @@ pub enum PathTreeMatched<'c, T: Clone> {
     },
 }
 
+impl<'c, T: Clone> PathTreeMatched<'c, T> {
+    pub fn get_data(&self) -> &T {
+        match self {
+            PathTreeMatched::Matchit { matched } => matched.get_data(),
+            PathTreeMatched::Regex { data, .. } => data.get_data(),
+            PathTreeMatched::Fallback { data } => data,
+        }
+    }
+} 
+
 impl<T: Clone> PathTree<T> {
     pub fn new() -> Self {
         Self {

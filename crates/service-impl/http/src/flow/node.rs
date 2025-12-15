@@ -1,15 +1,11 @@
-use std::{collections::HashMap, fmt::Display, sync::Arc};
+use std::sync::Arc;
 
 use futures::future::BoxFuture;
 use schemars::{JsonSchema, Schema, schema_for};
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::{DynRequest, DynResponse, flow::FlowContext, instance::class::Class};
 
-use switchboard_model::services::http::{
-    ClassId, ClassMeta, FilterReference, InstanceId, InstanceType, NodeId, NodeInput,
-    NodeInterface, NodeOutput, NodePort, NodeTarget,
-};
+use switchboard_model::services::http::{ClassId, ClassMeta, InstanceType, NodeInterface};
 pub type NodeFn =
     dyn Fn(DynRequest, &mut FlowContext) -> BoxFuture<'_, DynResponse> + Send + Sync + 'static;
 #[derive(Clone)]
