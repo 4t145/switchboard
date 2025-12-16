@@ -15,13 +15,11 @@ pub const X_FORWARDED_FOR: &str = "x-forwarded-for";
 pub const X_FORWARDED_HEADERS: &str = "x-forwarded-headers";
 pub const X_REAL_IP: &str = "x-real-ip";
 
-#[derive(Debug, Clone)]
-#[derive(serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode)]
 pub struct ReverseProxyServiceConfig {
     pub new_authority: String,
     pub schema: String,
 }
-
 
 #[derive(Debug, thiserror::Error)]
 pub enum ReverseProxyServiceConfigError {
@@ -45,7 +43,7 @@ pub enum ReverseProxyError {
     HttpClientError(#[from] hyper_util::client::legacy::Error),
 }
 
-// todo: 
+// todo:
 // extract original host properly
 // add x-forwarded-proto headers
 
@@ -86,16 +84,14 @@ impl ReverseProxyService {
         // }
 
         // X-Real-IP: 真实客户端 IP（仅在首次代理时设置）
-        if !parts.headers.contains_key(X_REAL_IP) {
-            if let Some(client_ip) = ctx
+        if !parts.headers.contains_key(X_REAL_IP)
+            && let Some(client_ip) = ctx
                 .connection_info
                 .as_ref()
                 .map(|info| info.peer_addr.ip().to_string())
-            {
-                if let Ok(value) = HeaderValue::from_str(&client_ip) {
-                    parts.headers.insert(X_REAL_IP, value);
-                }
-            }
+            && let Ok(value) = HeaderValue::from_str(&client_ip)
+        {
+            parts.headers.insert(X_REAL_IP, value);
         }
 
         // Via: 代理链标识
@@ -146,7 +142,6 @@ impl super::Service for ReverseProxyService {
     }
 }
 
-
 pub struct ReverseProxyServiceClass;
 
 impl NodeClass for ReverseProxyServiceClass {
@@ -155,9 +150,7 @@ impl NodeClass for ReverseProxyServiceClass {
     type Node = ServiceNode<ReverseProxyService>;
 
     fn construct(&self, config: Self::Config) -> Result<Self::Node, Self::Error> {
-        let authority = config
-            .new_authority
-            .parse()?;
+        let authority = config.new_authority.parse()?;
         Ok(ServiceNode::new(ReverseProxyService {
             new_authority: authority,
             schema: Arc::from(config.schema),

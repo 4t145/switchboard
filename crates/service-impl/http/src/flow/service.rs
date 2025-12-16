@@ -1,4 +1,5 @@
 pub mod client;
+pub mod direct_response;
 pub mod reverse_proxy;
 use switchboard_model::services::http::NodeInterface;
 
@@ -35,8 +36,7 @@ where
         ctx: &'c mut FlowContext,
     ) -> impl Future<Output = DynResponse> + 'c + Send {
         let req = req;
-        let fut = self.service.call(req, ctx);
-        fut
+        self.service.call(req, ctx)
     }
 
     fn interface(&self) -> NodeInterface {

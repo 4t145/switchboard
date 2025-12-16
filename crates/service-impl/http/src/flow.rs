@@ -154,16 +154,16 @@ impl FlowContext {
             .interface
             .outputs
             .get(&port)
-            .ok_or_else(|| FlowError::InvalidPort(port))?
+            .ok_or(FlowError::InvalidPort(port))?
             .clone();
-        if let Some(max_loop) = self.config.max_loop {
-            if self.trace.loop_count_at(&output.target.id) > max_loop as usize {
-                return Err(FlowError::LoopDetected {
-                    node: output.target.id.clone(),
-                    limit: max_loop,
-                    trace: self.trace.clone(),
-                });
-            }
+        if let Some(max_loop) = self.config.max_loop
+            && self.trace.loop_count_at(&output.target.id) > max_loop as usize
+        {
+            return Err(FlowError::LoopDetected {
+                node: output.target.id.clone(),
+                limit: max_loop,
+                trace: self.trace.clone(),
+            });
         }
         let target = output.target;
         let output_filters = output.filters.clone();
@@ -281,7 +281,7 @@ where
         let FlowWithConnectionInfo {
             flow,
             connection_info,
-        } = self.clone();
+        } = self;
         let req = req.map(|body| {
             use http_body_util::BodyExt;
             body.map_err(box_error).boxed_unsync()
