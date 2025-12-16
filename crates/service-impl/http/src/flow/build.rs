@@ -1,12 +1,9 @@
 use std::{collections::HashMap, sync::Arc};
 
-use serde::{Deserialize, Serialize};
 use switchboard_model::services::http::{FlowConfig, InstanceId, NodePort, NodeTarget};
 
-use crate::{
-    flow::{Flow, FlowOptions},
-    instance::{self, class::registry::ClassRegistryError},
-};
+use crate::flow::Flow;
+use crate::instance::{self, class::registry::ClassRegistryError};
 
 use crate::instance::class::registry::ClassRegistry;
 

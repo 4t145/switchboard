@@ -9,8 +9,14 @@ use tokio::sync::RwLock;
 
 use crate::{
     flow::{
-        filter::{AsFilterClass, FilterClass},
-        filter::{rewrite::Rewrite, timeout::Timeout},
+        filter::{
+            AsFilterClass, FilterClass, 
+            timeout::Timeout, 
+            url_rewrite::UrlRewriteFilterClass,
+            request_mirror::RequestMirrorFilterClass,
+            request_header_modify::RequestHeaderModifyFilterClass,
+            response_header_modify::ResponseHeaderModifyFilterClass,
+        },
         node::{AsNodeClass, NodeClass},
         // router::{host_match::HostMatch, path_match::PathMatch},
         service::client::Client,
@@ -80,8 +86,7 @@ impl ClassRegistry {
             ClassDataWithConstructor {
                 data: class_data,
                 constructor: Constructor::new(move |config| {
-                    let config =
-                        config.decode().context("deserializing config")?;
+                    let config = config.decode().context("deserializing config")?;
                     class.construct(config).context("constructing class")
                 }),
             },
@@ -97,7 +102,10 @@ impl ClassRegistry {
         // self.register_node(PathMatch);
         // self.register_node(HostMatch);
         self.register_node(Client);
-        self.register_filter(Rewrite);
+        self.register_filter(UrlRewriteFilterClass);
+        self.register_filter(RequestMirrorFilterClass);
+        self.register_filter(RequestHeaderModifyFilterClass);
+        self.register_filter(ResponseHeaderModifyFilterClass);
         self.register_filter(Timeout);
     }
     pub fn global() -> Arc<RwLock<Self>> {

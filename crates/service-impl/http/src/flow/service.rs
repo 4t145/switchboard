@@ -1,4 +1,5 @@
 pub mod client;
+pub mod reverse_proxy;
 use switchboard_model::services::http::NodeInterface;
 
 use crate::{

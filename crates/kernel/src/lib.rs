@@ -6,6 +6,7 @@ use switchboard_model::{
     NamedService, ServiceDescriptor,
     kernel::{KernelState, KernelStateKind},
 };
+use switchboard_payload::BytesPayload;
 use switchboard_pf::PortForwardProvider;
 use switchboard_service::registry::ServiceProviderRegistry;
 use switchboard_socks5::Socks5Provider;
@@ -75,7 +76,10 @@ impl KernelContext {
                         id: id.to_owned(),
                         bind: bind.addr,
                         bind_description: bind.description.clone(),
-                        config: anon_service_descriptor.config.clone(),
+                        config: anon_service_descriptor
+                            .config
+                            .as_ref()
+                            .map(BytesPayload::new_plaintext),
                         provider: anon_service_descriptor.provider.clone(),
                         name: None,
                         service_description: None,
@@ -163,10 +167,14 @@ impl KernelContext {
         Ok(())
     }
     pub async fn shutdown(&self) {
-        self.set_state(KernelState::new(KernelStateKind::ShuttingDown)).await.ok();
+        self.set_state(KernelState::new(KernelStateKind::ShuttingDown))
+            .await
+            .ok();
         // shutdown supervisor
         self.supervisor.shutdown().await;
-        self.set_state(KernelState::new(KernelStateKind::Stopped)).await.ok();
+        self.set_state(KernelState::new(KernelStateKind::Stopped))
+            .await
+            .ok();
         // shutdown controller listener
         self.shutdown_listener().await;
         // shutdown controller

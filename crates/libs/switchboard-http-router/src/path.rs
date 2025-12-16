@@ -1,10 +1,13 @@
-use std::sync::Arc;
+use std::{borrow::Cow, collections::HashMap, sync::Arc};
 
-use crate::rule::{RuleBucket, RuleBucketMatched};
+use crate::{
+    rule::{RuleBucket, RuleBucketMatched},
+    utils::regex_match::{REGEX_CAPTURE_GROUPS_LIMIT, RegexMatched, capture_key},
+};
 
 #[derive(Debug, Clone, Default)]
 pub struct PathTree<T: Clone> {
-    pub matchit: matchit::Router<RuleBucket<T>>,
+    pub matchit: matchit::Router<(Arc<str>, RuleBucket<T>)>,
     pub regex_matches: Vec<PathTreeRegexMatch<T>>,
     pub fallback: Option<T>,
 }
@@ -15,30 +18,69 @@ pub struct PathTreeRegexMatch<T: Clone> {
     pub target: RuleBucket<T>,
 }
 
-#[derive(Debug)]
-pub enum PathTreeMatched<'c, T: Clone> {
+#[derive(Debug, Clone)]
+pub enum PathTreeMatched<T: Clone> {
     Matchit {
-        matched: RuleBucketMatched<'c, T>,
+        route: Arc<str>,
+        captures: HashMap<Arc<str>, Arc<str>>,
+        matched: RuleBucketMatched<T>,
     },
     Regex {
-        regex: Arc<regex::Regex>,
-        captures: regex::Captures<'c>,
-        data: RuleBucketMatched<'c, T>,
+        regex: Arc<str>,
+        captures: RegexMatched,
+        data: RuleBucketMatched<T>,
     },
     Fallback {
         data: T,
     },
 }
 
-impl<'c, T: Clone> PathTreeMatched<'c, T> {
+pub enum PathTreeMatchedCapturesIterator<'a> {
+    MatchIt(std::collections::hash_map::Iter<'a, Arc<str>, Arc<str>>),
+    Regex(std::iter::Enumerate<std::slice::Iter<'a, Option<Arc<str>>>>),
+    None,
+}
+
+impl<'a> Iterator for PathTreeMatchedCapturesIterator<'a> {
+    type Item = (&'a str, &'a str);
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            PathTreeMatchedCapturesIterator::MatchIt(iter) => {
+                iter.next().map(|(k, v)| (k.as_ref(), v.as_ref()))
+            }
+            PathTreeMatchedCapturesIterator::Regex(iter) => {
+                iter.next().and_then(|(index, value)| {
+                    if index >= REGEX_CAPTURE_GROUPS_LIMIT {
+                        return None;
+                    }
+                    value.as_ref().map(|v| (capture_key(index), v.as_ref()))
+                })
+            }
+            PathTreeMatchedCapturesIterator::None => None,
+        }
+    }
+}
+
+impl<T: Clone> PathTreeMatched<T> {
+    pub fn captures_iter(&self) -> PathTreeMatchedCapturesIterator<'_> {
+        match self {
+            PathTreeMatched::Matchit { captures, .. } => {
+                PathTreeMatchedCapturesIterator::MatchIt(captures.iter())
+            }
+            PathTreeMatched::Regex { captures, .. } => {
+                PathTreeMatchedCapturesIterator::Regex(captures.matched.iter().enumerate())
+            }
+            PathTreeMatched::Fallback { .. } => PathTreeMatchedCapturesIterator::None,
+        }
+    }
     pub fn get_data(&self) -> &T {
         match self {
-            PathTreeMatched::Matchit { matched } => matched.get_data(),
+            PathTreeMatched::Matchit { matched, .. } => matched.get_data(),
             PathTreeMatched::Regex { data, .. } => data.get_data(),
             PathTreeMatched::Fallback { data } => data,
         }
     }
-} 
+}
 
 impl<T: Clone> PathTree<T> {
     pub fn new() -> Self {
@@ -53,8 +95,9 @@ impl<T: Clone> PathTree<T> {
         route: impl Into<String>,
         target: impl Into<RuleBucket<T>>,
     ) -> Result<(), crate::error::BuildError> {
+        let route = route.into();
         self.matchit
-            .insert(route, target.into())
+            .insert(route.clone(), (Arc::from(route), target.into()))
             .map_err(Into::into)
     }
     pub fn add_regex_route(
@@ -82,15 +125,21 @@ impl<T: Clone> PathTree<T> {
     pub fn set_fallback(&mut self, data: T) {
         self.fallback = Some(data);
     }
-    pub fn match_request_parts<'c>(
-        &self,
-        parts: &'c http::request::Parts,
-    ) -> Option<PathTreeMatched<'c, T>> {
+    pub fn match_request_parts(&self, parts: &http::request::Parts) -> Option<PathTreeMatched<T>> {
         let path = parts.uri.path();
         if let Some(matched) = self.matchit.at(path).ok()
-            && let Some(matched) = matched.value.match_request_part(parts)
+            && let Some(rule_matched) = matched.value.1.match_request_part(parts)
         {
-            return Some(PathTreeMatched::Matchit { matched });
+            let captures = matched
+                .params
+                .iter()
+                .map(|(k, v)| (Arc::from(k), Arc::from(v)))
+                .collect();
+            return Some(PathTreeMatched::Matchit {
+                route: matched.value.0.clone(),
+                matched: rule_matched,
+                captures,
+            });
         }
         // try regex matches
         for regex_match in &self.regex_matches {
@@ -98,8 +147,8 @@ impl<T: Clone> PathTree<T> {
                 && let Some(data) = regex_match.target.match_request_part(parts)
             {
                 return Some(PathTreeMatched::Regex {
-                    regex: regex_match.regex.clone(),
-                    captures,
+                    regex: regex_match.regex.as_str().into(),
+                    captures: RegexMatched::from_captures(&regex_match.regex, &captures),
                     data,
                 });
             }

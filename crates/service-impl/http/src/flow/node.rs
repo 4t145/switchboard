@@ -14,6 +14,14 @@ pub struct Node {
     pub call: Arc<NodeFn>,
 }
 
+impl std::fmt::Debug for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Node")
+            .field("interface", &self.interface)
+            .finish()
+    }
+}
+
 impl Node {
     pub fn new<F>(interface: NodeInterface, handler: F) -> Self
     where

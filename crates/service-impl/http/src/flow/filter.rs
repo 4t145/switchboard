@@ -1,12 +1,14 @@
-pub mod rewrite;
 pub mod timeout;
+pub mod request_header_modify;
+pub mod response_header_modify;
+pub mod request_mirror;
+pub mod request_redirect;
+pub mod url_rewrite;
+
 use std::sync::Arc;
 
 use futures::future::BoxFuture;
-use schemars::{JsonSchema, Schema, schema_for};
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use switchboard_model::services::http::*;
-
 
 use crate::{
     DynRequest, DynResponse, IntoDynResponse,
@@ -14,7 +16,7 @@ use crate::{
     instance::{InstanceValue, class::Class},
 };
 
-
+#[derive( Clone)]
 pub struct Next {
     pub target: NodeTarget,
     pub output_filters: Vec<FilterReference>,
@@ -23,6 +25,7 @@ pub struct Next {
     pub location: NextLocation,
 }
 
+#[derive( Clone)]
 pub enum NextLocation {
     Source,
     Target,
@@ -73,6 +76,12 @@ pub trait FilterLike: Send + Sync + 'static {
 #[derive(Clone)]
 pub struct Filter {
     pub call: Arc<FilterFn>,
+}
+
+impl std::fmt::Debug for Filter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Filter").finish()
+    }
 }
 
 impl Filter {

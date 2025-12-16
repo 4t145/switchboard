@@ -35,3 +35,21 @@ where
         Response::from_parts(parts, DynBody::new(body))
     }
 }
+
+/// Clone the request body for cases where it needs to be read multiple times.
+/// 
+/// # Warnings
+/// Cloning the body requires reading it fully into memory, which can lead to
+/// high memory usage for large bodies. Use with caution.
+/// 
+/// # Errors
+/// Returns an error if reading the body fails.
+pub async fn clone_body(body: &mut DynBody) -> Result<DynBody, BoxedError> {
+    let collected_body = body.collect().await?;
+    let cloned_body = DynBody::new(collected_body.map_err(box_error));
+    Ok(cloned_body)
+}
+
+pub fn empty_body() -> DynBody {
+    DynBody::new(http_body_util::Empty::<bytes::Bytes>::new().map_err(box_error))
+}

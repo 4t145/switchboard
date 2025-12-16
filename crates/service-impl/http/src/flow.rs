@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::Infallible, sync::Arc};
+use std::{collections::HashMap, convert::Infallible, net::SocketAddr, sync::Arc};
 pub mod build;
 pub mod filter;
 pub mod node;
@@ -13,12 +13,13 @@ use serde::{Deserialize, Serialize};
 use switchboard_model::services::http::{FilterId, NodeId, NodePort, NodeTarget};
 
 use crate::{
-    DynRequest, DynResponse, ERR_FLOW, IntoDynResponse, box_error,
+    BoxedError, DynBody, DynRequest, DynResponse, ERR_FLOW, FORKED_MARKER_HEADER, IntoDynResponse,
+    box_error, clone_body,
     flow::{filter::Filter, node::Node},
     utils::error_response,
 };
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Flow {
     pub nodes: Arc<HashMap<NodeId, Node>>,
     pub filters: Arc<HashMap<FilterId, Filter>>,
@@ -42,11 +43,13 @@ impl FlowTrace {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct FlowContext {
     pub flow: Flow,
     pub current_state: FlowContextState,
     pub trace: FlowTrace,
     pub config: FlowOptions,
+    pub connection_info: Option<ConnectionInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -92,6 +95,7 @@ impl FlowContext {
             },
             trace: FlowTrace::default(),
             config: FlowOptions::default(),
+            connection_info: None,
         }
     }
 
@@ -204,6 +208,22 @@ impl FlowContext {
     pub fn trace(&self) -> &FlowTrace {
         &self.trace
     }
+
+    /// Create a forked FlowContext for parallel processing.
+    pub async fn fork(
+        &self,
+        body: &mut DynBody,
+        parts: &http::request::Parts,
+    ) -> Result<(Self, DynRequest), BoxedError> {
+        let context_clone = self.clone();
+        let mut cloned_parts = parts.clone();
+        cloned_parts
+            .headers
+            .insert(FORKED_MARKER_HEADER, http::HeaderValue::from_static("true"));
+        let cloned_body = clone_body(body).await?;
+        let req_clone = DynRequest::from_parts(cloned_parts, cloned_body);
+        Ok((context_clone, req_clone))
+    }
 }
 
 impl<Req> hyper::service::Service<Request<Req>> for Flow
@@ -224,6 +244,52 @@ where
         Box::pin(async move {
             let entrypoint = flow.entrypoint.clone();
             let mut context = FlowContext::new(flow, entrypoint);
+            let entry_node = match context.get_entry_node() {
+                Ok(node) => node,
+                Err(e) => {
+                    tracing::error!("Failed to get entry node: {}", e);
+                    return Ok(e.into_dyn_response());
+                }
+            };
+            let response = (entry_node.call.clone())(req, &mut context).await;
+            Ok(response)
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ConnectionInfo {
+    pub peer_addr: SocketAddr,
+    pub http_version: http::Version,
+}
+
+pub struct FlowWithConnectionInfo {
+    pub flow: Flow,
+    pub connection_info: ConnectionInfo,
+}
+
+impl<Req> hyper::service::Service<Request<Req>> for FlowWithConnectionInfo
+where
+    Req: Body<Data = Bytes> + Send + 'static,
+    <Req as Body>::Error: std::error::Error + Send + Sync + 'static,
+{
+    type Response = DynResponse;
+    type Error = Infallible;
+    type Future = BoxFuture<'static, Result<Self::Response, Self::Error>>;
+
+    fn call(&self, req: Request<Req>) -> Self::Future {
+        let FlowWithConnectionInfo {
+            flow,
+            connection_info,
+        } = self.clone();
+        let req = req.map(|body| {
+            use http_body_util::BodyExt;
+            body.map_err(box_error).boxed_unsync()
+        });
+        let entrypoint = flow.entrypoint.clone();
+        let mut context = FlowContext::new(flow.clone(), entrypoint);
+        context.connection_info = Some(connection_info.clone());
+        Box::pin(async move {
             let entry_node = match context.get_entry_node() {
                 Ok(node) => node,
                 Err(e) => {

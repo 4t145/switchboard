@@ -1,11 +1,8 @@
 use std::collections::HashMap;
 // pub mod host_match;
 // pub mod path_match;
-pub mod tree;
 pub mod transparent;
-
-use serde::{Deserialize, Serialize};
-
+pub mod tree;
 
 use crate::{
     DynRequest, DynResponse,

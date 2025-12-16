@@ -9,7 +9,7 @@ pub struct BytesPayload(pub bytes::Bytes);
 
 impl Default for BytesPayload {
     fn default() -> Self {
-        BytesPayload::new("plaintext", "")
+        BytesPayload::new_plaintext("")
     }
 }
 
@@ -82,6 +82,9 @@ impl BytesPayload {
         buf.put_slice(format_bytes);
         buf.put_slice(body_bytes);
         BytesPayload(buf.freeze())
+    }
+    pub fn new_plaintext(bytes: impl AsRef<[u8]>) -> Self {
+        Self::new("plaintext", bytes)
     }
     pub fn decode<T: formats::PayloadObject>(&self) -> Result<T, Error> {
         let mut buf = self.0.clone();

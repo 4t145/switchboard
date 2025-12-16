@@ -1,6 +1,6 @@
 pub mod path;
 pub mod rule;
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 
 use crate::{hostname::HostnameTree, path::PathTree};
 
@@ -24,7 +24,8 @@ where
         let mut hostname_tree = HostnameTree::new();
         for (hostname, tree) in self.hostname_tree {
             let tree: PathTree<T> = tree.try_into()?;
-            hostname_tree.set(&hostname, tree);
+            let hostname: Arc<str> = Arc::from(hostname);
+            hostname_tree.set(&hostname.clone(), (hostname, tree));
         }
         Ok(crate::Router { hostname_tree })
     }

@@ -2,8 +2,6 @@ use schemars::{JsonSchema, Schema};
 use serde::{Deserialize, Serialize};
 use switchboard_payload::BytesPayload;
 
-pub mod rule_router;
-
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
@@ -293,5 +291,5 @@ pub struct ClassData {
 #[serde(rename_all = "camelCase")]
 pub struct WithRoutes<C> {
     pub router_config: C,
-    pub routes: HashMap<NodePort, NodeOutput>,
+    pub outputs: HashMap<NodePort, NodeOutput>,
 }

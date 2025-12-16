@@ -36,3 +36,4 @@ hyper-rustls = { version = "0.27", features = ["http2"] }
 matchit = "0.9"
 tera = "1.20.0"
 bincode = { workspace = true }
+rand = { version =  "0.9" }

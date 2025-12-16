@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use http::HeaderValue;
 
-use crate::rule::{HeaderMatch, QueryMatch, RegexOrExact, RuleBucket, RuleMatch};
+use crate::rule::{BytesRegexOrExact, HeaderMatch, QueryMatch, RegexOrExact, RuleBucket, RuleMatch};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(rename_all = "camelCase")]
@@ -109,18 +109,18 @@ pub enum RegexOrExactSerde {
     Exact(String),
 }
 
-impl TryInto<RegexOrExact<HeaderValue>> for RegexOrExactSerde {
+impl TryInto<BytesRegexOrExact<HeaderValue>> for RegexOrExactSerde {
     type Error = crate::error::BuildError;
 
-    fn try_into(self) -> Result<RegexOrExact<HeaderValue>, Self::Error> {
+    fn try_into(self) -> Result<BytesRegexOrExact<HeaderValue>, Self::Error> {
         match self {
             RegexOrExactSerde::Regex(s) => {
                 let re = regex::bytes::Regex::new(&s)?;
-                Ok(RegexOrExact::Regex(Arc::new(re)))
+                Ok(BytesRegexOrExact::Regex(re))
             }
             RegexOrExactSerde::Exact(s) => {
                 let hv = HeaderValue::from_str(&s)?;
-                Ok(RegexOrExact::Exact(hv))
+                Ok(BytesRegexOrExact::Exact(hv))
             }
         }
     }
@@ -132,8 +132,8 @@ impl TryInto<RegexOrExact<Arc<str>>> for RegexOrExactSerde {
     fn try_into(self) -> Result<RegexOrExact<Arc<str>>, Self::Error> {
         match self {
             RegexOrExactSerde::Regex(s) => {
-                let re = regex::bytes::Regex::new(&s)?;
-                Ok(RegexOrExact::Regex(Arc::new(re)))
+                let re = regex::Regex::new(&s)?;
+                Ok(RegexOrExact::Regex(re))
             }
             RegexOrExactSerde::Exact(s) => Ok(RegexOrExact::Exact(Arc::from(s.as_str()))),
         }

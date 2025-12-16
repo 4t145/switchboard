@@ -4,7 +4,7 @@ use http::{Request, header::HOST};
 use switchboard_http_router::{
     Router,
     path::{PathTree, PathTreeMatched},
-    rule::{HeaderMatch, QueryMatch, RegexOrExact, RuleBucket, RuleMatch},
+    rule::{BytesRegexOrExact, HeaderMatch, QueryMatch, RegexOrExact, RuleBucket, RuleMatch},
 };
 
 fn build_parts(
@@ -37,12 +37,12 @@ fn match_hostname_exact_and_path_exact() {
     let mut tree = PathTree::new();
     tree.add_matchit_route("/foo", RuleBucket::new_single("A"))
         .unwrap();
-    router.hostname_tree.set("example.com", tree);
+    router.set("example.com", tree);
 
     let parts = build_parts("example.com", "/foo", http::Method::GET, &[], None);
     let matched = router.match_request_parts(&parts).expect("should match");
-    match matched {
-        PathTreeMatched::Matchit { matched } => {
+    match matched.path_tree_matched {
+        PathTreeMatched::Matchit { matched, .. } => {
             assert_eq!(matched.data, "A")
         }
         _ => panic!("unexpected match variant"),
@@ -57,14 +57,14 @@ fn match_hostname_wildcard_and_prefix() {
     // matchit uses named wildcard segment to capture the rest
     tree.add_matchit_route("/v2/{*path}", RuleBucket::new_single("P"))
         .unwrap();
-    router.hostname_tree.set("*.example.com", tree);
+    router.set("*.example.com", tree);
 
     let parts = build_parts("api.example.com", "/v2/foo", http::Method::GET, &[], None);
     let matched = router
         .match_request_parts(&parts)
         .expect("should match prefix");
-    match matched {
-        PathTreeMatched::Matchit { matched } => assert_eq!(matched.data, "P"),
+    match matched.path_tree_matched {
+        PathTreeMatched::Matchit { matched, .. } => assert_eq!(matched.data, "P"),
         _ => panic!("unexpected match variant"),
     }
 }
@@ -75,13 +75,13 @@ fn match_regex_path_when_no_exact_or_prefix() {
     let mut tree = PathTree::new();
     let re = regex::Regex::new("^/users/[0-9]+$").unwrap();
     tree.add_regex_route(re, RuleBucket::new_single("R"));
-    router.hostname_tree.set("example.com", tree);
+    router.set("example.com", tree);
 
     let parts = build_parts("example.com", "/users/123", http::Method::GET, &[], None);
     let matched = router
         .match_request_parts(&parts)
         .expect("should match regex");
-    match matched {
+    match matched.path_tree_matched {
         PathTreeMatched::Regex { data, .. } => assert_eq!(data.data, "R"),
         _ => panic!("unexpected variant"),
     }
@@ -98,7 +98,7 @@ fn rule_bucket_matches_method_header_and_query() {
         method: Some(http::Method::POST),
         headers: vec![HeaderMatch {
             header_name: http::header::HeaderName::from_static("x-version"),
-            header_value: RegexOrExact::Exact(http::HeaderValue::from_static("v2")),
+            header_value: BytesRegexOrExact::Exact(http::HeaderValue::from_static("v2")),
         }],
         queries: vec![QueryMatch {
             query_name: Arc::from("a"),
@@ -107,7 +107,7 @@ fn rule_bucket_matches_method_header_and_query() {
     };
     bucket.add_rule(rule, "M");
     tree.add_matchit_route("/foo", bucket).unwrap();
-    router.hostname_tree.set("example.com", tree);
+    router.set("example.com", tree);
 
     let parts = build_parts(
         "example.com",
@@ -119,8 +119,8 @@ fn rule_bucket_matches_method_header_and_query() {
     let matched = router
         .match_request_parts(&parts)
         .expect("should match composite rule");
-    match matched {
-        PathTreeMatched::Matchit { matched } => {
+    match matched.path_tree_matched {
+        PathTreeMatched::Matchit { matched, .. } => {
             assert_eq!(matched.data, "M");
             // method matched
             assert!(matched.matched.method_matched);
@@ -140,7 +140,7 @@ fn no_rule_in_selected_host_returns_404_like_error() {
     // Only route for /ok
     tree.add_matchit_route("/ok", RuleBucket::new_single("OK"))
         .unwrap();
-    router.hostname_tree.set("example.com", tree);
+    router.set("example.com", tree);
 
     let parts = build_parts("example.com", "/miss", http::Method::GET, &[], None);
     let err = router

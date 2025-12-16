@@ -24,3 +24,19 @@ pub fn build_client() -> io::Result<HyperHttpsClient> {
     );
     Ok(client)
 }
+
+#[cfg(test)]
+mod test {
+    // use crate::empty_body;
+
+    #[tokio::test]
+    async fn test_request_with_host_header() {
+        // let client = super::build_client().unwrap();
+        // let request = http::Request::builder()
+        //     .uri("https://httpbin.org/get")
+        //     .body(empty_body())
+        //     .unwrap();
+        // let response = client.request(request).await.unwrap();
+        // assert_eq!(response.status(), http::StatusCode::OK);
+    }
+}

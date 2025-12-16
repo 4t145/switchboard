@@ -20,7 +20,7 @@ use tracing::instrument;
 use utils::read_version;
 
 use crate::{
-    flow::{Flow, build::FlowBuildError},
+    flow::{ConnectionInfo, Flow, FlowWithConnectionInfo, build::FlowBuildError},
     instance::class::registry::ClassRegistry,
 };
 
@@ -45,8 +45,18 @@ impl Http {
         ct: CancellationToken,
     ) -> std::io::Result<()> {
         let io = TokioIo::new(stream);
+        let connection_info = ConnectionInfo {
+            peer_addr: peer,
+            http_version: http::Version::HTTP_11,
+        };
         let connection = http1::Builder::new()
-            .serve_connection(io, self.service)
+            .serve_connection(
+                io,
+                FlowWithConnectionInfo {
+                    flow: self.service,
+                    connection_info,
+                },
+            )
             .with_upgrades();
         tokio::select! {
             _ = ct.cancelled() => {
@@ -71,8 +81,17 @@ impl Http {
         ct: CancellationToken,
     ) -> std::io::Result<()> {
         let io = TokioIo::new(stream);
-        let connection =
-            http2::Builder::new(TokioExecutor::new()).serve_connection(io, self.service);
+        let connection_info = ConnectionInfo {
+            peer_addr: peer,
+            http_version: http::Version::HTTP_2,
+        };
+        let connection = http2::Builder::new(TokioExecutor::new()).serve_connection(
+            io,
+            FlowWithConnectionInfo {
+                flow: self.service,
+                connection_info,
+            },
+        );
         tokio::select! {
             _ = ct.cancelled() => {
                 tracing::debug!(%peer, "HTTP/2 connection cancelled");
