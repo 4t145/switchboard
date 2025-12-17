@@ -10,7 +10,7 @@ use switchboard_model::{
     kernel::{self, KernelInfoAndState},
 };
 use tokio::sync::RwLock;
-use tracing::{Instrument, event};
+use tracing::Instrument;
 
 use crate::kernel::{KernelAddr, connection::uds::UdsTransposeConfig};
 pub trait KernelTranspose: Send + 'static {

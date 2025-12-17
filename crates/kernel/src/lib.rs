@@ -1,25 +1,22 @@
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
-use supervisor::{Supervisor, TcpServiceInfo};
+use registry::Registry;
 use switchboard_http::HttpProvider;
-use switchboard_model::{
-    NamedService, ServiceDescriptor,
-    kernel::{KernelState, KernelStateKind},
-};
-use switchboard_payload::BytesPayload;
+use switchboard_model::kernel::{KernelState, KernelStateKind};
 use switchboard_pf::PortForwardProvider;
-use switchboard_service::registry::ServiceProviderRegistry;
+use switchboard_service::{registry::ServiceProviderRegistry, tcp::TcpListener};
 use switchboard_socks5::Socks5Provider;
 use switchboard_uds::UdsProvider;
 
 pub mod config;
 pub mod controller;
-pub mod supervisor;
-pub mod tls;
+pub mod registry;
 pub mod switchboard;
+pub mod tls;
 pub use switchboard_model as model;
+use tokio::sync::RwLock;
 
-use crate::config::KernelConfig;
+use crate::{config::KernelConfig, switchboard::tcp::TcpSwitchboard};
 
 pub fn register_prelude(registry: &mut ServiceProviderRegistry) {
     // Register the prelude services
@@ -28,123 +25,152 @@ pub fn register_prelude(registry: &mut ServiceProviderRegistry) {
     registry.register_tcp_provider(HttpProvider);
     registry.register_tcp_provider(UdsProvider);
 }
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Controller Connection error: {0}")]
-    ConfigServiceError(#[from] crate::controller::ConnectError),
+    ConfigServiceError(#[from] Box<crate::controller::ConnectError>),
+    #[error("TCP Switchboard error: {0}")]
+    TcpSwitchboardError(#[from] crate::switchboard::tcp::TcpSwitchboardError),
     // #[error("Config service error: {0}")]
     // ConfigError(C::Error),
 }
 
 #[derive(Clone)]
 pub struct KernelContext {
-    pub supervisor: Supervisor,
-    pub kernel_config: Arc<KernelConfig>,
-    pub controller_handle: Arc<tokio::sync::RwLock<Option<controller::ControllerHandle>>>,
-    pub listener_handle: Arc<tokio::sync::RwLock<Option<controller::listener::ListenerHandle>>>,
+    pub(crate) registry: Registry,
+    pub(crate) kernel_config: Arc<KernelConfig>,
+    pub(crate) current_config: Arc<RwLock<model::Config>>,
+    pub(crate) tcp_switchboard: Arc<RwLock<TcpSwitchboard>>,
+    pub(crate) state: Arc<RwLock<KernelState>>,
+    pub(crate) controller_handle: Arc<RwLock<Option<controller::ControllerHandle>>>,
+    pub(crate) controller_listener_handle:
+        Arc<RwLock<Option<controller::listener::ListenerHandle>>>,
 }
 
 impl KernelContext {
     pub fn new(config: KernelConfig) -> Self {
         Self {
-            supervisor: Supervisor::new(),
+            registry: Registry::new(),
             kernel_config: Arc::new(config),
+            current_config: Arc::new(RwLock::new(model::Config::default())),
             controller_handle: Arc::new(tokio::sync::RwLock::new(None)),
-            listener_handle: Arc::new(tokio::sync::RwLock::new(None)),
+            controller_listener_handle: Arc::new(tokio::sync::RwLock::new(None)),
+            tcp_switchboard: Arc::new(RwLock::new(TcpSwitchboard::new_halted())),
+            state: Arc::new(RwLock::new(KernelState::init())),
         }
     }
     pub async fn get_state(&self) -> KernelState {
         use std::ops::Deref;
-        self.supervisor.state.read().await.deref().clone()
+        self.state.read().await.deref().clone()
     }
     pub async fn startup(&self) -> Result<(), Error> {
-        self.spawn_listener().await;
-        self.load_config(self.kernel_config.startup.clone()).await?;
+        // listen controller
+        {
+            self.spawn_listener().await;
+        }
+        // start tcp switchboard
+        {
+            self.tcp_switchboard.write().await.ensure_running();
+        }
+        // load startup config
+        {
+            // self.load_config(self.kernel_config.startup.clone()).await?;
+        }
         Ok(())
     }
     pub async fn load_config(&self, sb_config: model::Config) -> Result<(), Error> {
-        for (id, bind) in sb_config.get_enabled() {
-            tracing::info!(%id, %bind, "Adding bind to supervisor");
-            let sd = &bind.service;
-            let service_info = match sd {
-                ServiceDescriptor::Anon(anon_service_descriptor) => {
-                    let mut tls_config = None;
-                    if let Some(tls_name) = &anon_service_descriptor.tls {
-                        tls_config = sb_config.get_tls(tls_name);
-                    }
-
-                    TcpServiceInfo {
-                        id: id.to_owned(),
-                        bind: bind.addr,
-                        bind_description: bind.description.clone(),
-                        config: anon_service_descriptor
-                            .config
-                            .as_ref()
-                            .map(BytesPayload::new_plaintext),
-                        provider: anon_service_descriptor.provider.clone(),
-                        name: None,
-                        service_description: None,
-                        tls_config: tls_config.cloned(),
-                    }
-                }
-                ServiceDescriptor::Named(name) => {
-                    let Some(NamedService {
-                        provider,
-                        name,
-                        config,
-                        description,
-                        tls,
-                    }) = sb_config.get_named_service(name)
-                    else {
-                        tracing::error!(%id, %name, "Failed to get named service");
-                        continue;
-                    };
-                    let mut tls_config = None;
-                    if let Some(tls_name) = tls {
-                        tls_config = sb_config.get_tls(tls_name);
-                    }
-                    TcpServiceInfo {
-                        id: id.to_owned(),
-                        bind: bind.addr,
-                        bind_description: bind.description.clone(),
-                        config: config.clone(),
-                        provider: provider.clone(),
-                        name: Some(name.clone()),
-                        service_description: description.clone(),
-                        tls_config: tls_config.cloned(),
-                    }
-                }
-            };
-            self.supervisor
-                .add_or_update_tcp_service(service_info)
-                .await;
-        }
-        // remove disabled binds
-
-        let current_ids: Vec<_> = self
-            .supervisor
-            .tcp_services
-            .read()
-            .await
-            .keys()
-            .cloned()
-            .collect();
-        for id in current_ids {
-            if !sb_config.enabled.contains(&id) {
-                tracing::info!(%id, "Removing disabled bind from supervisor");
-                self.supervisor.remove_tcp_service(&id).await;
+        // lock it up, make sure inner state unchanged during loading process
+        let mut wg = self.tcp_switchboard.write().await;
+        let tcp_switchboard = wg.handle_mut()?;
+        let current_router = tcp_switchboard.get_current_router().await;
+        let mut new_router = current_router.as_ref().clone();
+        // for listeners
+        {
+            let existed = tcp_switchboard
+                .tcp_listeners
+                .keys()
+                .cloned()
+                .collect::<HashSet<_>>();
+            let new_listeners = sb_config
+                .tcp_listeners
+                .keys()
+                .cloned()
+                .collect::<HashSet<_>>();
+            let to_remove = existed.difference(&new_listeners);
+            let to_add = new_listeners.difference(&existed);
+            // remove old listeners
+            for bind_addr in to_remove {
+                tracing::info!(%bind_addr, "Removing TCP listener");
+                tcp_switchboard.remove_listener_task(bind_addr).await;
+                tracing::info!(%bind_addr, "Removed TCP listener");
             }
+            // add new listeners
+            for bind_addr in to_add {
+                match TcpListener::bind(*bind_addr).await {
+                    Ok(tcp_listener) => {
+                        tracing::info!(%bind_addr, "Adding TCP listener");
+                        tcp_switchboard.create_listener_task(tcp_listener).await?;
+                        tracing::info!(%bind_addr, "Added TCP listener");
+                    }
+                    Err(e) => {
+                        tracing::error!(%bind_addr, "Failed to bind TCP listener: {}", e);
+                    }
+                }
+            }
+        }
+        // for tls
+        {
+            // lets just rebuild all tls
+            new_router.tlss.clear();
+            for (tls_name, tls) in &sb_config.tls {
+                match crate::tls::build_tls_config(tls.clone()) {
+                    Ok(tls) => {
+                        new_router.tlss.insert(tls_name.as_str().into(), tls);
+                    }
+                    Err(e) => {
+                        tracing::error!(%tls_name, "Failed to build TLS config: {}", e);
+                    }
+                }
+            }
+        }
+        // for services
+        {
+            // lets just rebuild all services
+            new_router.tcp_services.clear();
+            for (service_name, service_config) in &sb_config.tcp_services {
+                tracing::info!(%service_name, provider = %service_config.provider, "Creating TCP service");
+                match self.registry.create_tcp_service(service_config).await {
+                    Ok(service) => {
+                        new_router
+                            .tcp_services
+                            .insert(service_name.as_str().into(), service);
+                    }
+                    Err(e) => {
+                        tracing::error!(%service_name, "Failed to create TCP service: {}", e);
+                    }
+                }
+            }
+        }
+        tcp_switchboard.update_router(new_router.into()).await?;
+        // update current config
+        {
+            let mut current_config = self.current_config.write().await;
+            *current_config = sb_config;
         }
         Ok(())
     }
     pub async fn set_state(&self, state: KernelState) -> Result<(), Error> {
         use std::ops::DerefMut;
         {
-            let mut current_state = self.supervisor.state.write().await;
+            let mut current_state = self.state.write().await;
             *current_state.deref_mut() = state.clone();
         }
         if let Some(controller_handle) = &*self.controller_handle.read().await {
-            controller_handle.update_state(state).await?;
+            controller_handle
+                .update_state(state)
+                .await
+                .map_err(Box::new)?;
         }
         Ok(())
     }
@@ -153,7 +179,7 @@ impl KernelContext {
     }
 
     pub async fn update_config(&self, sb_config: model::Config) -> Result<(), Error> {
-        let original_config_signature = self.sign_config(&self.kernel_config.startup);
+        let original_config_signature = self.sign_config(&*self.current_config.read().await);
         let new_config_signature = self.sign_config(&sb_config);
         let new_state = KernelState::new(KernelStateKind::Updating {
             original_config_signature,
@@ -172,12 +198,12 @@ impl KernelContext {
             .await
             .ok();
         // shutdown supervisor
-        self.supervisor.shutdown().await;
+        self.shutdown_tcp_switchboard().await;
         self.set_state(KernelState::new(KernelStateKind::Stopped))
             .await
             .ok();
         // shutdown controller listener
-        self.shutdown_listener().await;
+        self.shutdown_controller_listener().await;
         // shutdown controller
         self.shutdown_controller().await;
     }

@@ -2,9 +2,9 @@ use std::net::SocketAddr;
 
 use switchboard_model::Tls;
 use switchboard_payload::BytesPayload;
-use switchboard_service::tcp::RunningTcpService;
+// use switchboard_service::tcp::RunningTcpService;
 
-use super::SupervisorError;
+use super::RegistryError;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TcpServiceInfo {
@@ -12,7 +12,6 @@ pub struct TcpServiceInfo {
     pub id: String,
     // if bind and tls config changed, we need to rebind the service
     pub bind: SocketAddr,
-    pub tls_config: Option<Tls>,
     // if provider or config changed, we can update inner service
     pub provider: String,
     pub config: Option<BytesPayload>,
@@ -22,8 +21,8 @@ pub struct TcpServiceInfo {
     pub service_description: Option<String>,
 }
 
-#[derive(Debug)]
-pub struct TcpServiceHandle {
-    pub service: Result<RunningTcpService, SupervisorError>,
-    pub info: TcpServiceInfo,
-}
+// #[derive(Debug)]
+// pub struct TcpServiceHandle {
+//     pub service: Result<RunningTcpService, RegistryError>,
+//     pub info: TcpServiceInfo,
+// }

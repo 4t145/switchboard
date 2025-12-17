@@ -1,50 +1,49 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    net::SocketAddr,
+};
 pub const MODEL_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub mod cursor;
 pub use cursor::*;
 pub mod descriptor;
 pub use descriptor::*;
-pub mod bind;
-pub use bind::*;
+pub mod listener;
+pub use listener::*;
 pub mod tag;
 use serde::{Deserialize, Serialize};
 pub use tag::*;
-pub mod named_service;
-pub use named_service::*;
+pub mod tcp_service;
+pub use tcp_service::*;
 pub mod rbac;
 pub mod tls;
 pub use tls::*;
+
+use crate::tcp_route::TcpRoute;
 pub mod bytes;
 pub mod control;
-pub mod kernel;
 pub mod controller;
-pub mod protocol;
 pub mod error;
+pub mod http;
+pub mod kernel;
+pub mod protocol;
 pub mod regex;
 pub mod services;
-pub mod http;
-
+pub mod tcp_route;
 pub enum ConfigEvent {
     Reload,
 }
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
-    pub named_services: BTreeMap<String, NamedService>,
-    pub binds: BTreeMap<String, Bind>,
-    pub enabled: BTreeSet<String>,
+    pub tcp_services: BTreeMap<String, TcpServiceConfig>,
+    pub tcp_listeners: BTreeMap<SocketAddr, Listener>,
+    pub tcp_routes: BTreeMap<SocketAddr, TcpRoute>,
     pub tls: BTreeMap<String, Tls>,
 }
 
 impl Config {
-    pub fn get_enabled(&self) -> impl Iterator<Item = (&str, &Bind)> + '_ {
-        self.enabled
-            .iter()
-            .filter_map(|id| self.binds.get(id).map(|bind| (id.as_str(), bind)))
-    }
-
-    pub fn get_named_service(&self, name: &str) -> Option<&NamedService> {
-        self.named_services.get(name)
+    pub fn get_tcp_service(&self, name: &str) -> Option<&TcpServiceConfig> {
+        self.tcp_services.get(name)
     }
 
     pub fn get_tls(&self, name: &str) -> Option<&Tls> {

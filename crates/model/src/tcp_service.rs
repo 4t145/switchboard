@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(bon::Builder)]
 #[serde(rename_all = "camelCase")]
 #[builder(on(String, into))]
-pub struct NamedService {
+pub struct TcpServiceConfig {
     pub provider: String,
     pub name: String,
     pub config: Option<switchboard_payload::BytesPayload>,

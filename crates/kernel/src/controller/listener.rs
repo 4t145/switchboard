@@ -139,13 +139,13 @@ impl ListenerHandle {
 impl KernelContext {
     pub async fn spawn_listener(&self) {
         let handle = ListenerHandle::spawn(self.clone());
-        let old_handle = self.listener_handle.write().await.replace(handle);
+        let old_handle = self.controller_listener_handle.write().await.replace(handle);
         if let Some(old_handle) = old_handle {
             old_handle.shutdown().await;
         }
     }
-    pub async fn shutdown_listener(&self) {
-        if let Some(handle) = self.listener_handle.write().await.take() {
+    pub async fn shutdown_controller_listener(&self) {
+        if let Some(handle) = self.controller_listener_handle.write().await.take() {
             handle.shutdown().await;
         }
     }

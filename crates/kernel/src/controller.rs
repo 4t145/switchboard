@@ -271,7 +271,7 @@ impl ControllerHandle {
                 .close()
                 .await
                 .map_err(ConnectError::when("closing"))?;
-            return loop_result;
+            loop_result
         };
         let task_handle = tokio::spawn(
             async {

@@ -1,6 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
-use switchboard_model::{Bind, ConfigService, NamedService, Tls};
+use switchboard_model::{Listener, ConfigService, TcpServiceConfig, Tls};
 
 pub type BindId = String;
 fn next_bind_id() -> String {
@@ -31,15 +31,8 @@ impl MemConfig {
         Self::default()
     }
 
-    pub fn add_named_service(&mut self, service: NamedService) {
-        self.named_services.insert(service.name.clone(), service);
-    }
-
-    pub fn add_bind(&mut self, bind: Bind) -> BindId {
-        let id = next_bind_id();
-        self.binds.insert(id.clone(), bind);
-        self.enabled.insert(id.clone());
-        id
+    pub fn add_named_service(&mut self, service: TcpServiceConfig) {
+        self.tcp_services.insert(service.name.clone(), service);
     }
 
     pub fn add_tls(&mut self, name: String, tls: Tls) {

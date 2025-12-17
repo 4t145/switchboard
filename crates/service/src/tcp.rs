@@ -98,8 +98,7 @@ pub type SharedTcpService = Arc<dyn TcpService>;
 #[derive(Debug)]
 pub struct TcpListener {
     pub inner: TokioTcpListener,
-    pub addr: SocketAddr,
-    pub tls: Option<Arc<rustls::ServerConfig>>,
+    pub bind: SocketAddr,
 }
 
 pub struct TcpAccepted<S = TcpStream> {
@@ -119,10 +118,9 @@ impl TcpAccepted {
 impl TcpListener {
     pub async fn bind(
         addr: SocketAddr,
-        tls: Option<Arc<rustls::ServerConfig>>,
     ) -> io::Result<Self> {
         let inner = TokioTcpListener::bind(addr).await?;
-        Ok(Self { inner, addr, tls })
+        Ok(Self { inner, bind: addr })
     }
     pub async fn accept(&self, ct: &CancellationToken) -> io::Result<TcpAccepted> {
         self.inner
@@ -133,7 +131,7 @@ impl TcpListener {
                 context: TcpConnectionContext {
                     peer_addr,
                     ct: ct.child_token(),
-                    tls_acceptor: self.tls.clone().map(tokio_rustls::TlsAcceptor::from),
+                    tls_acceptor: None,
                 },
             })
     }
@@ -156,96 +154,96 @@ fn logging_joined_task(
     }
 }
 
-#[derive(Debug)]
-pub struct RunningTcpService {
-    bind: SocketAddr,
-    ct: CancellationToken,
-    join_handle: tokio::task::JoinHandle<()>,
-    updater: tokio::sync::watch::Sender<SharedTcpService>,
-}
+// #[derive(Debug)]
+// pub struct RunningTcpService {
+//     bind: SocketAddr,
+//     ct: CancellationToken,
+//     join_handle: tokio::task::JoinHandle<()>,
+//     updater: tokio::sync::watch::Sender<SharedTcpService>,
+// }
 
-impl std::fmt::Debug for dyn TcpService {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let name = self.name();
-        f.debug_tuple("DynTcpService").field(&name).finish()
-    }
-}
+// impl std::fmt::Debug for dyn TcpService {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         let name = self.name();
+//         f.debug_tuple("DynTcpService").field(&name).finish()
+//     }
+// }
 
-impl RunningTcpService {
-    pub fn spawn(listener: TcpListener, service: SharedTcpService) -> io::Result<Self> {
-        let (service_updater, mut update_receiver) = tokio::sync::watch::channel(service);
-        let bind = listener.addr;
-        let has_tls = listener.tls.is_some();
-        let ct = CancellationToken::new();
-        let handle_ct = ct.clone();
-        // bind tcp
-        let task = async move {
-            let mut task_set = tokio::task::JoinSet::new();
-            loop {
-                let accept_result = tokio::select! {
-                    maybe_next = listener.accept(&ct) => {
-                        maybe_next
-                    }
-                    _ = ct.cancelled() => {
-                        tracing::debug!("listener cancelled");
-                        break;
-                    }
-                    update = update_receiver.changed() => {
-                        match update {
-                            Ok(()) => {
-                                tracing::info!("TCP service updated");
-                            }
-                            Err(_) => {
-                                tracing::warn!("Service updater channel closed, keeping existing service");
-                            }
-                        }
-                        continue;
-                    }
-                    finished = task_set.join_next_with_id(), if !task_set.is_empty()=> {
-                        if let Some(result) = finished {
-                            logging_joined_task(result);
-                        };
-                        continue;
-                    }
-                };
-                match accept_result {
-                    Ok(accepted) => {
-                        task_set.spawn(update_receiver.borrow().clone().serve(accepted));
-                    }
-                    Err(accept_error) => {
-                        tracing::warn!(error=%accept_error, "Failed to accept connection");
-                        continue;
-                    }
-                }
-            }
-            tracing::debug!("listen loop exited");
-            while let Some(result) = task_set.join_next_with_id().await {
-                logging_joined_task(result);
-            }
-        };
-        let span = tracing::warn_span!("running-tcp-service-loop", has_tls, %bind);
-        let join_handle = tokio::spawn(task.instrument(span));
-        Ok(Self {
-            bind,
-            ct: handle_ct,
-            join_handle,
-            updater: service_updater,
-        })
-    }
-    pub fn update_service(
-        &self,
-        service: SharedTcpService,
-    ) -> Result<(), tokio::sync::watch::error::SendError<SharedTcpService>> {
-        self.updater.send(service)
-    }
-    pub fn bind(&self) -> SocketAddr {
-        self.bind
-    }
-    pub async fn wait(self) -> Result<(), tokio::task::JoinError> {
-        self.join_handle.await
-    }
-    pub async fn cancel(self) -> Result<(), tokio::task::JoinError> {
-        self.ct.cancel();
-        self.join_handle.await
-    }
-}
+// impl RunningTcpService {
+//     pub fn spawn(listener: TcpListener, service: SharedTcpService) -> io::Result<Self> {
+//         let (service_updater, mut update_receiver) = tokio::sync::watch::channel(service);
+//         let bind = listener.bind;
+//         let has_tls = listener.tls.is_some();
+//         let ct = CancellationToken::new();
+//         let handle_ct = ct.clone();
+//         // bind tcp
+//         let task = async move {
+//             let mut task_set = tokio::task::JoinSet::new();
+//             loop {
+//                 let accept_result = tokio::select! {
+//                     maybe_next = listener.accept(&ct) => {
+//                         maybe_next
+//                     }
+//                     _ = ct.cancelled() => {
+//                         tracing::debug!("listener cancelled");
+//                         break;
+//                     }
+//                     update = update_receiver.changed() => {
+//                         match update {
+//                             Ok(()) => {
+//                                 tracing::info!("TCP service updated");
+//                             }
+//                             Err(_) => {
+//                                 tracing::warn!("Service updater channel closed, keeping existing service");
+//                             }
+//                         }
+//                         continue;
+//                     }
+//                     finished = task_set.join_next_with_id(), if !task_set.is_empty()=> {
+//                         if let Some(result) = finished {
+//                             logging_joined_task(result);
+//                         };
+//                         continue;
+//                     }
+//                 };
+//                 match accept_result {
+//                     Ok(accepted) => {
+//                         task_set.spawn(update_receiver.borrow().clone().serve(accepted));
+//                     }
+//                     Err(accept_error) => {
+//                         tracing::warn!(error=%accept_error, "Failed to accept connection");
+//                         continue;
+//                     }
+//                 }
+//             }
+//             tracing::debug!("listen loop exited");
+//             while let Some(result) = task_set.join_next_with_id().await {
+//                 logging_joined_task(result);
+//             }
+//         };
+//         let span = tracing::warn_span!("running-tcp-service-loop", has_tls, %bind);
+//         let join_handle = tokio::spawn(task.instrument(span));
+//         Ok(Self {
+//             bind,
+//             ct: handle_ct,
+//             join_handle,
+//             updater: service_updater,
+//         })
+//     }
+//     pub fn update_service(
+//         &self,
+//         service: SharedTcpService,
+//     ) -> Result<(), tokio::sync::watch::error::SendError<SharedTcpService>> {
+//         self.updater.send(service)
+//     }
+//     pub fn bind(&self) -> SocketAddr {
+//         self.bind
+//     }
+//     pub async fn wait(self) -> Result<(), tokio::task::JoinError> {
+//         self.join_handle.await
+//     }
+//     pub async fn cancel(self) -> Result<(), tokio::task::JoinError> {
+//         self.ct.cancel();
+//         self.join_handle.await
+//     }
+// }

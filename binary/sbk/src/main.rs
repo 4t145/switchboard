@@ -1,65 +1,19 @@
-use std::{path::PathBuf, str::FromStr};
+use std::path::PathBuf;
 
 use clap::Parser;
-use switchboard_kernel::{
-    KernelContext,
-    config::{KernelConfig, mem::MemConfig},
-    controller::ControllerConfig,
-    model::*,
-};
+use switchboard_kernel::{KernelContext, config::KernelConfig};
+
 #[derive(clap::Parser)]
 pub struct CliArgs {
-    #[clap(subcommand)]
-    pub command: CliSubCommand,
-}
-
-/// sbk serve -b [::]:8080 -s pf/[::]:9090
-#[derive(clap::Subcommand)]
-pub enum CliSubCommand {
-    Serve(CliSubCommandServe),
-    Config(CliSubCommandConfig),
-}
-
-#[derive(clap::Args)]
-pub struct CliSubCommandServe {
-    #[clap(long, short, default_value = "[::]:8080")]
-    pub bind: String,
-    #[clap(long, short, default_value = "pf/[::]:9090")]
-    pub service: String,
-}
-
-#[derive(clap::Args)]
-pub struct CliSubCommandConfig {
-    path: PathBuf,
+    config: PathBuf,
 }
 
 pub async fn retrieve_kernel_config() -> Result<KernelConfig, Box<dyn std::error::Error>> {
     let args = CliArgs::parse();
-    match args.command {
-        CliSubCommand::Config(cmd) => {
-            let path = cmd.path;
-            let config_str = tokio::fs::read_to_string(path).await?;
-            let config: KernelConfig = toml::from_str(&config_str)?;
-            Ok(config)
-        }
-        CliSubCommand::Serve(cmd) => {
-            let mut config = MemConfig::new();
-            let service = ServiceDescriptor::from_str(&cmd.service)?;
-            config.add_bind(
-                Bind::builder()
-                    .addr(cmd.bind.parse()?)
-                    .description("cli bind")
-                    .service(service)
-                    .build(),
-            );
-
-            Ok(KernelConfig {
-                info: kernel::KernelInfo::default(),
-                controller: ControllerConfig::default(),
-                startup: config.into_inner(),
-            })
-        }
-    }
+    let path = args.config;
+    let config_str = tokio::fs::read_to_string(path).await?;
+    let config: KernelConfig = toml::from_str(&config_str)?;
+    Ok(config)
 }
 
 #[tokio::main]
