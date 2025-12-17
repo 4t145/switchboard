@@ -1,8 +1,8 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use switchboard_model::kernel::KernelState;
 use switchboard_service::{
     registry::{ServiceProviderRegistry, ServiceProviderRegistryError},
-    tcp::{DynTcpService, RunningTcpService},
+    tcp::{DynTcpService, RunningTcpService, TcpListener},
 };
 mod handle;
 
@@ -37,6 +37,14 @@ impl Default for Supervisor {
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+#[error("tcp fail to bind {bind}: {source}")]
+pub struct TcpBindError {
+    #[source]
+    source: std::io::Error,
+    bind: SocketAddr,
+}
+
 impl Supervisor {
     pub fn new() -> Self {
         Self::default()
@@ -54,9 +62,13 @@ impl Supervisor {
             .registry
             .read()
             .await
-            .construct_tcp(&info.provider, info.config.clone(), tls_config)
+            .construct_tcp(&info.provider, info.config.clone())
             .await?;
-        let running_service = service.bind(info.bind).await?;
+        let tcp_listener = TcpListener::bind(info.bind, info.tls_config).await.map_err(|e|TcpBindError {
+            source: e,
+            bind: info.bind.clone()
+        })?;
+        let running_service = RunningTcpService::spawn(tcp_listener, service).await?;
         Ok(running_service)
     }
     pub async fn update_tcp_inner_service(

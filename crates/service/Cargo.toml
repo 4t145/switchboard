@@ -18,3 +18,4 @@ rustls = { workspace = true }
 tokio-rustls = { workspace = true }
 futures = { workspace = true }
 thiserror = { workspace = true }
+pin-project-lite = { version = "0.2" }

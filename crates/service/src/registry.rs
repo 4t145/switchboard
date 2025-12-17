@@ -8,7 +8,8 @@ use tokio::sync::RwLock;
 
 use crate::{
     BoxTcpServiceProvider, BoxedError, DynTcpServiceProvider, TcpServiceProvider,
-    tcp::{DynTcpService, tls::TlsService},
+    tcp::SharedTcpService
+    // tcp::{DynTcpService, tls::TlsService},
 };
 
 pub struct ServiceProviderRegistry {
@@ -27,21 +28,12 @@ impl ServiceProviderRegistry {
         &self,
         name: &str,
         config: Option<BytesPayload>,
-        tls_config: Option<Arc<rustls::ServerConfig>>,
-    ) -> Result<Arc<dyn DynTcpService>, ServiceProviderRegistryError> {
+    ) -> Result<SharedTcpService, ServiceProviderRegistryError> {
         let provider = self.tcp.get(name).ok_or_else(|| {
             ServiceProviderRegistryError::ServiceProviderNotFound(name.to_owned())
         })?;
         let service = provider.construct(config).await?;
-        if let Some(tls_config) = tls_config {
-            let tls_service = TlsService {
-                config: tls_config,
-                service,
-            };
-            Ok(Arc::new(tls_service))
-        } else {
-            Ok(service)
-        }
+        Ok(service)
     }
     pub fn register_tcp_provider<P: TcpServiceProvider>(&mut self, p: P) {
         self.tcp.insert(

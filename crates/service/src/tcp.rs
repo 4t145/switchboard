@@ -5,13 +5,18 @@ use std::{
 };
 
 use futures::future::BoxFuture;
+use rustls::server::Acceptor;
 use tokio::{
     io::{self, AsyncRead, AsyncWrite},
-    net::TcpListener,
+    net::{TcpListener as TokioTcpListener, TcpStream},
 };
+use tokio_rustls::TlsAcceptor;
 use tokio_util::sync::CancellationToken;
+use tracing::Instrument;
 
-pub mod tls;
+// use crate::tcp::tls::MaybeTlsStream;
+
+// pub mod tls;
 
 pub trait AsyncStream: AsyncRead + AsyncWrite + Unpin + Send + 'static {}
 pub struct BoxedAsyncStream(Box<dyn AsyncStream>);
@@ -73,132 +78,59 @@ impl AsyncWrite for BoxedAsyncStream {
 
 impl<S: AsyncRead + AsyncWrite + Unpin + Send + 'static> AsyncStream for S {}
 
+#[derive(Clone)]
+pub struct TcpConnectionContext {
+    pub peer_addr: SocketAddr,
+    pub ct: CancellationToken,
+    // optional tls acceptor, service will decide to use or not.
+    pub tls_acceptor: Option<TlsAcceptor>,
+}
+
 pub trait TcpService: Send + Sync + 'static {
-    fn serve<S>(
-        self: Arc<Self>,
-        stream: S,
-        peer: SocketAddr,
-        ct: CancellationToken,
-    ) -> impl Future<Output = std::io::Result<()>> + Send + 'static
-    where
-        S: AsyncStream;
+    fn name(&self) -> &str;
+    fn serve(self: Arc<Self>, accepted: TcpAccepted) -> BoxFuture<'static, std::io::Result<()>>;
 }
 
-impl TcpService for dyn DynTcpService {
-    fn serve<S>(
-        self: Arc<Self>,
-        stream: S,
-        peer: SocketAddr,
-        ct: CancellationToken,
-    ) -> impl Future<Output = std::io::Result<()>> + Send + 'static
-    where
-        S: AsyncStream,
-    {
-        self.serve(BoxedAsyncStream::new(stream), peer, ct)
+pub type BoxedTcpService = Box<dyn TcpService>;
+pub type SharedTcpService = Arc<dyn TcpService>;
+
+#[derive(Debug)]
+pub struct TcpListener {
+    pub inner: TokioTcpListener,
+    pub addr: SocketAddr,
+    pub tls: Option<Arc<rustls::ServerConfig>>,
+}
+
+pub struct TcpAccepted {
+    pub stream: TcpStream,
+    pub context: TcpConnectionContext,
+}
+
+impl TcpListener {
+    pub async fn bind(
+        addr: SocketAddr,
+        tls: Option<Arc<rustls::ServerConfig>>,
+    ) -> io::Result<Self> {
+        let inner = TokioTcpListener::bind(addr).await?;
+        Ok(Self { inner, addr, tls })
+    }
+    pub async fn accept(&self, ct: &CancellationToken) -> io::Result<TcpAccepted> {
+        self.inner
+            .accept()
+            .await
+            .map(|(tcp_stream, peer_addr)| TcpAccepted {
+                stream: tcp_stream,
+                context: TcpConnectionContext {
+                    peer_addr,
+                    ct: ct.child_token(),
+                    tls_acceptor: self.tls.clone().map(tokio_rustls::TlsAcceptor::from),
+                },
+            })
     }
 }
 
-pub trait DynTcpService: Send + Sync + 'static {
-    fn serve(
-        self: Arc<Self>,
-        stream: BoxedAsyncStream,
-        peer: SocketAddr,
-        ct: CancellationToken,
-    ) -> BoxFuture<'static, std::io::Result<()>>;
-}
-
-impl<S: TcpService + ?Sized> DynTcpService for S {
-    fn serve(
-        self: Arc<Self>,
-        stream: BoxedAsyncStream,
-        peer: SocketAddr,
-        ct: CancellationToken,
-    ) -> BoxFuture<'static, std::io::Result<()>> {
-        Box::pin(self.serve(stream, peer, ct))
-    }
-}
-
-pub trait TcpServiceExt: Sized {
-    fn bind(&self, addr: SocketAddr) -> impl Future<Output = io::Result<RunningTcpService>>;
-    fn listen(&self, listener: TcpListener, ct: CancellationToken) -> impl Future<Output = ()>;
-
-    fn tls(self, config: impl Into<Arc<rustls::ServerConfig>>) -> tls::TlsService<Self> {
-        tls::TlsService {
-            config: config.into(),
-            service: Arc::new(self),
-        }
-    }
-}
-
-async fn listen_with_updater(mut service_updater: tokio::sync::watch::Receiver<Arc<dyn DynTcpService>>, listener: TcpListener, ct: CancellationToken) {
-    let mut task_set = tokio::task::JoinSet::new();
-    let mut service = service_updater.borrow().clone();
-    loop {
-        let (stream, peer) = tokio::select! {
-
-            _ = ct.cancelled() => {
-                tracing::debug!("Cancellation token triggered, shutting down server");
-                break;
-            }
-            update = service_updater.changed() => {
-                match update {
-                    Ok(()) => {
-                        service = service_updater.borrow().clone();
-                        tracing::info!("TCP service updated");
-                    }
-                    Err(_) => {
-                        tracing::warn!("Service updater channel closed, keeping existing service");
-                    }
-                }
-                continue;
-            }
-            next_income_result = listener.accept() => {
-                match next_income_result {
-                    Err(error) => {
-                        tracing::error!(%error, "Failed to accept connection");
-                        continue;
-                    }
-                    Ok((stream, peer)) => {
-                        tracing::debug!(%peer, "new connection");
-                        (stream, peer)
-                    }
-                }
-            }
-            finished = task_set.join_next_with_id(), if !task_set.is_empty()=> {
-                if let Some(result) = finished {
-                    logging_joined_task(result);
-                };
-                continue;
-            }
-        };
-        let service = service
-            .clone()
-            .serve(BoxedAsyncStream::new(stream), peer, ct.child_token());
-        task_set.spawn(service);
-    }
-    while let Some(result) = task_set.join_next_with_id().await {
-        logging_joined_task(result);
-    }
-}
-impl dyn DynTcpService {
-    pub async fn bind(self: Arc<Self>, addr: SocketAddr) -> io::Result<RunningTcpService> {
-        let listener = TcpListener::bind(addr).await?;
-        tracing::debug!(%addr, "Listening on TCP");
-        let ct = CancellationToken::new();
-        let service = self.clone();
-        let (updater, update_receiver) = tokio::sync::watch::channel(service);
-        let join_handle = tokio::spawn({
-            let ct = ct.child_token();
-            async move { listen_with_updater(update_receiver, listener, ct).await }
-        });
-        Ok(RunningTcpService {
-            bind: addr,
-            ct,
-            join_handle,
-            updater,
-        })
-    }
-}
+impl TcpAccepted {}
+impl dyn TcpService {}
 
 fn logging_joined_task(
     result: Result<(tokio::task::Id, Result<(), io::Error>), tokio::task::JoinError>,
@@ -219,17 +151,81 @@ pub struct RunningTcpService {
     bind: SocketAddr,
     ct: CancellationToken,
     join_handle: tokio::task::JoinHandle<()>,
-    updater: tokio::sync::watch::Sender<Arc<dyn DynTcpService>>,
+    updater: tokio::sync::watch::Sender<SharedTcpService>,
 }
 
-impl std::fmt::Debug for dyn DynTcpService {
+impl std::fmt::Debug for dyn TcpService {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "DynTcpService")
+        let name = self.name();
+        f.debug_tuple("DynTcpService").field(&name).finish()
     }
 }
 
 impl RunningTcpService {
-    pub fn update_service(&self, service: Arc<dyn DynTcpService>) -> Result<(), tokio::sync::watch::error::SendError<Arc<dyn DynTcpService>>> {
+    pub fn spawn(listener: TcpListener, service: SharedTcpService) -> io::Result<Self> {
+        let (service_updater, mut update_receiver) = tokio::sync::watch::channel(service);
+        let bind = listener.addr;
+        let has_tls = listener.tls.is_some();
+        let ct = CancellationToken::new();
+        let handle_ct = ct.clone();
+        // bind tcp
+        let task = async move {
+            let mut task_set = tokio::task::JoinSet::new();
+            loop {
+                let accept_result = tokio::select! {
+                    maybe_next = listener.accept(&ct) => {
+                        maybe_next
+                    }
+                    _ = ct.cancelled() => {
+                        tracing::debug!("listener cancelled");
+                        break;
+                    }
+                    update = update_receiver.changed() => {
+                        match update {
+                            Ok(()) => {
+                                tracing::info!("TCP service updated");
+                            }
+                            Err(_) => {
+                                tracing::warn!("Service updater channel closed, keeping existing service");
+                            }
+                        }
+                        continue;
+                    }
+                    finished = task_set.join_next_with_id(), if !task_set.is_empty()=> {
+                        if let Some(result) = finished {
+                            logging_joined_task(result);
+                        };
+                        continue;
+                    }
+                };
+                match accept_result {
+                    Ok(accepted) => {
+                        task_set.spawn(update_receiver.borrow().clone().serve(accepted));
+                    }
+                    Err(accept_error) => {
+                        tracing::warn!(error=%accept_error, "Failed to accept connection");
+                        continue;
+                    }
+                }
+            }
+            tracing::debug!("listen loop exited");
+            while let Some(result) = task_set.join_next_with_id().await {
+                logging_joined_task(result);
+            }
+        };
+        let span = tracing::warn_span!("running-tcp-service-loop", has_tls, %bind);
+        let join_handle = tokio::spawn(task.instrument(span));
+        Ok(Self {
+            bind,
+            ct: handle_ct,
+            join_handle,
+            updater: service_updater,
+        })
+    }
+    pub fn update_service(
+        &self,
+        service: SharedTcpService,
+    ) -> Result<(), tokio::sync::watch::error::SendError<SharedTcpService>> {
         self.updater.send(service)
     }
     pub fn bind(&self) -> SocketAddr {

@@ -214,20 +214,26 @@ where
 }
 
 impl TcpService for Socks5 {
-    async fn serve<S>(
+    fn name(&self) -> &str {
+        "socks5"
+    }
+    fn serve(self: Arc<Self>, accepted: switchboard_service::tcp::TcpAccepted) -> Pin<Box<dyn Future<Output = io::Result<()>> + 'static + Send>> {
+        Box::pin(self.serve_inner(accepted.stream, accepted.context.ct, accepted.context.peer_addr))
+    }
+}
+
+impl Socks5 {
+    pub async fn serve_inner<S>(
         self: Arc<Self>,
         mut stream: S,
-        peer: SocketAddr,
         ct: tokio_util::sync::CancellationToken,
+        peer: SocketAddr,
     ) -> io::Result<()>
     where
         S: AsyncStream,
     {
         self.accept(&mut stream, peer, ct.child_token()).await
     }
-}
-
-impl Socks5 {
     pub async fn accept<S>(
         &self,
         stream: &mut S,

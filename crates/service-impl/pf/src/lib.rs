@@ -1,22 +1,23 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::{net::SocketAddr, pin::Pin, sync::Arc};
 
 use switchboard_service::{
     BytesPayload, PayloadError, TcpServiceProvider,
     tcp::{AsyncStream, TcpService},
 };
 use tokio::{io, net::TcpStream};
+use tokio_util::sync::CancellationToken;
 
 #[derive(Debug, Clone)]
 pub struct PortForward {
     pub to: SocketAddr,
 }
 
-impl TcpService for PortForward {
-    async fn serve<S>(
+impl PortForward {
+    async fn serve_inner<S>(
         self: Arc<Self>,
         stream: S,
+        ct: CancellationToken,
         peer: SocketAddr,
-        ct: tokio_util::sync::CancellationToken,
     ) -> io::Result<()>
     where
         S: AsyncStream,
@@ -27,6 +28,15 @@ impl TcpService for PortForward {
             }
             result = forward_tcp(stream, peer, self.to) => result
         }
+    }
+}
+
+impl TcpService for PortForward {
+    fn name(&self) -> &str {
+        "port-forward"
+    }
+    fn serve(self: Arc<Self>, accepted: switchboard_service::tcp::TcpAccepted) -> Pin<Box<dyn Future<Output = io::Result<()>> + 'static + Send>> {
+        Box::pin(self.serve_inner(accepted.stream, accepted.context.ct, accepted.context.peer_addr))
     }
 }
 

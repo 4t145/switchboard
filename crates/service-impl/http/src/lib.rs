@@ -14,7 +14,10 @@ use hyper_util::rt::{TokioExecutor, TokioIo};
 use rustls::ServerConfig;
 use std::{ops::Deref, sync::Arc};
 use switchboard_model::services::http::HttpVersion;
-use switchboard_service::{BytesPayload, PayloadError, TcpServiceProvider};
+use switchboard_service::{
+    BytesPayload, PayloadError, TcpServiceProvider,
+    tcp::{TcpAccepted, TcpConnectionContext},
+};
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
 use utils::read_version;
@@ -106,42 +109,72 @@ impl Http {
         }
         Ok(())
     }
-}
 
-impl switchboard_service::tcp::TcpService for Http {
-    async fn serve<S>(
+    async fn serve_inner(
         self: Arc<Self>,
-        stream: S,
-        peer: std::net::SocketAddr,
-        ct: CancellationToken,
-    ) -> std::io::Result<()>
-    where
-        S: switchboard_service::tcp::AsyncStream,
-    {
+        TcpAccepted { stream, context }: TcpAccepted,
+    ) -> std::io::Result<()> {
+        let TcpConnectionContext {
+            peer_addr,
+            ct,
+            tls_acceptor,
+        } = context;
         match self.version {
-            HttpVersion::Http1 => self.as_ref().clone().serve_http1(stream, peer, ct).await,
-            HttpVersion::Http2 => self.as_ref().clone().serve_http2(stream, peer, ct).await,
+            HttpVersion::Http1 => {
+                self.as_ref()
+                    .clone()
+                    .serve_http1(stream, peer_addr, ct)
+                    .await
+            }
+            HttpVersion::Http2 => {
+                self.as_ref()
+                    .clone()
+                    .serve_http2(stream, peer_addr, ct)
+                    .await
+            }
             HttpVersion::Auto => {
                 let read_version = read_version(stream);
                 let (version, rewind) = tokio::select! {
-                    read_vesion = read_version => {
-                        read_vesion?
+                    read_version = read_version => {
+                        read_version?
                     }
                     _ = ct.cancelled() => {
-                        tracing::debug!(%peer, "Auto version detection cancelled");
+                        tracing::debug!(%peer_addr, "Auto version detection cancelled");
                         return Ok(());
                     }
                 };
-                tracing::debug!(%peer, "Detected HTTP version: {:?}", version);
+                tracing::debug!(%peer_addr, "Detected HTTP version: {:?}", version);
                 match version {
-                    HttpVersion::Http1 => self.as_ref().clone().serve_http1(rewind, peer, ct).await,
-                    HttpVersion::Http2 => self.as_ref().clone().serve_http2(rewind, peer, ct).await,
+                    HttpVersion::Http1 => {
+                        self.as_ref()
+                            .clone()
+                            .serve_http1(rewind, peer_addr, ct)
+                            .await
+                    }
+                    HttpVersion::Http2 => {
+                        self.as_ref()
+                            .clone()
+                            .serve_http2(rewind, peer_addr, ct)
+                            .await
+                    }
                     HttpVersion::Auto => {
                         unreachable!("Auto version should not be used here");
                     }
                 }
             }
         }
+    }
+}
+
+impl switchboard_service::tcp::TcpService for Http {
+    fn name(&self) -> &str {
+        "http"
+    }
+    fn serve(
+        self: Arc<Self>,
+        accepted: TcpAccepted,
+    ) -> futures::future::BoxFuture<'static, std::io::Result<()>> {
+        Box::pin(self.serve_inner(accepted))
     }
 }
 

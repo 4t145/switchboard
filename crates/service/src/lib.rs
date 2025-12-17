@@ -2,7 +2,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use futures::{FutureExt, future::BoxFuture};
 pub use switchboard_payload::{BytesPayload, Error as PayloadError, formats::PayloadObject};
-use tcp::{DynTcpService, TcpService};
+use tcp::{SharedTcpService, TcpService};
 use tokio::io::AsyncRead;
 use udp::UdpService;
 
@@ -10,6 +10,9 @@ pub mod registry;
 pub mod tcp;
 pub mod udp;
 pub mod utils;
+
+pub use tokio::net::TcpStream;
+
 #[derive(Debug, Clone)]
 pub struct ServiceProviderMeta {
     pub version: String,
@@ -65,7 +68,7 @@ pub trait DynTcpServiceProvider: Send + Sync + 'static {
     fn construct(
         &self,
         config: Option<BytesPayload>,
-    ) -> BoxFuture<'_, Result<Arc<dyn DynTcpService>, BoxedError>>;
+    ) -> BoxFuture<'_, Result<SharedTcpService, BoxedError>>;
 }
 
 impl<T: TcpServiceProvider> DynTcpServiceProvider for T {
@@ -78,11 +81,11 @@ impl<T: TcpServiceProvider> DynTcpServiceProvider for T {
     fn construct(
         &self,
         config: Option<BytesPayload>,
-    ) -> BoxFuture<'_, Result<Arc<dyn DynTcpService>, BoxedError>> {
+    ) -> BoxFuture<'_, Result<SharedTcpService, BoxedError>> {
         self.construct(config)
             .map(|result| {
                 result
-                    .map(|service| Arc::new(service) as Arc<dyn DynTcpService>)
+                    .map(|service| Arc::new(service) as SharedTcpService)
                     .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
             })
             .boxed()

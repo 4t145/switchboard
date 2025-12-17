@@ -1,6 +1,7 @@
 use std::{
     net::SocketAddr,
     path::{Path, PathBuf},
+    pin::Pin,
     str::FromStr,
     sync::Arc,
 };
@@ -18,12 +19,12 @@ pub struct Uds {
     pub to: PathBuf,
 }
 
-impl TcpService for Uds {
-    async fn serve<S>(
+impl Uds {
+    async fn serve_inner<S>(
         self: Arc<Self>,
         stream: S,
-        peer: SocketAddr,
         ct: tokio_util::sync::CancellationToken,
+        peer: SocketAddr,
     ) -> io::Result<()>
     where
         S: AsyncStream,
@@ -34,6 +35,22 @@ impl TcpService for Uds {
             }
             result = forward_uds(stream, peer, &self.to) => result
         }
+    }
+}
+
+impl TcpService for Uds {
+    fn name(&self) -> &str {
+        "uds"
+    }
+    fn serve(
+        self: Arc<Self>,
+        accepted: switchboard_service::tcp::TcpAccepted,
+    ) -> Pin<Box<dyn Future<Output = io::Result<()>> + 'static + Send>> {
+        Box::pin(self.serve_inner(
+            accepted.stream,
+            accepted.context.ct,
+            accepted.context.peer_addr,
+        ))
     }
 }
 
