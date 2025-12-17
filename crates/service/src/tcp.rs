@@ -7,16 +7,17 @@ use std::{
 use futures::future::BoxFuture;
 use rustls::server::Acceptor;
 use tokio::{
-    io::{self, AsyncRead, AsyncWrite},
+    io::{self, AsyncRead, AsyncWrite, AsyncWriteExt},
     net::{TcpListener as TokioTcpListener, TcpStream},
 };
 use tokio_rustls::TlsAcceptor;
 use tokio_util::sync::CancellationToken;
 use tracing::Instrument;
 
-// use crate::tcp::tls::MaybeTlsStream;
+use crate::tcp::tls::MaybeTlsStream;
 
-// pub mod tls;
+pub mod listener;
+pub mod tls;
 
 pub trait AsyncStream: AsyncRead + AsyncWrite + Unpin + Send + 'static {}
 pub struct BoxedAsyncStream(Box<dyn AsyncStream>);
@@ -101,9 +102,18 @@ pub struct TcpListener {
     pub tls: Option<Arc<rustls::ServerConfig>>,
 }
 
-pub struct TcpAccepted {
-    pub stream: TcpStream,
+pub struct TcpAccepted<S = TcpStream> {
+    pub stream: S,
     pub context: TcpConnectionContext,
+}
+
+impl TcpAccepted {
+    pub fn replace_tls(&mut self, config: Arc<rustls::ServerConfig>) {
+        self.context.tls_acceptor.replace(config.into());
+    }
+    pub async fn close_directly(mut self) -> io::Result<()>{
+        self.stream.shutdown().await
+    }
 }
 
 impl TcpListener {

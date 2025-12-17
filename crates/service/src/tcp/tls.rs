@@ -1,37 +1,25 @@
-use std::sync::Arc;
+use crate::tcp::{AsyncStream, TcpAccepted};
+use tokio::io::{self, AsyncRead, AsyncWrite};
 
-use crate::{TcpService, tcp::{AsyncStream, BoxedAsyncStream, TcpConnectionContext}};
-use rustls::pki_types::DnsName;
-use tokio::{
-    io::{self, AsyncRead, AsyncWrite},
-    net::TcpListener,
-};
-
-use super::DynTcpService;
-
-#[derive(Debug, Clone)]
-pub struct TlsService<S: ?Sized = dyn DynTcpService> {
-    pub config: Arc<rustls::ServerConfig>,
-    pub service: Arc<S>,
-}
-
-impl<Svc: TcpService + Send + Sync + ?Sized> TcpService for TlsService<Svc> {
-    async fn serve<S>(
-        self: Arc<Self>,
-        stream: S,
-        ctx: TcpConnectionContext,
-    ) -> io::Result<()>
-    where
-        S: AsyncStream,
-    {
-        let config = self.config.clone();
-        let stream = tokio_rustls::TlsAcceptor::from(config)
-            .accept(stream)
-            .await
-            .map_err(|e| io::Error::other(format!("Failed to accept TLS connection: {}", e)))?;
-        stream.into_inner();
-        stream.into_inner()
-        self.service.clone().serve(stream, peer, ct).await
+impl<S> TcpAccepted<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    pub async fn maybe_tls(self) -> io::Result<TcpAccepted<MaybeTlsStream<S>>> {
+        let Self { stream, context } = self;
+        match &context.tls_acceptor {
+            Some(tls_acceptor) => {
+                let tls_stream = tls_acceptor.accept(stream).await?;
+                Ok(TcpAccepted {
+                    stream: MaybeTlsStream::Tls(tls_stream),
+                    context,
+                })
+            }
+            None => Ok(TcpAccepted {
+                stream: MaybeTlsStream::Plain(stream),
+                context,
+            }),
+        }
     }
 }
 
@@ -58,6 +46,16 @@ impl<S> MaybeTlsStream<S> {
             MaybeTlsStream::Tls(tls_stream) => {
                 let (_, session) = tls_stream.get_ref();
                 session.server_name()
+            }
+            MaybeTlsStream::Plain(_) => None,
+        }
+    }
+
+    pub fn alpn_protocol(&self) -> Option<&[u8]> {
+        match self {
+            MaybeTlsStream::Tls(tls_stream) => {
+                let (_, session) = tls_stream.get_ref();
+                session.alpn_protocol()
             }
             MaybeTlsStream::Plain(_) => None,
         }

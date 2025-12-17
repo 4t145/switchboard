@@ -2,7 +2,7 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use switchboard_model::kernel::KernelState;
 use switchboard_service::{
     registry::{ServiceProviderRegistry, ServiceProviderRegistryError},
-    tcp::{DynTcpService, RunningTcpService, TcpListener},
+    tcp::{RunningTcpService, SharedTcpService, TcpListener},
 };
 mod handle;
 
@@ -17,8 +17,10 @@ pub enum SupervisorError {
     Io(#[from] std::io::Error),
     #[error("TLS build error: {0}")]
     TlsBuildError(#[from] crate::tls::TlsBuildError),
+    #[error("TCP bind error: {0}")]
+    TcpBindError(#[from] crate::supervisor::TcpBindError),
     #[error("Update service error: {0}")]
-    UpdateServiceError(#[from] tokio::sync::watch::error::SendError<Arc<dyn DynTcpService>>),
+    UpdateServiceError(#[from] tokio::sync::watch::error::SendError<SharedTcpService>),
 }
 #[derive(Clone)]
 pub struct Supervisor {
@@ -64,11 +66,13 @@ impl Supervisor {
             .await
             .construct_tcp(&info.provider, info.config.clone())
             .await?;
-        let tcp_listener = TcpListener::bind(info.bind, info.tls_config).await.map_err(|e|TcpBindError {
-            source: e,
-            bind: info.bind.clone()
-        })?;
-        let running_service = RunningTcpService::spawn(tcp_listener, service).await?;
+        let tcp_listener = TcpListener::bind(info.bind, tls_config)
+            .await
+            .map_err(|e| TcpBindError {
+                source: e,
+                bind: info.bind.clone(),
+            })?;
+        let running_service = RunningTcpService::spawn(tcp_listener, service)?;
         Ok(running_service)
     }
     pub async fn update_tcp_inner_service(
@@ -84,7 +88,7 @@ impl Supervisor {
             .registry
             .read()
             .await
-            .construct_tcp(&info.provider, info.config.clone(), tls_config)
+            .construct_tcp(&info.provider, info.config.clone())
             .await?;
         if let Some(old_service) = self.tcp_services.write().await.get(&info.id)
             && let Ok(old_service) = &old_service.service
@@ -103,7 +107,7 @@ impl Supervisor {
             .registry
             .read()
             .await
-            .construct_tcp(&info.provider, info.config.clone(), tls_config)
+            .construct_tcp(&info.provider, info.config.clone())
             .await?;
         // shutdown old service so we can rebind
         if let Some(old_service) = self.tcp_services.write().await.remove(&info.id) {
@@ -113,7 +117,13 @@ impl Supervisor {
                 .await
                 .inspect_err(|e| tracing::error!("fail to join old TCP service: {e}"));
         }
-        let running_service = new_service.bind(info.bind).await?;
+        let tcp_listener = TcpListener::bind(info.bind, tls_config)
+            .await
+            .map_err(|e| TcpBindError {
+                source: e,
+                bind: info.bind.clone(),
+            })?;
+        let running_service = RunningTcpService::spawn(tcp_listener, new_service)?;
         self.tcp_services.write().await.insert(
             info.id.clone(),
             TcpServiceHandle {

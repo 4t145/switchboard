@@ -16,6 +16,7 @@ pub mod config;
 pub mod controller;
 pub mod supervisor;
 pub mod tls;
+pub mod switchboard;
 pub use switchboard_model as model;
 
 use crate::config::KernelConfig;
