@@ -2,8 +2,14 @@ use std::ops::{Deref, DerefMut};
 
 use base64::prelude::*;
 
-#[derive(Debug, Clone, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[derive(Clone, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq)]
 pub struct Base64Bytes(pub Vec<u8>);
+
+impl std::fmt::Debug for Base64Bytes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Base64Bytes({} bytes)", self.0.len())
+    }
+}
 impl Deref for Base64Bytes {
     type Target = Vec<u8>;
     fn deref(&self) -> &Self::Target {

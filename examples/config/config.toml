@@ -1,18 +1,24 @@
 [[tcp_services]]
 name = "http-gateway"
 provider = "http"
-config = "/etc/switchboard/tcp/http-gateway.toml"
-
-[[tcp_listeners]]
-bind = "[::]:80"
-service = "http-gateway"
-
-[[tcp_listeners]]
-bind = "[::]:443"
-service = "http-gateway"
-tls = "switchboard.io"
+config = "file://examples/config/tcp/http-gateway.toml"
+binds = [
+    "[::]:80",
+    "[::]:443, tls=switchboard.io"
+]
 
 [[tls]]
-name = "switchboard.io"
-cert_path = "/etc/switchboard/tls/switchboard.io/cert.pem"
-key_path = "/etc/switchboard/tls/switchboard.io/key.pem"
+name = "single-example"
+cert_path = "examples/config/tls/single.crt"
+key_path = "examples/config/tls/single.key"
+
+[[tls]]
+name = "sni-example"
+    [[tls.sni]]
+    domain = "a.example.com"
+    cert_path = "examples/config/tls/sni-a.crt"
+    key_path = "examples/config/tls/sni-a.key"
+    [[tls.sni]]
+    domain = "b.example.com"
+    cert_path = "examples/config/tls/sni-b.crt"
+    key_path = "examples/config/tls/sni-b.key"

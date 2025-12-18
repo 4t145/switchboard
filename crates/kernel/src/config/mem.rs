@@ -8,6 +8,8 @@ fn next_bind_id() -> String {
     let id = ID.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     format!("bind-{}", id)
 }
+
+
 #[derive(Clone, Debug, Default)]
 pub struct MemConfig {
     pub config: switchboard_model::Config,

@@ -8,13 +8,14 @@ pub type TreeRouterMatched = switchboard_http_router::RouterMatched<NodePort>;
 
 use super::{NodePort, Router};
 
-pub struct TreeRouter {
+pub struct RouterRouter {
     pub router: TreeRouterInner<NodePort>,
     pub options: TreeRouterOptions,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]
-pub struct TreeRouterConfig {
+pub struct RouterRouterConfig {
+    #[serde(flatten)]
     pub router: RouterSerde<NodePort>,
     #[serde(default)]
     pub options: TreeRouterOptions,
@@ -41,7 +42,7 @@ pub struct PathRouterEndpoint {
     pub route: NodePort,
 }
 
-impl Router for TreeRouter {
+impl Router for RouterRouter {
     fn route(&self, req: &mut Parts) -> NodePort {
         let match_result = self.router.match_request_parts(req);
         match match_result {
@@ -60,25 +61,25 @@ impl Router for TreeRouter {
 pub struct TreeRouterClass;
 
 #[derive(Debug, thiserror::Error)]
-pub enum TreeRouterConstructError {
+pub enum RouterRouterConstructError {
     #[error("build router error: {0}")]
     BuildError(#[from] switchboard_http_router::error::BuildError),
 }
 
 impl NodeClass for TreeRouterClass {
-    type Config = WithRoutes<TreeRouterConfig>;
-    type Error = TreeRouterConstructError;
-    type Node = RouterNode<TreeRouter>;
+    type Config = WithRoutes<RouterRouterConfig>;
+    type Error = RouterRouterConstructError;
+    type Node = RouterNode<RouterRouter>;
     fn construct(&self, config: Self::Config) -> Result<Self::Node, Self::Error> {
-        let TreeRouterConfig { router, options } = config.router_config;
+        let RouterRouterConfig { router, options } = config.config;
         let router: TreeRouterInner<NodePort> = router.try_into()?;
         Ok(RouterNode::new(
-            config.outputs,
-            TreeRouter { router, options },
+            config.output,
+            RouterRouter { router, options },
         ))
     }
 
     fn id(&self) -> ClassId {
-        ClassId::std("tree-router")
+        ClassId::std("router")
     }
 }

@@ -5,16 +5,12 @@ use std::{
 };
 
 use futures::future::BoxFuture;
-use rustls::server::Acceptor;
 use tokio::{
     io::{self, AsyncRead, AsyncWrite, AsyncWriteExt},
     net::{TcpListener as TokioTcpListener, TcpStream},
 };
 use tokio_rustls::TlsAcceptor;
 use tokio_util::sync::CancellationToken;
-use tracing::Instrument;
-
-use crate::tcp::tls::MaybeTlsStream;
 
 pub mod listener;
 pub mod tls;
@@ -134,23 +130,6 @@ impl TcpListener {
                     tls_acceptor: None,
                 },
             })
-    }
-}
-
-impl TcpAccepted {}
-impl dyn TcpService {}
-
-fn logging_joined_task(
-    result: Result<(tokio::task::Id, Result<(), io::Error>), tokio::task::JoinError>,
-) {
-    match result {
-        Ok((task_id, result)) => match result {
-            Ok(_) => tracing::debug!(%task_id, "Task finished successfully"),
-            Err(error) => tracing::debug!(%task_id, %error, "Task finished with error"),
-        },
-        Err(error) => {
-            tracing::warn!(%error, "Task join error");
-        }
     }
 }
 

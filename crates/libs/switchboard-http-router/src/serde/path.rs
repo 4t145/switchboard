@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use crate::{
     path::{PathTree, PathTreeRegexMatch},
     rule::RuleBucket,
-    serde::rule::RuleBucketSerde,
+    serde::rule::{RuleBucketSerde, RuleBucketSimplifiedSerde},
 };
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]
@@ -11,7 +11,7 @@ use crate::{
 pub struct PathTreeSerde<T> {
     #[serde(default = "BTreeMap::new")]
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-    pub matchit: BTreeMap<String, RuleBucketSerde<T>>,
+    pub route: BTreeMap<String, RuleBucketSimplifiedSerde<T>>,
     #[serde(default = "Vec::new")]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub regex_matches: Vec<PathTreeRegexMatchSerde<T>>,
@@ -19,11 +19,67 @@ pub struct PathTreeSerde<T> {
     pub fallback: Option<T>,
 }
 
-impl<T> PathTreeSerde<T> {
-    pub fn add_matchit_route(&mut self, route: String, target: RuleBucketSerde<T>) {
-        self.matchit.insert(route, target);
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(transparent)]
+pub struct PathTreeSerdeMapStyle<T> {
+    /// 1. match routes: "/get/users/*"
+    /// 2. regex routes: "re:^/get/users/([0-9]+)$" 
+    /// 3. fallback route: "fallback"
+    pub route: BTreeMap<String, RuleBucketSerde<T>>,
+}
+
+impl<T> std::ops::Deref for PathTreeSerdeMapStyle<T> {
+    type Target = BTreeMap<String, RuleBucketSerde<T>>;
+    fn deref(&self) -> &Self::Target {
+        &self.route
     }
-    pub fn add_regex_route(&mut self, regex: String, target: RuleBucketSerde<T>) {
+}
+impl<T> std::ops::DerefMut for PathTreeSerdeMapStyle<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.route
+    }
+}
+
+impl<T> Default for PathTreeSerdeMapStyle<T> {
+    fn default() -> Self {
+        Self {
+            route: BTreeMap::new(),
+        }
+    }
+}
+
+impl<T: Clone> PathTreeSerdeMapStyle<T> {
+    pub fn into_regular_style(self) -> PathTreeSerde<T> {
+        let mut path_tree = PathTreeSerde::default();
+        for (mut route, bucket) in self.route {
+            if route == "fallback" {
+                path_tree.fallback = Some(bucket.target);
+            } else if let Some(regex_str) = route.strip_prefix("re:") {
+                let regex = regex_str.to_string();
+                path_tree.regex_matches.push(PathTreeRegexMatchSerde {
+                    regex,
+                    target: RuleBucketSimplifiedSerde::from(bucket),
+                });
+            } else {
+                // check if route ends with '/*' for matchit route
+                if let Some(prefix) = route.strip_suffix("/*") {
+                    route = format!("{}/{{*rest}}", prefix);
+                } 
+                path_tree
+                    .route
+                    .insert(route, RuleBucketSimplifiedSerde::from(bucket));
+            }
+        }
+        path_tree
+    }
+} 
+
+
+impl<T> PathTreeSerde<T> {
+    pub fn add_matchit_route(&mut self, route: String, target: RuleBucketSimplifiedSerde<T>) {
+        self.route.insert(route, target);
+    }
+    pub fn add_regex_route(&mut self, regex: String, target: RuleBucketSimplifiedSerde<T>) {
         self.regex_matches.push(PathTreeRegexMatchSerde { regex, target });
     }
 }
@@ -31,19 +87,18 @@ impl<T> PathTreeSerde<T> {
 impl<T> Default for PathTreeSerde<T> {
     fn default() -> Self {
         Self {
-            matchit: BTreeMap::new(),
+            route: BTreeMap::new(),
             regex_matches: Vec::new(),
             fallback: None,
         }
     }
 }
-
 impl<T: Clone> TryInto<PathTree<T>> for PathTreeSerde<T> {
     type Error = crate::error::BuildError;
 
     fn try_into(self) -> Result<PathTree<T>, Self::Error> {
         let mut path_tree = PathTree::new();
-        for (route, bucket_serde) in self.matchit {
+        for (route, bucket_serde) in self.route {
             let bucket: RuleBucket<T> = bucket_serde.try_into()?;
             path_tree.add_matchit_route(route, bucket)?;
         }
@@ -56,15 +111,22 @@ impl<T: Clone> TryInto<PathTree<T>> for PathTreeSerde<T> {
     }
 }
 
+impl<T: Clone> TryInto<PathTree<T>> for PathTreeSerdeMapStyle<T> {
+    type Error = crate::error::BuildError;
+
+    fn try_into(self) -> Result<PathTree<T>, Self::Error> {
+        let regular_style = self.into_regular_style();
+        regular_style.try_into()
+    }
+}
+
 #[derive(
-    Debug, Default, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode,
+    Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct PathTreeRegexMatchSerde<T> {
     pub regex: String,
-    #[serde(default = "RuleBucketSerde::new")]
-    #[serde(skip_serializing_if = "RuleBucketSerde::is_empty")]
-    pub target: RuleBucketSerde<T>,
+    pub target: RuleBucketSimplifiedSerde<T>,
 }
 
 impl<T: Clone> TryInto<crate::path::PathTreeRegexMatch<T>> for PathTreeRegexMatchSerde<T> {

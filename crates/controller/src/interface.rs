@@ -11,6 +11,7 @@ use crate::ControllerContext;
 pub mod http;
 pub mod uds;
 #[derive(Debug, Clone, Deserialize, Serialize, Hash, PartialEq, Eq, Default)]
+#[serde(default)]
 pub struct InterfaceConfig {
     // Configuration options for different interfaces can be added here
     pub http: Option<http::HttpInterfaceConfig>,

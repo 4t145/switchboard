@@ -1,15 +1,11 @@
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
-use switchboard_model::{bytes::Base64Bytes, controller::ControllerInfo, protocol::DEFAULT_HEARTBEAT_INTERVAL_SECS};
+use switchboard_model::{
+    bytes::Base64Bytes, controller::ControllerInfo, protocol::DEFAULT_HEARTBEAT_INTERVAL_SECS,
+};
 
-use crate::{interface::InterfaceConfig, resource::ResourceConfig};
-
-
-
-
-
-
+use crate::{interface::InterfaceConfig, resolve::ResolveConfig, resource::ResourceConfig};
 
 /// Controller Configuration
 /// # Example
@@ -29,10 +25,14 @@ pub struct ControllerConfig {
     pub info: ControllerInfo,
     #[serde(default)]
     pub kernel: KernelConfig,
+    #[serde(default)]
     pub interface: InterfaceConfig,
-    pub resource_config: ResourceConfig,
+    #[serde(default)]
+    pub resource: ResourceConfig,
+    /// how to resolve configs
+    #[serde(default)]
+    pub resolve: ResolveConfig,
 }
-
 
 #[derive(Debug, Clone, Deserialize, Serialize, Hash, PartialEq, Eq)]
 pub struct KernelConfig {

@@ -1,16 +1,16 @@
-use std::sync::Arc;
+use std::{convert::Infallible, str::FromStr, sync::Arc};
 
 use http::HeaderValue;
 
-use crate::rule::{BytesRegexOrExact, HeaderMatch, QueryMatch, RegexOrExact, RuleBucket, RuleMatch};
+use crate::rule::{
+    BytesRegexOrExact, HeaderMatch, QueryMatch, RegexOrExact, RuleBucket, RuleMatch,
+};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]
-#[serde(rename_all = "camelCase")]
 pub struct RuleBucketSerde<T> {
     // we can use heap hear...
-    #[serde(default = "Vec::new")]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub rules: Vec<(RuleMatchSerde, T)>,
+    pub rules: Vec<RuleMatchSerde>,
+    pub target: T,
 }
 
 impl<T: Clone> TryInto<RuleBucket<T>> for RuleBucketSerde<T> {
@@ -20,32 +20,214 @@ impl<T: Clone> TryInto<RuleBucket<T>> for RuleBucketSerde<T> {
         let rules = self
             .rules
             .into_iter()
-            .map(|(r, t)| r.try_into().map(|rm| (rm, t)))
+            .map(|r| r.try_into())
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(RuleBucket { rules })
-    }
-}
-
-impl<T> Default for RuleBucketSerde<T> {
-    fn default() -> Self {
-        Self::new()
+        Ok(RuleBucket {
+            rules,
+            target: self.target,
+        })
     }
 }
 
 impl<T> RuleBucketSerde<T> {
-    pub fn new() -> Self {
-        Self { rules: Vec::new() }
+    pub fn new(target: T) -> Self {
+        Self {
+            rules: Vec::new(),
+            target,
+        }
     }
     pub fn sort(&mut self) {
-        self.rules
-            .sort_by_key(|(rule_match, _)| rule_match.priority());
+        self.rules.sort_by_key(RuleMatchSerde::priority);
     }
     pub fn is_empty(&self) -> bool {
         self.rules.is_empty()
     }
-    pub fn add_rule(&mut self, rule: RuleMatchSerde, data: T) {
-        self.rules.push((rule, data));
+    pub fn add_rule(&mut self, rule: RuleMatchSerde) {
+        self.rules.push(rule);
         self.sort();
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(untagged)]
+pub enum RuleBucketSimplifiedSerde<T> {
+    JustTarget(T),
+    Rules {
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        rules: Vec<RuleMatchExprGroup>,
+        target: T,
+    },
+}
+
+impl<T: Clone> TryInto<RuleBucket<T>> for RuleBucketSimplifiedSerde<T> {
+    type Error = crate::error::BuildError;
+
+    fn try_into(self) -> Result<RuleBucket<T>, Self::Error> {
+        let bucket_serde: RuleBucketSerde<T> = self.into();
+        bucket_serde.try_into()
+    }
+}
+
+impl<T> Into<RuleBucketSerde<T>> for RuleBucketSimplifiedSerde<T>
+where
+    T: Clone,
+{
+    fn into(self) -> RuleBucketSerde<T> {
+        match self {
+            RuleBucketSimplifiedSerde::JustTarget(t) => RuleBucketSerde::new(t),
+            RuleBucketSimplifiedSerde::Rules { rules, target } => {
+                let mut bucket = RuleBucketSerde::new(target);
+                for expr in rules {
+                    let mut rule_match_serde = RuleMatchSerde {
+                        method: None,
+                        headers: Vec::new(),
+                        queries: Vec::new(),
+                    };
+                    for e in expr.exprs {
+                        match e {
+                            RuleMatchExpr::Method(m) => {
+                                rule_match_serde.method = Some(m);
+                            }
+                            RuleMatchExpr::Header(h) => {
+                                rule_match_serde.headers.push(h);
+                            }
+                            RuleMatchExpr::Query(q) => {
+                                rule_match_serde.queries.push(q);
+                            }
+                        }
+                    }
+                    bucket.rules.push(rule_match_serde);
+                }
+                bucket.sort();
+                bucket
+            }
+        }
+    }
+}
+
+impl<T> From<RuleBucketSerde<T>> for RuleBucketSimplifiedSerde<T>
+where
+    T: Clone,
+{
+    fn from(bucket: RuleBucketSerde<T>) -> Self {
+        if bucket.rules.is_empty() {
+            return RuleBucketSimplifiedSerde::JustTarget(bucket.target);
+        }
+        let mut rules = Vec::with_capacity(bucket.rules.len());
+        for rule_match_serde in bucket.rules {
+            let mut exprs = Vec::new();
+            if let Some(m) = &rule_match_serde.method {
+                exprs.push(RuleMatchExpr::Method(m.clone()));
+            }
+            for h in &rule_match_serde.headers {
+                exprs.push(RuleMatchExpr::Header(h.clone()));
+            }
+            for q in &rule_match_serde.queries {
+                exprs.push(RuleMatchExpr::Query(q.clone()));
+            }
+            rules.push(RuleMatchExprGroup { exprs });
+        }
+        let target = bucket.target;
+        RuleBucketSimplifiedSerde::Rules { rules, target }
+    }
+}
+
+#[derive(Debug, Clone, bincode::Encode, bincode::Decode, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
+pub struct RuleMatchExprGroup {
+    pub exprs: Vec<RuleMatchExpr>,
+}
+
+impl std::fmt::Display for RuleMatchExprGroup {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (idx, expr) in self.exprs.iter().enumerate() {
+            if idx == 0 {
+                write!(f, "{}", expr)?;
+            } else {
+                write!(f, ",{}", expr)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, bincode::Encode, bincode::Decode)]
+pub enum RuleMatchExpr {
+    Method(String),
+    Header(HeaderMatchSerde),
+    Query(QueryMatchSerde),
+}
+
+impl<'de> serde::Deserialize<'de> for RuleMatchExpr {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        RuleMatchExpr::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+impl serde::Serialize for RuleMatchExpr {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum RuleMatchExprParseError {
+    #[error("expected dot `.` in rule match expression")]
+    ExpectDot,
+    #[error("invalid rule kind in rule match expression: {0}")]
+    InvalidRuleKind(String),
+    #[error("expected equal sign `=` in rule match expression")]
+    ExpectEqualSign,
+    #[error("invalid exact or regex in rule match expression")]
+    InvalidExactOrRegex(#[from] Infallible),
+}
+
+impl std::fmt::Display for RuleMatchExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RuleMatchExpr::Method(m) => write!(f, "method={}", m),
+            RuleMatchExpr::Header(h) => write!(f, "header.{}={}", h.header_name, h.header_value),
+            RuleMatchExpr::Query(q) => write!(f, "query.{}={}", q.query_name, q.query_value),
+        }
+    }
+}
+impl FromStr for RuleMatchExpr {
+    type Err = RuleMatchExprParseError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let Some((field, cond)) = s.split_once('=') else {
+            return Err(RuleMatchExprParseError::ExpectEqualSign);
+        };
+        match field.to_lowercase().as_str() {
+            "method" => Ok(RuleMatchExpr::Method(cond.trim().to_string())),
+            _ => {
+                let Some((kind, key)) = cond.split_once('.') else {
+                    return Err(RuleMatchExprParseError::ExpectDot);
+                };
+                match kind {
+                    "header" => {
+                        let header_match = HeaderMatchSerde {
+                            header_name: key.trim().to_string(),
+                            header_value: RegexOrExactSerde::from_str(cond.trim())?,
+                        };
+                        Ok(RuleMatchExpr::Header(header_match))
+                    }
+                    "query" => {
+                        let query_match = QueryMatchSerde {
+                            query_name: key.trim().to_string(),
+                            query_value: RegexOrExactSerde::from_str(cond.trim())?,
+                        };
+                        Ok(RuleMatchExpr::Query(query_match))
+                    }
+                    _ => Err(RuleMatchExprParseError::InvalidRuleKind(s.to_string())),
+                }
+            }
+        }
     }
 }
 
@@ -107,6 +289,27 @@ impl RuleMatchSerde {
 pub enum RegexOrExactSerde {
     Regex(String),
     Exact(String),
+}
+
+impl FromStr for RegexOrExactSerde {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.starts_with("re:") {
+            Ok(RegexOrExactSerde::Regex(s[3..].to_string()))
+        } else {
+            Ok(RegexOrExactSerde::Exact(s.to_string()))
+        }
+    }
+}
+
+impl std::fmt::Display for RegexOrExactSerde {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RegexOrExactSerde::Regex(re) => write!(f, "re:{}", re),
+            RegexOrExactSerde::Exact(ex) => write!(f, "{}", ex),
+        }
+    }
 }
 
 impl TryInto<BytesRegexOrExact<HeaderValue>> for RegexOrExactSerde {

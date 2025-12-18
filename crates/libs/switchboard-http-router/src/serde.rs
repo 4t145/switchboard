@@ -11,7 +11,7 @@ use crate::{hostname::HostnameTree, path::PathTree};
 pub struct RouterSerde<T> {
     #[serde(default = "BTreeMap::new")]
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-    pub hostname_tree: BTreeMap<String, path::PathTreeSerde<T>>,
+    pub hostname: BTreeMap<String, path::PathTreeSerdeMapStyle<T>>,
 }
 
 impl<T> TryInto<crate::Router<T>> for RouterSerde<T>
@@ -22,7 +22,7 @@ where
 
     fn try_into(self) -> Result<crate::Router<T>, Self::Error> {
         let mut hostname_tree = HostnameTree::new();
-        for (hostname, tree) in self.hostname_tree {
+        for (hostname, tree) in self.hostname {
             let tree: PathTree<T> = tree.try_into()?;
             let hostname: Arc<str> = Arc::from(hostname);
             hostname_tree.set(&hostname.clone(), (hostname, tree));

@@ -37,11 +37,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::TRACE)
         .init();
-    let config = retrieve_controller_config().await?;
-    tracing::debug!("Controller config: {:?}", config);
-    let context = switchboard_controller::ControllerContext::new(config);
+    let controller_config = retrieve_controller_config().await?;
+    // fs load switchboard config
+    tracing::debug!("Controller config: {:?}", controller_config);
+
+    let sb_config = {
+        let path = &controller_config.resolve.fs.path;
+        switchboard_controller::resolve::fs::fetch_config(path).await?
+    };
+    let context = switchboard_controller::ControllerContext::new(controller_config);
     context.startup().await?;
     context.take_over_all_kernels().await?;
+    context.update_config(sb_config).await?;
     tracing::info!("Controller started, press Ctrl+C to exit");
     tokio::signal::ctrl_c().await?;
     tracing::info!("Controller shutting down");

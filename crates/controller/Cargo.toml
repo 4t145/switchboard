@@ -34,4 +34,5 @@ k8s-openapi = { version = "0.26", default-features = false, features = ["v1_34"]
 gateway-api = "0.19.0"
 
 switchboard-http-router = { workspace = true }
+switchboard-custom-config = { workspace = true }
 regex = { version = "1"}

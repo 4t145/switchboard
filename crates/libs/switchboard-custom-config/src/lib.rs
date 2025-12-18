@@ -1,19 +1,24 @@
 pub mod formats;
 #[cfg(feature = "fs")]
 pub mod fs;
+mod link;
+pub use link::{Link, LinkResolver};
 use base64::prelude::*;
 use bytes::{Buf as _, BufMut};
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct BytesPayload(pub bytes::Bytes);
 
-impl Default for BytesPayload {
+
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct CustomConfig(pub bytes::Bytes);
+
+impl Default for CustomConfig {
     fn default() -> Self {
-        BytesPayload::new_plaintext("")
+        CustomConfig::new_plaintext("")
     }
 }
 
-impl serde::Serialize for BytesPayload {
+impl serde::Serialize for CustomConfig {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -27,7 +32,7 @@ impl serde::Serialize for BytesPayload {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for BytesPayload {
+impl<'de> serde::Deserialize<'de> for CustomConfig {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -37,15 +42,15 @@ impl<'de> serde::Deserialize<'de> for BytesPayload {
             let decoded = BASE64_STANDARD
                 .decode(s.as_bytes())
                 .map_err(serde::de::Error::custom)?;
-            Ok(BytesPayload(bytes::Bytes::from(decoded)))
+            Ok(CustomConfig(bytes::Bytes::from(decoded)))
         } else {
             let bytes = <bytes::Bytes>::deserialize(deserializer)?;
-            Ok(BytesPayload(bytes))
+            Ok(CustomConfig(bytes))
         }
     }
 }
 
-impl bincode::Encode for BytesPayload {
+impl bincode::Encode for CustomConfig {
     fn encode<E: bincode::enc::Encoder>(
         &self,
         encoder: &mut E,
@@ -54,25 +59,34 @@ impl bincode::Encode for BytesPayload {
     }
 }
 
-impl<C> bincode::Decode<C> for BytesPayload {
+impl<C> bincode::Decode<C> for CustomConfig {
     fn decode<D: bincode::de::Decoder>(
         decoder: &mut D,
     ) -> Result<Self, bincode::error::DecodeError> {
         let bytes = Vec::<u8>::decode(decoder)?;
-        Ok(BytesPayload(bytes.into()))
+        Ok(CustomConfig(bytes.into()))
     }
 }
 
-impl<'de, C> bincode::BorrowDecode<'de, C> for BytesPayload {
+impl<'de, C> bincode::BorrowDecode<'de, C> for CustomConfig {
     fn borrow_decode<D: bincode::de::BorrowDecoder<'de, Context = C>>(
         decoder: &mut D,
     ) -> Result<Self, bincode::error::DecodeError> {
         let bytes = Vec::<u8>::borrow_decode(decoder)?;
-        Ok(BytesPayload(bytes.into()))
+        Ok(CustomConfig(bytes.into()))
     }
 }
 
-impl BytesPayload {
+impl CustomConfig {
+    pub fn into_parts(self) -> (Vec<u8>, bytes::Bytes) {
+        let mut buf = self.0;
+        let size = buf.get_u32();
+        let format_size = buf.get_u8();
+        let format = buf.split_to(format_size as usize).to_vec();
+        let body = buf;
+        assert_eq!(size as usize, body.len());
+        (format, body)
+    }
     pub fn new(format: impl AsRef<[u8]>, bytes: impl AsRef<[u8]>) -> Self {
         let format_bytes = format.as_ref();
         let body_bytes = bytes.as_ref();
@@ -81,21 +95,18 @@ impl BytesPayload {
         buf.put_u8(format_bytes.len() as u8);
         buf.put_slice(format_bytes);
         buf.put_slice(body_bytes);
-        BytesPayload(buf.freeze())
+        CustomConfig(buf.freeze())
     }
     pub fn new_plaintext(bytes: impl AsRef<[u8]>) -> Self {
         Self::new("plaintext", bytes)
     }
     pub fn decode<T: formats::PayloadObject>(&self) -> Result<T, Error> {
-        let mut buf = self.0.clone();
-        let size = buf.get_u32();
-        // check rest of size
-        if size as usize != buf.remaining() {
-            return Err(Error::InvalidPayloadSize {
-                expected: size as usize,
-                actual: buf.remaining(),
-            });
+        // at least 5 bytes for size and format size
+        if self.0.len() < 5 {
+            return Err(Error::InvalidPayloadHeader);
         }
+        let mut buf = self.0.clone();
+        let payload_size = buf.get_u32();
         let format_size = buf.get_u8();
         // check format size
         if format_size as usize > buf.remaining() {
@@ -105,6 +116,13 @@ impl BytesPayload {
             });
         }
         let format = buf.split_to(format_size as usize);
+        // check payload size
+        if payload_size as usize != buf.remaining() {
+            return Err(Error::InvalidPayloadSize {
+                expected: payload_size as usize,
+                actual: buf.remaining(),
+            });
+        }
         let body = buf;
         // decode body
         let value = formats::decode_bytes::<T>(&format, body)?;
@@ -115,12 +133,14 @@ impl BytesPayload {
         value: &T,
     ) -> Result<Self, Error> {
         let body_bytes = formats::encode_bytes(format.as_ref(), value)?;
-        Ok(BytesPayload::new(format.as_ref(), body_bytes))
+        Ok(CustomConfig::new(format.as_ref(), body_bytes))
     }
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("Failed to decode payload")]
+    InvalidPayloadHeader,
     #[error("Invalid payload size: expected {expected}, got {actual}")]
     InvalidPayloadSize { expected: usize, actual: usize },
     #[error("Invalid format size: expected at least {at_least}, got {remain}")]

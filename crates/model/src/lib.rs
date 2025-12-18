@@ -1,7 +1,4 @@
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    net::SocketAddr,
-};
+use std::{collections::BTreeMap, net::SocketAddr};
 pub const MODEL_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub mod cursor;
 pub use cursor::*;
@@ -34,8 +31,8 @@ pub enum ConfigEvent {
 }
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode)]
 #[serde(rename_all = "camelCase")]
-pub struct Config {
-    pub tcp_services: BTreeMap<String, TcpServiceConfig>,
+pub struct Config<Cfg = switchboard_custom_config::CustomConfig> {
+    pub tcp_services: BTreeMap<String, TcpServiceConfig<Cfg>>,
     pub tcp_listeners: BTreeMap<SocketAddr, Listener>,
     pub tcp_routes: BTreeMap<SocketAddr, TcpRoute>,
     pub tls: BTreeMap<String, Tls>,

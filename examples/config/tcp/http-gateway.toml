@@ -1,0 +1,8 @@
+
+[flow]
+entrypoint = { id = "router" }
+
+[flow.instances."router"]
+class = "router"
+type = "node"
+config = "file://examples/config/tcp/http-gateway/router.toml"

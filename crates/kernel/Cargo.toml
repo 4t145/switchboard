@@ -15,7 +15,7 @@ tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true }
 thiserror = { workspace = true }
 switchboard-model = { workspace = true }
-switchboard-payload = { workspace = true }
+switchboard-custom-config = { workspace = true }
 switchboard-service = { workspace = true }
 switchboard-socks5 = { path = "../service-impl/socks5" }
 switchboard-pf = { path = "../service-impl/pf" }

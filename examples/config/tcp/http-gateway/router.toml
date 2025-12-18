@@ -1,0 +1,18 @@
+[config.hostname."*"]
+# route."/api/{*rest}" = {"api"}
+"/api/*" = "frontend"
+
+"/api/dev/*".target = "api"
+"/api/dev/*".rules = [
+    ["method = GET", "header.Host = example.com", "query.env = dev", "header: X-Request-ID=re:^.*"],
+    ["method = POST", "header.Host = example.com", "query.env = dev"]
+]
+
+"re:/api/{*rest}" = "api"
+
+[output."api"]
+target = { id = "api-service" }
+filters = ["log-request", "add-header"]
+
+[output."frontend"]
+target = { id = "frontend-service" }

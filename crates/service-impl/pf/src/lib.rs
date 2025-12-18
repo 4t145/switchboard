@@ -1,7 +1,7 @@
 use std::{net::SocketAddr, pin::Pin, sync::Arc};
 
 use switchboard_service::{
-    BytesPayload, PayloadError, TcpServiceProvider,
+    CustomConfig, PayloadError, TcpServiceProvider,
     tcp::{AsyncStream, TcpService},
 };
 use tokio::{io, net::TcpStream};
@@ -57,7 +57,7 @@ impl TcpServiceProvider for PortForwardProvider {
     type Service = PortForward;
     type Error = PayloadError;
 
-    async fn construct(&self, config: Option<BytesPayload>) -> Result<Self::Service, Self::Error> {
+    async fn construct(&self, config: Option<CustomConfig>) -> Result<Self::Service, Self::Error> {
         let to = config.unwrap_or_default().decode()?;
         Ok(PortForward { to })
     }

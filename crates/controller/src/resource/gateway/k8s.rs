@@ -11,6 +11,7 @@ use gateway_api::httproutes::{
 use http::HeaderName;
 use kube::{ResourceExt, api::ListParams};
 use serde::{Deserialize, Serialize};
+use switchboard_custom_config::CustomConfig;
 use switchboard_http_router::{
     rule::{HeaderMatch, QueryMatch, RuleMatch},
     serde::rule::{
@@ -99,7 +100,7 @@ pub fn build_router_from_k8s(
     let mut router = switchboard_http_router::serde::RouterSerde::<RouteKey>::default();
     for (route_name, route) in &gateway.http_routes {
         let mut path_tree =
-            switchboard_http_router::serde::path::PathTreeSerde::<RouteKey>::default();
+            switchboard_http_router::serde::path::PathTreeSerdeMapStyle::<RouteKey>::default();
         let route_target = Arc::<str>::from(route_name.as_str());
         #[derive(Debug, Clone, Hash, PartialEq, Eq)]
         pub enum BucketKey {
@@ -110,7 +111,7 @@ pub fn build_router_from_k8s(
             rule: Option<RuleMatchSerde>,
             target: RouteKey,
         }
-        let mut buckets = HashMap::<BucketKey, Vec<BucketItem>>::new();
+        let mut buckets = HashMap::<BucketKey, Vec<RuleMatchSerde>>::new();
         if let Some(rules_list) = &route.spec.rules {
             for rules in rules_list {
                 if let Some(matches) = &rules.matches {
@@ -121,12 +122,7 @@ pub fn build_router_from_k8s(
                             .unwrap_or(HTTPRouteRulesMatchesPathType::PathPrefix);
                         let route_path = path.value.as_deref().unwrap_or("/");
                         // build rule
-                        let rule = if k8s_match.headers.as_ref().is_none_or(Vec::is_empty)
-                            && k8s_match.query_params.as_ref().is_none_or(Vec::is_empty)
-                            && k8s_match.method.is_none()
-                        {
-                            None
-                        } else {
+                        let rule = {
                             let headers = k8s_match
                                 .headers
                                 .as_ref()
@@ -148,7 +144,7 @@ pub fn build_router_from_k8s(
                                 headers,
                                 queries,
                             };
-                            Some(rule)
+                            rule
                         };
                         let tree_key = match match_type {
                             HTTPRouteRulesMatchesPathType::Exact => {
@@ -161,42 +157,32 @@ pub fn build_router_from_k8s(
                                 BucketKey::Regex(route_path.to_string())
                             }
                         };
-                        buckets.entry(tree_key).or_default().push(BucketItem {
-                            rule,
-                            target: route_target.clone(),
-                        });
+                        buckets.entry(tree_key).or_default().push(rule);
                     }
                 }
             }
         }
-        for (tree_key, tree_bucket) in buckets {
-            let mut rule_bucket = RuleBucketSerde::<RouteKey>::new();
-            for item in tree_bucket {
-                if let Some(rule) = item.rule {
-                    rule_bucket.add_rule(rule, item.target);
-                } else {
-                    rule_bucket.add_rule(RuleMatchSerde::fallback_rule(), item.target);
-                }
-            }
-            match tree_key {
+        for (key, bucket) in buckets {
+            let mut rule_bucket = RuleBucketSerde::<RouteKey>::new(route_target.clone());
+            rule_bucket.rules = bucket;
+            rule_bucket.sort();
+            match key {
                 BucketKey::Matchit(route_path) => {
-                    path_tree.add_matchit_route(route_path, rule_bucket);
+                    path_tree.insert(route_path, rule_bucket.into());
                 }
                 BucketKey::Regex(regex_str) => {
-                    path_tree.add_regex_route(regex_str, rule_bucket);
+                    path_tree.insert(regex_str, rule_bucket.into());
                 }
             }
         }
         if let Some(hostnames) = &route.spec.hostnames {
             for hostname in hostnames {
-                router
-                    .hostname_tree
-                    .insert(hostname.clone(), path_tree.clone());
+                router.hostname.insert(hostname.clone(), path_tree.clone());
             }
         } else {
-            router.hostname_tree.insert("*".to_string(), path_tree);
+            router.hostname.insert("*".to_string(), path_tree);
         }
-    }   
+    }
     Ok(router)
 }
 
@@ -210,7 +196,7 @@ impl K8sGatewayGatewayData {
                 for rule in rules {}
             }
         }
-        let mut flow_config = FlowConfig {
+        let mut flow_config = FlowConfig::<CustomConfig> {
             entrypoint: NodeTarget {
                 id: default_router_id.clone(),
                 port: NodePort::Default,
@@ -247,8 +233,7 @@ impl crate::ControllerContext {
         &self,
     ) -> Result<K8sGatewayGatheredResource, K8sGatewayResourceError> {
         let mut gathered_resource = K8sGatewayGatheredResource::default();
-        let Some(k8s_gateway_resource_config) =
-            self.controller_config.resource_config.gateway.k8s.clone()
+        let Some(k8s_gateway_resource_config) = self.controller_config.resource.gateway.k8s.clone()
         else {
             return Ok(gathered_resource);
         };

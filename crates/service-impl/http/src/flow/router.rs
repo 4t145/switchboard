@@ -3,7 +3,7 @@ use std::collections::HashMap;
 // pub mod path_match;
 pub mod balancer;
 pub mod transparent;
-pub mod tree;
+pub mod router;
 
 use crate::{
     DynRequest, DynResponse,

@@ -3,7 +3,7 @@ pub mod registry;
 use std::sync::Arc;
 
 use switchboard_model::services::http::*;
-use switchboard_service::BytesPayload;
+use switchboard_service::CustomConfig;
 
 use crate::instance::InstanceValue;
 
@@ -20,19 +20,19 @@ pub trait Class: Send + Sync + 'static {
 
 #[derive(Clone)]
 pub struct Constructor {
-    constructor: Arc<dyn Fn(&BytesPayload) -> anyhow::Result<InstanceValue> + Send + Sync>,
+    constructor: Arc<dyn Fn(&CustomConfig) -> anyhow::Result<InstanceValue> + Send + Sync>,
 }
 
 impl Constructor {
     pub fn new<F>(constructor: F) -> Self
     where
-        F: Fn(&BytesPayload) -> anyhow::Result<InstanceValue> + Send + Sync + 'static,
+        F: Fn(&CustomConfig) -> anyhow::Result<InstanceValue> + Send + Sync + 'static,
     {
         Self {
             constructor: Arc::new(constructor),
         }
     }
-    pub fn construct(&self, name: &BytesPayload) -> anyhow::Result<InstanceValue> {
+    pub fn construct(&self, name: &CustomConfig) -> anyhow::Result<InstanceValue> {
         (self.constructor)(name)
     }
 }

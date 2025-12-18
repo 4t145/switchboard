@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use switchboard_model::Tls;
-use switchboard_payload::BytesPayload;
+use switchboard_custom_config::CustomConfig;
 // use switchboard_service::tcp::RunningTcpService;
 
 use super::RegistryError;
@@ -14,7 +14,7 @@ pub struct TcpServiceInfo {
     pub bind: SocketAddr,
     // if provider or config changed, we can update inner service
     pub provider: String,
-    pub config: Option<BytesPayload>,
+    pub config: Option<CustomConfig>,
     // if name or description changed, we can just update metadata
     pub name: Option<String>,
     pub bind_description: Option<String>,

@@ -152,3 +152,4 @@ pub fn encode_bytes<T: PayloadObject>(format: &[u8], value: &T) -> Result<Bytes,
     };
     Ok(bytes)
 }
+

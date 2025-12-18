@@ -7,7 +7,7 @@ use std::{
 };
 
 use switchboard_service::{
-    BytesPayload, PayloadError, TcpServiceProvider,
+    CustomConfig, PayloadError, TcpServiceProvider,
     tcp::{AsyncStream, TcpService},
 };
 
@@ -82,7 +82,7 @@ impl TcpServiceProvider for UdsProvider {
     type Service = Uds;
     type Error = PayloadError;
 
-    async fn construct(&self, config: Option<BytesPayload>) -> Result<Self::Service, Self::Error> {
+    async fn construct(&self, config: Option<CustomConfig>) -> Result<Self::Service, Self::Error> {
         let config: String = config.unwrap_or_default().decode()?;
         let to = PathBuf::from_str(&config).expect("infallible error");
         Ok(Uds { to })

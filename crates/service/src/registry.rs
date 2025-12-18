@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-use switchboard_payload::BytesPayload;
+use switchboard_custom_config::CustomConfig;
 use tokio::sync::RwLock;
 
 use crate::{
@@ -27,7 +27,7 @@ impl ServiceProviderRegistry {
     pub async fn construct_tcp(
         &self,
         name: &str,
-        config: Option<BytesPayload>,
+        config: Option<CustomConfig>,
     ) -> Result<SharedTcpService, ServiceProviderRegistryError> {
         let provider = self.tcp.get(name).ok_or_else(|| {
             ServiceProviderRegistryError::ServiceProviderNotFound(name.to_owned())

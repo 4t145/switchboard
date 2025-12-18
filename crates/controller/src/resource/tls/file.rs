@@ -22,6 +22,12 @@ impl Default for FileTlsResourceConfig {
 pub enum FileTlsCertResourceError {
     #[error("IO error occurred")]
     IoError(#[from] std::io::Error),
+    #[error("fail to read pem file at `{path:?}`: {source}")]
+    ReadPemError {
+        #[source]
+        source: std::io::Error,
+        path: PathBuf,
+    },
     #[error("fail to parse PEM file")]
     CertParamsError(#[from] switchboard_model::TlsCertParamsError),
 }
@@ -31,7 +37,7 @@ impl crate::ControllerContext {
         &self,
     ) -> Result<BTreeMap<String, FileTlsCertResource>, FileTlsCertResourceError> {
         let mut results = BTreeMap::new();
-        let Some(config) = &self.controller_config.resource_config.tls.file else {
+        let Some(config) = &self.controller_config.resource.tls.file else {
             return Ok(results);
         };
         for dir in config.discovery_from_dirs.iter() {
@@ -75,13 +81,23 @@ impl crate::ControllerContext {
 
 impl FileTlsCertResource {
     pub async fn fetch(&self) -> Result<TlsCertParams, FileTlsCertResourceError> {
-        let cert_bytes = tokio::fs::read(&self.cert_path).await?;
-        let key_bytes = tokio::fs::read(&self.key_path).await?;
+        let cert_bytes = tokio::fs::read(&self.cert_path).await.map_err(|source| {
+            FileTlsCertResourceError::ReadPemError {
+                source,
+                path: self.cert_path.clone(),
+            }
+        })?;
+        let key_bytes = tokio::fs::read(&self.key_path).await.map_err(|source| {
+            FileTlsCertResourceError::ReadPemError {
+                source,
+                path: self.key_path.clone(),
+            }
+        })?;
         let params = TlsCertParams::from_pem_file(&cert_bytes, &key_bytes)?;
         Ok(params)
     }
 }
-#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq, bincode::Encode, bincode::Decode,)]
 pub struct FileTlsCertResource {
     pub cert_path: PathBuf,
     pub key_path: PathBuf,

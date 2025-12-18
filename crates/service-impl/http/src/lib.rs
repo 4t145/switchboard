@@ -15,7 +15,7 @@ use rustls::ServerConfig;
 use std::{ops::Deref, sync::Arc};
 use switchboard_model::services::http::HttpVersion;
 use switchboard_service::{
-    BytesPayload, PayloadError, TcpServiceProvider,
+    CustomConfig, PayloadError, TcpServiceProvider,
     tcp::{TcpAccepted, TcpConnectionContext},
 };
 use tokio_util::sync::CancellationToken;
@@ -110,15 +110,10 @@ impl Http {
         Ok(())
     }
 
-    async fn serve_inner(
-        self: Arc<Self>,
-        TcpAccepted { stream, context }: TcpAccepted,
-    ) -> std::io::Result<()> {
-        let TcpConnectionContext {
-            peer_addr,
-            ct,
-            tls_acceptor,
-        } = context;
+    async fn serve_inner(self: Arc<Self>, accepted: TcpAccepted) -> std::io::Result<()> {
+        let accepted = accepted.maybe_tls().await?;
+        let stream = accepted.stream;
+        let TcpConnectionContext { peer_addr, ct, .. } = accepted.context;
         match self.version {
             HttpVersion::Http1 => {
                 self.as_ref()
@@ -193,11 +188,11 @@ impl TcpServiceProvider for HttpProvider {
     const NAME: &'static str = "http";
     type Service = Http;
     type Error = HttpBuildError;
-    async fn construct(&self, config: Option<BytesPayload>) -> Result<Self::Service, Self::Error> {
+    async fn construct(&self, config: Option<CustomConfig>) -> Result<Self::Service, Self::Error> {
         let config: config::Config = config.unwrap_or_default().decode()?;
         let class_registry = ClassRegistry::global();
         let flow = Flow::build(
-            config.flow_config,
+            config.flow,
             class_registry.read_owned().await.deref(),
         )?;
         let service = Http {

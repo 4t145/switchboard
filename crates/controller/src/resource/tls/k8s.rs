@@ -39,7 +39,7 @@ impl crate::ControllerContext {
         &self,
     ) -> Result<BTreeMap<String, K8sTlsCertResource>, K8sTlsCertResourceError> {
         let mut results = BTreeMap::new();
-        let Some(config) = &self.controller_config.resource_config.tls.k8s else {
+        let Some(config) = &self.controller_config.resource.tls.k8s else {
             return Ok(results);
         };
         let client = match self.get_k8s_client() {

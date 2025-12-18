@@ -9,37 +9,40 @@ use crate::utils::{
 
 #[derive(Debug, Clone, Default)]
 pub struct RuleBucket<T: Clone> {
-    pub rules: Vec<(RuleMatch, T)>,
+    pub rules: Vec<RuleMatch>,
+    pub target: T,
 }
 
 impl<T: Clone> RuleBucket<T> {
-    pub fn new() -> Self {
-        Self { rules: Vec::new() }
+    pub fn new(target: T) -> Self {
+        Self { rules: Vec::new(), target }
     }
     pub fn new_single(data: T) -> Self {
         Self {
-            rules: vec![(RuleMatch::fallback_rule(), data)],
+            rules: vec![],
+            target: data,
         }
     }
     pub fn sort(&mut self) {
         self.rules
-            .sort_by_key(|(rule_match, _)| rule_match.priority());
+            .sort_by_key(RuleMatch::priority);
     }
-    pub fn add_rule(&mut self, rule: RuleMatch, data: T) {
-        // check if is fallback rule
-        if rule.is_fallback_rule() {
-            self.rules.push((rule, data));
-            return;
-        }
-        self.rules.push((rule, data));
+    pub fn add_rule(&mut self, rule: RuleMatch) {
+        self.rules.push(rule);
         self.sort();
     }
     pub fn match_request_part(&self, parts: &http::request::Parts) -> Option<RuleBucketMatched<T>> {
-        for (rule, data) in &self.rules {
+        if self.rules.is_empty() {
+            return Some(RuleBucketMatched {
+                data: self.target.clone(),
+                matched: None,
+            });
+        }
+        for rule in &self.rules {
             if let Some(matched) = rule.is_match_request_part(parts) {
                 return Some(RuleBucketMatched {
-                    data: data.clone(),
-                    matched,
+                    data: self.target.clone(),
+                    matched: Some(matched),
                 });
             }
         }
@@ -50,7 +53,7 @@ impl<T: Clone> RuleBucket<T> {
 #[derive(Debug, Clone)]
 pub struct RuleBucketMatched<T> {
     pub data: T,
-    pub matched: RuleMatched,
+    pub matched: Option<RuleMatched>,
 }
 
 impl<T> RuleBucketMatched<T> {

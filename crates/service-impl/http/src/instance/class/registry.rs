@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::Context as _;
-use switchboard_service::BytesPayload;
+use switchboard_service::CustomConfig;
 use tokio::sync::RwLock;
 
 use crate::{
@@ -62,7 +62,7 @@ impl ClassRegistry {
     pub fn construct(
         &self,
         class_id: ClassId,
-        config: BytesPayload,
+        config: CustomConfig,
     ) -> Result<InstanceValue, ClassRegistryError> {
         let class_data = self
             .class_data
