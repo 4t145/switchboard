@@ -44,6 +44,7 @@ pub struct PathRouterEndpoint {
 
 impl Router for RouterRouter {
     fn route(&self, req: &mut Parts) -> NodePort {
+        use switchboard_http_router::error::Error as RouterError;
         let match_result = self.router.match_request_parts(req);
         match match_result {
             Ok(matched) => {
@@ -53,7 +54,16 @@ impl Router for RouterRouter {
                 req.extensions.insert(matched);
                 data
             }
-            Err(_) => NodePort::Default,
+            Err(e) => match e {
+                RouterError::HostExtractFailed(bad_hostname_error) => {
+                    tracing::debug!("Failed to extract hostname: {}", bad_hostname_error);
+                    NodePort::Default
+                }
+                RouterError::NoMatchRoute | RouterError::HostNotFound => {
+                    tracing::debug!("No matching route found");
+                    NodePort::Default
+                },
+            },
         }
     }
 }
@@ -73,6 +83,7 @@ impl NodeClass for RouterRouterClass {
     fn construct(&self, config: Self::Config) -> Result<Self::Node, Self::Error> {
         let RouterRouterConfig { router, options } = config.config;
         let router: TreeRouterInner<NodePort> = router.try_into()?;
+        tracing::trace!("Constructed RouterRouter: \n {:#?}", router);
         Ok(RouterNode::new(
             config.output,
             RouterRouter { router, options },

@@ -1,0 +1,19 @@
+status_code = 404
+body = """
+<html>
+    <body>
+        <h1>404 Not Found</h1>
+        <p>The requested resource was not found on this server.</p>
+    </body>
+</html>
+"""
+headers = [
+    [
+        "Content-Type",
+        "text/html; charset=UTF-8",
+    ],
+    [
+        "server",
+        "Switchboard HTTP Gateway",
+    ],
+]

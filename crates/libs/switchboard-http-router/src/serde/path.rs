@@ -25,11 +25,11 @@ pub struct PathTreeSerdeMapStyle<T> {
     /// 1. match routes: "/get/users/*"
     /// 2. regex routes: "re:^/get/users/([0-9]+)$" 
     /// 3. fallback route: "fallback"
-    pub route: BTreeMap<String, RuleBucketSerde<T>>,
+    pub route: BTreeMap<String, RuleBucketSimplifiedSerde<T>>,
 }
 
 impl<T> std::ops::Deref for PathTreeSerdeMapStyle<T> {
-    type Target = BTreeMap<String, RuleBucketSerde<T>>;
+    type Target = BTreeMap<String, RuleBucketSimplifiedSerde<T>>;
     fn deref(&self) -> &Self::Target {
         &self.route
     }
@@ -52,8 +52,8 @@ impl<T: Clone> PathTreeSerdeMapStyle<T> {
     pub fn into_regular_style(self) -> PathTreeSerde<T> {
         let mut path_tree = PathTreeSerde::default();
         for (mut route, bucket) in self.route {
-            if route == "fallback" {
-                path_tree.fallback = Some(bucket.target);
+            if route == "fallback"  {
+                path_tree.fallback = Some(bucket.into_target());
             } else if let Some(regex_str) = route.strip_prefix("re:") {
                 let regex = regex_str.to_string();
                 path_tree.regex_matches.push(PathTreeRegexMatchSerde {

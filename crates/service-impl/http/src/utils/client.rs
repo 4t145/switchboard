@@ -25,12 +25,37 @@ pub fn build_client() -> io::Result<HyperHttpsClient> {
     Ok(client)
 }
 
+pub struct ClientOptions {
+    pub pool_idle_timeout: Option<crate::utils::duration_expr::TimeoutDuration>,
+    pub https_only: bool,
+}
+
+pub fn build_client_with_options(options: ClientOptions) -> io::Result<HyperHttpsClient> {
+    let mut client_builder = HyperClient::builder(TokioExecutor::default());
+    if let Some(timeout) = options.pool_idle_timeout {
+        client_builder.pool_idle_timeout(timeout.as_duration());
+    }
+    let connector_builder = HttpsConnector::<HttpConnector>::builder().with_tls_config(
+        ClientConfig::builder()
+            .with_native_roots()?
+            .with_no_client_auth(),
+    );
+    let connector_builder = if options.https_only {
+        connector_builder.https_only()
+    } else {
+        connector_builder.https_or_http()
+    };
+    let client = client_builder.build(connector_builder.enable_all_versions().build());
+    Ok(client)
+}
+
 #[cfg(test)]
 mod test {
     // use crate::empty_body;
 
     #[tokio::test]
     async fn test_request_with_host_header() {
+        // hyper::client::conn::http1::Builder::new().
         // let client = super::build_client().unwrap();
         // let request = http::Request::builder()
         //     .uri("https://httpbin.org/get")
@@ -40,3 +65,4 @@ mod test {
         // assert_eq!(response.status(), http::StatusCode::OK);
     }
 }
+

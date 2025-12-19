@@ -65,7 +65,7 @@ impl KernelContext {
         self.state.read().await.deref().clone()
     }
     pub async fn startup(&self) -> Result<(), Error> {
-        // preload 
+        // preload
         {
             self.registry.load_prelude().await;
         }
@@ -121,6 +121,13 @@ impl KernelContext {
                         tracing::error!(%bind_addr, "Failed to bind TCP listener: {}", e);
                     }
                 }
+            }
+        }
+        // for routes
+        {
+            new_router.routes.clear();
+            for (bind, route) in &sb_config.tcp_routes {
+                new_router.routes.insert(*bind, route.into());
             }
         }
         // for tls

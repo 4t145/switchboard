@@ -1,14 +1,29 @@
-[router.hostname."*"]
-# route."/api/{*rest}" = {"api"}
-"/api/*" = "frontend"
+[hostname."localhost"]
+"/healthy" = "i-am-healthy"
 
-"/api/dev/*".target = "api"
-"/api/dev/*".rules = [
-    ["method = GET", "header.Host = example.com", "query.env = dev", "header: X-Request-ID=re:^.*"],
-    ["method = POST", "header.Host = example.com", "query.env = dev"]
-]
+fallback = "frontend"
 
-"re:/api/{*rest}" = "api"
+[hostname."*"]
+"/healthy" = "i-am-healthy"
+"/healthy/{*rest}" = "$default"
+
+"/api/dev/*" = { target = "api", rules = [
+    [
+        "method = GET",
+        "header.Host = example.com",
+        "query.env = dev",
+        "header.X-Request-ID=re:^.*",
+    ],
+    [
+        "method = POST",
+        "header.Host = example.com",
+        "query.env = dev",
+    ],
+] }
+
+# "re:^/tracing-([0-9|a-z|A-Z]{1,16})/(.*)$" = "api"
+
+fallback = "frontend"
 
 [output."api"]
 target = "api-service"
@@ -16,3 +31,9 @@ target = "api-service"
 
 [output."frontend"]
 target = "frontend-service"
+
+[output."$default"]
+target = "not-found-page"
+
+[output."i-am-healthy"]
+target = "i-am-healthy"

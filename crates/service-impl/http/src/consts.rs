@@ -1,3 +1,4 @@
+pub const SERVER_NAME: &str = "switchboard";
 pub const FORKED_MARKER_HEADER: &str = "x-switchboard-forked";
 
 pub const ERR_HTTP_CLIENT: &str = "service.http-client";

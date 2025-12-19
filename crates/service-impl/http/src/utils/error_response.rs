@@ -1,12 +1,17 @@
-use std::error::Error as StdError;
-
 use bytes::Bytes;
-use http::{StatusCode, header::CONTENT_TYPE};
+use http::{
+    StatusCode,
+    header::{CONTENT_TYPE, SERVER},
+};
 use http_body_util::BodyExt;
 
-use crate::{DynResponse, box_error};
-pub const HEADER_X_SBH_ERROR: &str = "X-Sbh-Error";
-pub fn error_response(code: StatusCode, error: impl StdError, kind: &'static str) -> DynResponse {
+use crate::{DynResponse, SERVER_NAME, box_error};
+pub const HEADER_X_SBH_ERROR: &str = "X-Switchboard-Error";
+pub fn error_response(
+    code: StatusCode,
+    error: impl std::fmt::Display,
+    kind: &'static str,
+) -> DynResponse {
     let body = error.to_string();
     let body = http_body_util::Full::<Bytes>::from(body)
         .map_err(box_error)
@@ -15,6 +20,7 @@ pub fn error_response(code: StatusCode, error: impl StdError, kind: &'static str
         .status(code)
         .header(CONTENT_TYPE, "text/plain; charset=UTF-8")
         .header(HEADER_X_SBH_ERROR, kind)
+        .header(SERVER, SERVER_NAME)
         .body(body)
         .unwrap()
 }

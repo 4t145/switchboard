@@ -40,18 +40,15 @@ pub struct Http {
 }
 
 impl Http {
-    #[instrument(skip_all, fields(peer = %peer))]
     async fn serve_http1(
         self,
         stream: impl switchboard_service::tcp::AsyncStream,
-        peer: std::net::SocketAddr,
+        mut connection_info: ConnectionInfo,
         ct: CancellationToken,
     ) -> std::io::Result<()> {
+        connection_info.http_version = http::Version::HTTP_11;
         let io = TokioIo::new(stream);
-        let connection_info = ConnectionInfo {
-            peer_addr: peer,
-            http_version: http::Version::HTTP_11,
-        };
+        let peer = connection_info.peer_addr;
         let connection = http1::Builder::new()
             .serve_connection(
                 io,
@@ -76,18 +73,15 @@ impl Http {
         Ok(())
     }
 
-    #[instrument(skip_all, fields(peer = %peer))]
     async fn serve_http2(
         self,
         stream: impl switchboard_service::tcp::AsyncStream,
-        peer: std::net::SocketAddr,
+        mut connection_info: ConnectionInfo,
         ct: CancellationToken,
     ) -> std::io::Result<()> {
+        connection_info.http_version = http::Version::HTTP_2;
         let io = TokioIo::new(stream);
-        let connection_info = ConnectionInfo {
-            peer_addr: peer,
-            http_version: http::Version::HTTP_2,
-        };
+        let peer = connection_info.peer_addr;
         let connection = http2::Builder::new(TokioExecutor::new()).serve_connection(
             io,
             FlowWithConnectionInfo {
@@ -113,18 +107,24 @@ impl Http {
     async fn serve_inner(self: Arc<Self>, accepted: TcpAccepted) -> std::io::Result<()> {
         let accepted = accepted.maybe_tls().await?;
         let stream = accepted.stream;
+        let is_tls = stream.is_tls();
         let TcpConnectionContext { peer_addr, ct, .. } = accepted.context;
+        let connection_info = ConnectionInfo {
+            peer_addr,
+            http_version: http::Version::HTTP_11,
+            is_tls,
+        };
         match self.version {
             HttpVersion::Http1 => {
                 self.as_ref()
                     .clone()
-                    .serve_http1(stream, peer_addr, ct)
+                    .serve_http1(stream, connection_info, ct)
                     .await
             }
             HttpVersion::Http2 => {
                 self.as_ref()
                     .clone()
-                    .serve_http2(stream, peer_addr, ct)
+                    .serve_http2(stream, connection_info, ct)
                     .await
             }
             HttpVersion::Auto => {
@@ -138,18 +138,18 @@ impl Http {
                         return Ok(());
                     }
                 };
-                tracing::debug!(%peer_addr, "Detected HTTP version: {:?}", version);
+                tracing::trace!(%peer_addr, "Detected HTTP version: {:?}", version);
                 match version {
                     HttpVersion::Http1 => {
                         self.as_ref()
                             .clone()
-                            .serve_http1(rewind, peer_addr, ct)
+                            .serve_http1(rewind, connection_info, ct)
                             .await
                     }
                     HttpVersion::Http2 => {
                         self.as_ref()
                             .clone()
-                            .serve_http2(rewind, peer_addr, ct)
+                            .serve_http2(rewind, connection_info, ct)
                             .await
                     }
                     HttpVersion::Auto => {

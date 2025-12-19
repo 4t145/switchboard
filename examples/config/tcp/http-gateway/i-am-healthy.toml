@@ -1,0 +1,12 @@
+code = 200
+body = "I am fine. Thank you, and you?"
+headers = [
+    [
+        "Content-Type",
+        "text/plain; charset=UTF-8",
+    ],
+    [
+        "server",
+        "switchboard",
+    ],
+]

@@ -3,8 +3,9 @@ name = "http-gateway"
 provider = "http"
 config = "file://examples/config/tcp/http-gateway.toml"
 binds = [
-    "[::]:80",
-    "[::]:443, tls=switchboard.io"
+    "127.0.0.1:8080",
+    "[::1]:8443, tls=single-example",
+    "[::1]:8444, tls=sni-example"
 ]
 
 [[tls]]
@@ -15,10 +16,10 @@ key_path = "examples/config/tls/single.key"
 [[tls]]
 name = "sni-example"
     [[tls.sni]]
-    domain = "a.example.com"
+    domain = "sni-a.test.local"
     cert_path = "examples/config/tls/sni-a.crt"
     key_path = "examples/config/tls/sni-a.key"
     [[tls.sni]]
-    domain = "b.example.com"
+    domain = "sni-b.test.local"
     cert_path = "examples/config/tls/sni-b.crt"
     key_path = "examples/config/tls/sni-b.key"

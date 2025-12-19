@@ -48,8 +48,9 @@ impl<T> RuleBucketSerde<T> {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]
+#[derive(Debug, Clone, bincode::Encode, bincode::Decode, serde::Deserialize, serde::Serialize)]
 #[serde(untagged)]
+/// T should be something string like, otherwise serde would cause error
 pub enum RuleBucketSimplifiedSerde<T> {
     JustTarget(T),
     Rules {
@@ -57,6 +58,21 @@ pub enum RuleBucketSimplifiedSerde<T> {
         rules: Vec<RuleMatchExprGroup>,
         target: T,
     },
+}
+
+impl<T> RuleBucketSimplifiedSerde<T> {
+    pub fn target(&self) -> &T {
+        match self {
+            RuleBucketSimplifiedSerde::JustTarget(t) => t,
+            RuleBucketSimplifiedSerde::Rules { target, .. } => target,
+        }
+    }
+    pub fn into_target(self) -> T {
+        match self {
+            RuleBucketSimplifiedSerde::JustTarget(t) => t,
+            RuleBucketSimplifiedSerde::Rules { target, .. } => target,
+        }
+    }
 }
 
 impl<T: Clone> TryInto<RuleBucket<T>> for RuleBucketSimplifiedSerde<T> {
@@ -203,30 +219,31 @@ impl FromStr for RuleMatchExpr {
         let Some((field, cond)) = s.split_once('=') else {
             return Err(RuleMatchExprParseError::ExpectEqualSign);
         };
-        match field.to_lowercase().as_str() {
-            "method" => Ok(RuleMatchExpr::Method(cond.trim().to_string())),
-            _ => {
-                let Some((kind, key)) = cond.split_once('.') else {
-                    return Err(RuleMatchExprParseError::ExpectDot);
-                };
-                match kind {
-                    "header" => {
-                        let header_match = HeaderMatchSerde {
-                            header_name: key.trim().to_string(),
-                            header_value: RegexOrExactSerde::from_str(cond.trim())?,
-                        };
-                        Ok(RuleMatchExpr::Header(header_match))
-                    }
-                    "query" => {
-                        let query_match = QueryMatchSerde {
-                            query_name: key.trim().to_string(),
-                            query_value: RegexOrExactSerde::from_str(cond.trim())?,
-                        };
-                        Ok(RuleMatchExpr::Query(query_match))
-                    }
-                    _ => Err(RuleMatchExprParseError::InvalidRuleKind(s.to_string())),
+        let field = field.trim();
+        let cond = cond.trim();
+        if field.eq_ignore_ascii_case("method") {
+            Ok(RuleMatchExpr::Method(cond.to_string()))
+        } else if let Some((kind, key)) = field.split_once('.') {
+            let kind = kind.trim().to_lowercase();
+            match kind.as_str() {
+                "header" => {
+                    let header_match = HeaderMatchSerde {
+                        header_name: key.trim().to_string(),
+                        header_value: RegexOrExactSerde::from_str(cond)?,
+                    };
+                    Ok(RuleMatchExpr::Header(header_match))
                 }
+                "query" => {
+                    let query_match = QueryMatchSerde {
+                        query_name: key.trim().to_string(),
+                        query_value: RegexOrExactSerde::from_str(cond)?,
+                    };
+                    Ok(RuleMatchExpr::Query(query_match))
+                }
+                _ => Err(RuleMatchExprParseError::InvalidRuleKind(s.to_string())),
             }
+        } else {
+            Err(RuleMatchExprParseError::ExpectDot)
         }
     }
 }

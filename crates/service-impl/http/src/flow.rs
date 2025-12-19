@@ -261,6 +261,7 @@ where
 pub struct ConnectionInfo {
     pub peer_addr: SocketAddr,
     pub http_version: http::Version,
+    pub is_tls: bool,
 }
 
 pub struct FlowWithConnectionInfo {

@@ -11,9 +11,16 @@ use crate::{DynRequest, DynResponse, box_error};
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode)]
 pub struct DirectResponseServiceConfig {
+    #[serde(default)]
     pub headers: Vec<(String, String)>,
+    #[serde(default = "default_status_code", alias = "code")]
     pub status_code: u16,
+    #[serde(default)]
     pub body: Option<String>,
+}
+
+fn default_status_code() -> u16 {
+    404
 }
 
 #[derive(Debug, thiserror::Error)]

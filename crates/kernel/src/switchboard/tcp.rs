@@ -160,6 +160,24 @@ pub(crate) struct TcpRoute {
     pub service: ResourceKey,
 }
 
+impl From<switchboard_model::tcp_route::TcpRoute> for TcpRoute {
+    fn from(route: switchboard_model::tcp_route::TcpRoute) -> Self {
+        TcpRoute {
+            tls: route.tls.map(|s| s.into()),
+            service: route.service.into(),
+        }
+    }
+}
+
+impl From<&switchboard_model::tcp_route::TcpRoute> for TcpRoute {
+    fn from(route: &switchboard_model::tcp_route::TcpRoute) -> Self {
+        TcpRoute {
+            tls: route.tls.as_deref().map(|s| s.into()),
+            service: route.service.as_str().into(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum TcpSwitchboardContextQuitReason {
     Halt,
@@ -273,29 +291,30 @@ pub struct TcpListenerTask {
     pub task_handle: tokio::task::JoinHandle<TcpListenerServiceQuitReason>,
     pub ct: CancellationToken,
 }
-
+#[derive(Debug)]
 pub enum TcpListenerServiceQuitReason {
     Cancelled,
     EventChannelClosed,
 }
 
 impl TcpListenerTask {
-    pub async fn cancel(self) -> TcpListenerServiceQuitReason {
+    pub(crate) async fn cancel(self) -> TcpListenerServiceQuitReason {
         self.ct.cancel();
         self.task_handle
             .await
             .expect("TcpListenerService task shouldn't panic by design")
     }
-    pub fn spawn(tcp_listener: TcpListener, event_sender: EventSender) -> Self {
+    pub(crate) fn spawn(tcp_listener: TcpListener, event_sender: EventSender) -> Self {
         let bind = tcp_listener.bind;
         let span = tracing::warn_span!(
+            parent: None,
             "tcp-listener",
             bind = %bind,
         );
         let ct = CancellationToken::new();
         let handle_ct = ct.clone();
         let listener_task = async move {
-            loop {
+            let quit_reason = loop {
                 let accepted = tokio::select! {
                     accept_result = tcp_listener.accept(&ct) => {
                         match accept_result {
@@ -311,6 +330,7 @@ impl TcpListenerTask {
                         break TcpListenerServiceQuitReason::Cancelled;
                     }
                 };
+                tracing::debug!(name:"tcp-accept", bind = %bind, peer = %accepted.context.peer_addr, "Accepted new TCP connection");
                 if event_sender
                     .send(TcpSwitchboardEvent::NewAccepted {
                         from_bind: bind,
@@ -321,7 +341,9 @@ impl TcpListenerTask {
                 {
                     break TcpListenerServiceQuitReason::EventChannelClosed;
                 }
-            }
+            };
+            tracing::debug!("tcp listener task exited: {:?}", quit_reason);
+            quit_reason
         }
         .instrument(span);
         let task_handle = tokio::spawn(listener_task);
