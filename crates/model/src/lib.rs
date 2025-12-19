@@ -26,6 +26,8 @@ pub mod protocol;
 pub mod regex;
 pub mod services;
 pub mod tcp_route;
+
+pub use switchboard_custom_config as custom_config;
 pub enum ConfigEvent {
     Reload,
 }

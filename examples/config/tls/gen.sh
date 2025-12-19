@@ -2,26 +2,47 @@
 set -e
 
 cd "$(dirname "$0")"
+
+# 1. 生成 CA
+# CA 自身通常不需要复杂的 SAN，保持简单即可
 echo "Generating CA..."
 openssl genrsa -out ca.key 2048
 openssl req -x509 -new -nodes -key ca.key -sha256 -days 3650 -out ca.crt -subj "/CN=Switchboard CA"
 
-echo "Generating Single Certificate (single.test.local)..."
-openssl genrsa -out single.key 2048
-openssl req -new -key single.key -out single.csr -subj "/CN=single.test.local"
-openssl x509 -req -in single.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out single.crt -days 365 -sha256
+# 定义通用生成函数
+gen_cert() {
+    local name=$1
+    local domain=$2
+    
+    echo "Generating Certificate for $domain ($name)..."
+    
+    # 1. 生成私钥
+    openssl genrsa -out "$name.key" 2048
+    
+    # 2. 生成 CSR (关键步骤)
+    # 使用 -addext 直接在 CSR 中声明这是 v3 证书需要的扩展
+    # subjectAltName 是 rustls 必须的
+    openssl req -new -key "$name.key" -out "$name.csr" -subj "/CN=$domain" \
+        -addext "subjectAltName=DNS:$domain" \
+        -addext "basicConstraints=CA:FALSE" \
+        -addext "keyUsage=digitalSignature,keyEncipherment" \
+        -addext "extendedKeyUsage=serverAuth"
 
-echo "Generating SNI Certificate A (sni-a.test.local)..."
-openssl genrsa -out sni-a.key 2048
-openssl req -new -key sni-a.key -out sni-a.csr -subj "/CN=sni-a.test.local"
-openssl x509 -req -in sni-a.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out sni-a.crt -days 365 -sha256
+    # 3. 签名
+    # 使用 -copy_extensions copy 将 CSR 里的扩展抄写到证书里
+    openssl x509 -req -in "$name.csr" -CA ca.crt -CAkey ca.key -CAcreateserial \
+        -out "$name.crt" -days 365 -sha256 \
+        -copy_extensions copy
+        
+    rm "$name.csr"
+}
 
-echo "Generating SNI Certificate B (sni-b.test.local)..."
-openssl genrsa -out sni-b.key 2048
-openssl req -new -key sni-b.key -out sni-b.csr -subj "/CN=sni-b.test.local"
-openssl x509 -req -in sni-b.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out sni-b.crt -days 365 -sha256
+# 生成证书
+gen_cert "single" "single.test.local"
+gen_cert "sni-a" "sni-a.test.local"
+gen_cert "sni-b" "sni-b.test.local"
 
-echo "Cleaning up CSRs..."
-rm *.csr
+echo "Cleaning up..."
+rm -f ca.srl
 
-echo "Done."
+echo "Done. All certificates are X.509 v3 with SAN."

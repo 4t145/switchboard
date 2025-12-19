@@ -202,6 +202,8 @@ impl K8sGatewayGatewayData {
                 port: NodePort::Default,
             },
             instances: Default::default(),
+            nodes: Default::default(),
+            filters: Default::default(),
             options: FlowOptions::default(),
         };
 

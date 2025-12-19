@@ -52,4 +52,7 @@ impl Registry {
             .await?;
         Ok(service)
     }
+    pub async fn load_prelude(&self) {
+        crate::register_prelude(&mut *self.registry.write().await);
+    }
 }

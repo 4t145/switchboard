@@ -1,8 +1,15 @@
 
 [flow]
-entrypoint = { id = "router" }
+entrypoint = "router"
 
-[flow.instances."router"]
+[flow.nodes."router"]
 class = "router"
-type = "node"
 config = "file://examples/config/tcp/http-gateway/router.toml"
+
+[flow.nodes."api-service"]
+class = "reverse-proxy"
+config = "file://examples/config/tcp/http-gateway/api-service.toml"
+
+[flow.nodes."frontend-service"]
+class = "reverse-proxy"
+config = "file://examples/config/tcp/http-gateway/frontend-service.toml"

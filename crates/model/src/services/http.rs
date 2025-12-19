@@ -39,7 +39,15 @@ pub enum HttpVersion {
 #[serde(rename_all = "camelCase")]
 pub struct FlowConfig<Cfg = CustomConfig> {
     pub entrypoint: NodeTarget,
+    #[serde(alias = "instance")]
+    #[serde(default = "BTreeMap::new", skip_serializing_if = "BTreeMap::is_empty")]
     pub instances: BTreeMap<InstanceId, InstanceData<Cfg>>,
+    #[serde(alias = "node")]
+    #[serde(default = "BTreeMap::new", skip_serializing_if = "BTreeMap::is_empty")]
+    pub nodes: BTreeMap<InstanceId, InstanceDataWithoutType<Cfg>>,
+    #[serde(alias = "filter")]
+    #[serde(default = "BTreeMap::new", skip_serializing_if = "BTreeMap::is_empty")]
+    pub filters: BTreeMap<InstanceId, InstanceDataWithoutType<Cfg>>,
     #[serde(default)]
     pub options: FlowOptions,
 }
@@ -52,17 +60,12 @@ pub struct FlowOptions {
     pub max_loop: Option<u32>,
 }
 
-use std::{
-    collections::{BTreeMap, HashMap},
-    convert::Infallible,
-    fmt::Display,
-    str::FromStr,
-    sync::Arc,
-};
+use std::{collections::BTreeMap, convert::Infallible, fmt::Display, str::FromStr, sync::Arc};
 
-#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum InstanceType {
+    #[default]
     Node,
     Filter,
 }
@@ -80,6 +83,7 @@ pub enum InstanceType {
     bincode::Encode,
     bincode::Decode,
 )]
+/// instance id can only contain alphanumeric characters, hyphens, dots, and underscores
 pub struct InstanceId(pub(crate) Arc<str>);
 
 impl InstanceId {
@@ -96,15 +100,37 @@ impl std::fmt::Display for InstanceId {
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct InstanceData<Cfg = CustomConfig> {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     pub class: ClassId,
+    #[serde(default)]
     pub r#type: InstanceType,
     pub config: Cfg,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct InstanceDataWithoutType<Cfg = CustomConfig> {
+    pub name: Option<String>,
+    pub class: ClassId,
+    pub config: Cfg,
+}
+
+impl<Cfg> InstanceDataWithoutType<Cfg> {
+    pub fn with_type(self, r#type: InstanceType) -> InstanceData<Cfg> {
+        InstanceData {
+            name: self.name,
+            class: self.class,
+            r#type,
+            config: self.config,
+        }
+    }
+}
+
 pub type NodeId = InstanceId;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, bincode::Encode, bincode::Decode)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Default, bincode::Encode, bincode::Decode, PartialOrd, Ord,
+)]
 pub enum NodePort {
     Named(Arc<str>),
     #[default]
@@ -116,6 +142,17 @@ impl NodePort {
         match self {
             NodePort::Named(name) => name,
             NodePort::Default => "$default",
+        }
+    }
+}
+
+impl FromStr for NodePort {
+    type Err = Infallible;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s == "$default" {
+            Ok(NodePort::Default)
+        } else {
+            Ok(NodePort::Named(Arc::from(s)))
         }
     }
 }
@@ -153,11 +190,7 @@ impl<'de> Deserialize<'de> for NodePort {
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        if s == "$default" {
-            Ok(NodePort::Default)
-        } else {
-            Ok(NodePort::Named(Arc::from(s)))
-        }
+        Self::from_str(&s).map_err(serde::de::Error::custom)
     }
 }
 
@@ -172,31 +205,35 @@ impl std::fmt::Display for NodePort {
 
 #[derive(Clone, Serialize, Deserialize, Debug, bincode::Encode, bincode::Decode)]
 pub struct NodeInterface {
-    pub inputs: HashMap<NodePort, NodeInput>,
-    pub outputs: HashMap<NodePort, NodeOutput>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub inputs: BTreeMap<NodePort, NodeInput>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub outputs: BTreeMap<NodePort, NodeOutput>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, bincode::Encode, bincode::Decode)]
 pub struct NodeInput {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub filters: Vec<FilterReference>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct NodeOutput {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub filters: Vec<FilterReference>,
     pub target: NodeTarget,
 }
 
 impl NodeInterface {
     pub fn new(
-        inputs: HashMap<NodePort, NodeInput>,
-        outputs: HashMap<NodePort, NodeOutput>,
+        inputs: BTreeMap<NodePort, NodeInput>,
+        outputs: BTreeMap<NodePort, NodeOutput>,
     ) -> Self {
         Self { inputs, outputs }
     }
-    pub fn with_default_input(outputs: HashMap<NodePort, NodeOutput>) -> Self {
+    pub fn with_default_input(outputs: BTreeMap<NodePort, NodeOutput>) -> Self {
         Self {
-            inputs: HashMap::from_iter([(
+            inputs: BTreeMap::from_iter([(
                 NodePort::Default,
                 NodeInput {
                     filters: Vec::new(),
@@ -210,13 +247,50 @@ impl NodeInterface {
     }
 }
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, bincode::Encode, bincode::Decode)]
 pub struct NodeTarget {
     pub id: NodeId,
-    #[serde(default)]
     pub port: NodePort,
+}
+
+impl Serialize for NodeTarget {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        if self.port == NodePort::Default {
+            serializer.serialize_str(self.id.0.as_ref())
+        } else {
+            serializer.serialize_str(&format!("{}:{}", self.id, self.port.as_str()))
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for NodeTarget {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+
+impl FromStr for NodeTarget {
+    type Err = Infallible;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some((id, port)) = s.split_once(':') {
+            Ok(NodeTarget {
+                id: NodeId::new(id),
+                port: NodePort::from_str(port)?,
+            })
+        } else {
+            Ok(NodeTarget {
+                id: NodeId::new(s),
+                port: NodePort::Default,
+            })
+        }
+    }
 }
 
 impl Display for NodeTarget {
@@ -345,5 +419,5 @@ pub struct ClassData {
 pub struct WithRoutes<C> {
     #[serde(flatten)]
     pub config: C,
-    pub output: HashMap<NodePort, NodeOutput>,
+    pub output: BTreeMap<NodePort, NodeOutput>,
 }

@@ -3,27 +3,27 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-use anyhow::Context as _;
 use switchboard_service::CustomConfig;
 use tokio::sync::RwLock;
 
 use crate::{
     flow::{
         filter::{
-            AsFilterClass, FilterClass, 
-            timeout::Timeout, 
-            url_rewrite::UrlRewriteFilterClass,
+            AsFilterClass, FilterClass, request_header_modify::RequestHeaderModifyFilterClass,
             request_mirror::RequestMirrorFilterClass,
-            request_header_modify::RequestHeaderModifyFilterClass,
-            response_header_modify::ResponseHeaderModifyFilterClass,
+            response_header_modify::ResponseHeaderModifyFilterClass, timeout::Timeout,
+            url_rewrite::UrlRewriteFilterClass,
         },
         node::{AsNodeClass, NodeClass},
-        // router::{host_match::HostMatch, path_match::PathMatch},
-        service::client::Client,
+        router::router::RouterRouterClass,
+        service::{
+            client::Client, direct_response::DirectResponseServiceClass,
+            reverse_proxy::ReverseProxyServiceClass,
+        },
     },
     instance::{
         InstanceValue,
-        class::{Class, ClassData, ClassId, Constructor},
+        class::{Class, ClassData, ClassId, ConstructError, Constructor},
     },
 };
 
@@ -47,8 +47,8 @@ pub struct ClassRegistry {
 }
 #[derive(Debug, thiserror::Error)]
 pub enum ClassRegistryError {
-    #[error("Construct Error")]
-    ConstructError(#[from] anyhow::Error),
+    #[error("Construct Error: {0}")]
+    ConstructError(#[from] ConstructError),
     #[error("Class `{id}` not found")]
     ClassNotFound { id: ClassId },
 }
@@ -85,10 +85,7 @@ impl ClassRegistry {
             class_id,
             ClassDataWithConstructor {
                 data: class_data,
-                constructor: Constructor::new(move |config| {
-                    let config = config.decode().context("deserializing config")?;
-                    class.construct(config).context("constructing class")
-                }),
+                constructor: Constructor::from_class(class),
             },
         );
     }
@@ -99,9 +96,15 @@ impl ClassRegistry {
         self.register(AsFilterClass(class));
     }
     pub fn register_prelude(&mut self) {
-        // self.register_node(PathMatch);
-        // self.register_node(HostMatch);
+        // routers
+        self.register_node(RouterRouterClass);
+
+        // services
         self.register_node(Client);
+        self.register_node(DirectResponseServiceClass);
+        self.register_node(ReverseProxyServiceClass);
+
+        // filters
         self.register_filter(UrlRewriteFilterClass);
         self.register_filter(RequestMirrorFilterClass);
         self.register_filter(RequestHeaderModifyFilterClass);

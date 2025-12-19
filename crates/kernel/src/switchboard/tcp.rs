@@ -113,6 +113,7 @@ impl TcpSwitchboardHandle {
         }
     }
     pub(crate) async fn halt(self) -> TcpSwitchboardContext {
+        tracing::debug!("send halt to tcp switchboard task");
         let send_result = self.event_sender.send(TcpSwitchboardEvent::Halt).await;
         if send_result.is_err() {
             unreachable!("tcp switchboard event channel closed before halt");
@@ -254,18 +255,6 @@ impl TcpSwitchboardContext {
                         };
                     }
                 }
-                // pull more events
-                if self
-                    .event_receiver
-                    .recv_many(
-                        &mut runtime_local_event_buffer,
-                        LOCAL_EVENT_BUFFER_BATCH_SIZE,
-                    )
-                    .await
-                    == 0
-                {
-                    return TcpSwitchboardContextQuitReason::EventChannelClosed;
-                };
             }
         };
         let quit_reason = maybe_failed_loop.await;
@@ -346,8 +335,10 @@ impl TcpListenerTask {
 
 impl crate::KernelContext {
     pub async fn shutdown_tcp_switchboard(&self) {
-        let mut wg = self.tcp_switchboard.write().await;
-        let old_switch_board = std::mem::replace(&mut *wg, TcpSwitchboard::new_halted());
+        let old_switch_board = {
+            let mut wg = self.tcp_switchboard.write().await;
+            std::mem::replace(&mut *wg, TcpSwitchboard::new_halted())
+        };
         match old_switch_board {
             TcpSwitchboard::Halted(_) => { /* already halted */ }
             TcpSwitchboard::Running(handle) => {

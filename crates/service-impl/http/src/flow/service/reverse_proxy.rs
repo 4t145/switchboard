@@ -16,9 +16,19 @@ pub const X_FORWARDED_HEADERS: &str = "x-forwarded-headers";
 pub const X_REAL_IP: &str = "x-real-ip";
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode)]
+#[serde(default)]
 pub struct ReverseProxyServiceConfig {
-    pub new_authority: String,
+    pub backend: String,
     pub schema: String,
+}
+
+impl Default for ReverseProxyServiceConfig {
+    fn default() -> Self {
+        Self {
+            backend: "".to_string(),
+            schema: "http".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -150,7 +160,7 @@ impl NodeClass for ReverseProxyServiceClass {
     type Node = ServiceNode<ReverseProxyService>;
 
     fn construct(&self, config: Self::Config) -> Result<Self::Node, Self::Error> {
-        let authority = config.new_authority.parse()?;
+        let authority = config.backend.parse()?;
         Ok(ServiceNode::new(ReverseProxyService {
             new_authority: authority,
             schema: Arc::from(config.schema),

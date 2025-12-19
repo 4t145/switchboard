@@ -1,4 +1,4 @@
-[config.hostname."*"]
+[router.hostname."*"]
 # route."/api/{*rest}" = {"api"}
 "/api/*" = "frontend"
 
@@ -11,8 +11,8 @@
 "re:/api/{*rest}" = "api"
 
 [output."api"]
-target = { id = "api-service" }
-filters = ["log-request", "add-header"]
+target = "api-service"
+# filters = ["log-request", "add-header"]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 
 [output."frontend"]
-target = { id = "frontend-service" }
+target = "frontend-service"

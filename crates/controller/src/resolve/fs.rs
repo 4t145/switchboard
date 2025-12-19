@@ -34,7 +34,7 @@ pub fn default_switchboard_config_path() -> PathBuf {
 }
 
 use serde::{Deserialize, Serialize, Serializer};
-use switchboard_model::{tcp_route::TcpRoute, *};
+use switchboard_model::{services::http::InstanceType, tcp_route::TcpRoute, *};
 
 #[derive(
     Clone, Debug, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq,
@@ -295,7 +295,25 @@ pub async fn fs_preprocess_service_config(
             let http_config =
                 resolved_config.decode::<switchboard_model::services::http::Config<Link>>()?;
             let mut new_instances = BTreeMap::new();
-            for (instance_id, instance_data) in http_config.flow.instances {
+            for (instance_id, instance_data) in http_config
+                .flow
+                .instances
+                .into_iter()
+                .chain(
+                    http_config
+                        .flow
+                        .filters
+                        .into_iter()
+                        .map(|(id, instance)| (id, instance.with_type(InstanceType::Filter))),
+                )
+                .chain(
+                    http_config
+                        .flow
+                        .nodes
+                        .into_iter()
+                        .map(|(id, instance)| (id, instance.with_type(InstanceType::Node))),
+                )
+            {
                 let resolver = switchboard_custom_config::fs::FsLinkResolver;
                 let actual_config =
                     resolver
@@ -317,6 +335,8 @@ pub async fn fs_preprocess_service_config(
                 flow: switchboard_model::services::http::FlowConfig {
                     instances: new_instances,
                     entrypoint: http_config.flow.entrypoint,
+                    nodes: BTreeMap::new(),
+                    filters: BTreeMap::new(),
                     options: http_config.flow.options,
                 },
                 server: http_config.server,

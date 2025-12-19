@@ -58,7 +58,7 @@ impl Router for RouterRouter {
     }
 }
 
-pub struct TreeRouterClass;
+pub struct RouterRouterClass;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RouterRouterConstructError {
@@ -66,7 +66,7 @@ pub enum RouterRouterConstructError {
     BuildError(#[from] switchboard_http_router::error::BuildError),
 }
 
-impl NodeClass for TreeRouterClass {
+impl NodeClass for RouterRouterClass {
     type Config = WithRoutes<RouterRouterConfig>;
     type Error = RouterRouterConstructError;
     type Node = RouterNode<RouterRouter>;

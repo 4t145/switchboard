@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 // pub mod host_match;
 // pub mod path_match;
 pub mod balancer;
-pub mod transparent;
 pub mod router;
+pub mod transparent;
 
 use crate::{
     DynRequest, DynResponse,
@@ -17,12 +17,12 @@ pub trait Router: Send + Sync + 'static {
 }
 
 pub struct RouterNode<R: Router> {
-    pub routes: HashMap<NodePort, NodeOutput>,
+    pub routes: BTreeMap<NodePort, NodeOutput>,
     pub router: R,
 }
 
 impl<R: Router> RouterNode<R> {
-    pub fn new(routes: HashMap<NodePort, NodeOutput>, router: R) -> Self {
+    pub fn new(routes: BTreeMap<NodePort, NodeOutput>, router: R) -> Self {
         Self { routes, router }
     }
 }

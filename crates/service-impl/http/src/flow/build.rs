@@ -1,6 +1,8 @@
 use std::{collections::HashMap, sync::Arc};
 
-use switchboard_model::services::http::{FlowConfig, InstanceId, NodePort, NodeTarget};
+use switchboard_model::services::http::{
+    FlowConfig, InstanceId, InstanceType, NodePort, NodeTarget,
+};
 
 use crate::flow::Flow;
 use crate::instance::{self, class::registry::ClassRegistryError};
@@ -9,7 +11,7 @@ use crate::instance::class::registry::ClassRegistry;
 
 #[derive(Debug, thiserror::Error)]
 pub enum FlowBuildError {
-    #[error("Class registry error")]
+    #[error("Class registry error {0}")]
     ClassRegistryError(#[from] ClassRegistryError),
     #[error("Invalid flow {}", .0.iter().map(ToString::to_string).collect::<Vec<_>>().join(", "))]
     InvalidFlow(Vec<FlowCheckError>),
@@ -147,7 +149,22 @@ impl Flow {
     ) -> Result<Self, FlowBuildError> {
         let mut filters = HashMap::new();
         let mut nodes = HashMap::new();
-        for (id, instance) in config.instances {
+        for (id, instance) in config
+            .instances
+            .into_iter()
+            .chain(
+                config
+                    .nodes
+                    .into_iter()
+                    .map(|(id, instance)| (id, instance.with_type(InstanceType::Node))),
+            )
+            .chain(
+                config
+                    .filters
+                    .into_iter()
+                    .map(|(id, instance)| (id, instance.with_type(InstanceType::Filter))),
+            )
+        {
             let instance = class_registry.construct(instance.class, instance.config)?;
             match instance {
                 instance::InstanceValue::Node(node) => {
@@ -158,6 +175,7 @@ impl Flow {
                 }
             }
         }
+
         let flow = Flow {
             nodes: Arc::new(nodes),
             filters: Arc::new(filters),

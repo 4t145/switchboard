@@ -58,9 +58,9 @@ impl super::Service for DirectResponseService {
     }
 }
 
-pub struct ReverseProxyServiceClass;
+pub struct DirectResponseServiceClass;
 
-impl NodeClass for ReverseProxyServiceClass {
+impl NodeClass for DirectResponseServiceClass {
     type Config = DirectResponseServiceConfig;
     type Error = DirectResponseServiceConfigError;
     type Node = ServiceNode<DirectResponseService>;

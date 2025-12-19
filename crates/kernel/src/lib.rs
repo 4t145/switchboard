@@ -65,6 +65,10 @@ impl KernelContext {
         self.state.read().await.deref().clone()
     }
     pub async fn startup(&self) -> Result<(), Error> {
+        // preload 
+        {
+            self.registry.load_prelude().await;
+        }
         // listen controller
         {
             self.spawn_listener().await;
@@ -198,13 +202,16 @@ impl KernelContext {
             .await
             .ok();
         // shutdown supervisor
+        tracing::info!("Shutting down TCP switchboard...");
         self.shutdown_tcp_switchboard().await;
         self.set_state(KernelState::new(KernelStateKind::Stopped))
             .await
             .ok();
         // shutdown controller listener
+        tracing::info!("Shutting down controller listener...");
         self.shutdown_controller_listener().await;
         // shutdown controller
+        tracing::info!("Shutting down controller...");
         self.shutdown_controller().await;
     }
 }
