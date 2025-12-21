@@ -71,8 +71,7 @@ impl FromStr for FractionOrPercentage {
             let num: u16 = numerator.trim().parse()?;
             let den: u16 = denominator.trim().parse()?;
             Ok(FractionOrPercentage::Fraction(num, den))
-        } else if s.ends_with('%') {
-            let percent_str = &s[..s.len() - 1];
+        } else if let Some(percent_str) = s.strip_suffix('%') {
             let percent: u16 = percent_str.trim().parse()?;
             Ok(FractionOrPercentage::Percentage(percent))
         } else {
@@ -127,7 +126,7 @@ impl RequestMirrorFilter {
     pub async fn call_inner(
         self: std::sync::Arc<Self>,
         req: DynRequest,
-        ctx: &'_ mut crate::flow::FlowContext,
+        ctx: &mut crate::flow::FlowContext,
         next: super::Next,
     ) -> Result<DynResponse, RequestMirrorFilterError> {
         let (parts, mut body) = req.into_parts();
@@ -166,10 +165,10 @@ pub enum RequestMirrorFilterError {
 }
 
 impl FilterLike for RequestMirrorFilter {
-    async fn call<'c>(
+    async fn call(
         self: std::sync::Arc<Self>,
         req: DynRequest,
-        ctx: &'c mut crate::flow::FlowContext,
+        ctx: &mut crate::flow::FlowContext,
         next: super::Next,
     ) -> DynResponse {
         self.call_inner(req, ctx, next).await.unwrap_or_else(|e| {

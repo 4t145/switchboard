@@ -15,6 +15,7 @@ pub struct RequestRedirectFilterConfig {
     /// expected to be a 3xx status code
     pub status_code: u16,
     /// optional content body
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
 }
 
@@ -59,10 +60,10 @@ impl RequestRedirectFilter {
 }
 
 impl FilterLike for RequestRedirectFilter {
-    async fn call<'c>(
+    async fn call(
         self: std::sync::Arc<Self>,
         _req: crate::DynRequest,
-        _ctx: &'c mut crate::flow::FlowContext,
+        _ctx: &mut crate::flow::FlowContext,
         _next: super::Next,
     ) -> DynResponse {
         self.into_response()

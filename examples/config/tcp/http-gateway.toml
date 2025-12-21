@@ -21,3 +21,7 @@ config = "file://examples/config/tcp/http-gateway/not-found-page.toml"
 [flow.nodes."i-am-healthy"]
 class = "direct-response"
 config = "file://examples/config/tcp/http-gateway/i-am-healthy.toml"
+
+[flow.filters."rewrite-rest"]
+class = "url-rewrite"
+config = "file://examples/config/tcp/http-gateway/rewrite-rest.toml"

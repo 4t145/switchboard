@@ -19,7 +19,7 @@ pub async fn retrieve_kernel_config() -> Result<KernelConfig, Box<dyn std::error
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::DEBUG)
+        .with_env_filter("debug,switchboard-http=trace")
         .init();
     let config = retrieve_kernel_config().await?;
     tracing::debug!("Starting kernel with config: {:?}", config);

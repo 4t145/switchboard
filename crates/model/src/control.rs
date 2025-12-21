@@ -182,3 +182,15 @@ impl Config {
         mac.verify_slice(signature)
     }
 }
+#[cfg(test)]
+mod test {
+    #[test]
+    fn sign_with_empty_psk() {
+        use super::*;
+        let config = Config::default();
+        let key = b"";
+        let signature = config.sign(key);
+        println!("signature: {:?}", signature);
+        assert!(config.verify_signature(&signature, key).is_ok());
+    }
+}

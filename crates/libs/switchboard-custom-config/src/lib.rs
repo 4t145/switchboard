@@ -145,7 +145,7 @@ pub enum Error {
     InvalidPayloadSize { expected: usize, actual: usize },
     #[error("Invalid format size: expected at least {at_least}, got {remain}")]
     InvalidFormatSize { at_least: usize, remain: usize },
-    #[error("Unknown format: {format}", format = String::from_utf8_lossy(&format))]
+    #[error("Unknown format: {format}", format = String::from_utf8_lossy(format))]
     UnknownFormat { format: Vec<u8> },
     #[error(transparent)]
     DecodeError(#[from] formats::DecodeError),

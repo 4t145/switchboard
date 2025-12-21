@@ -1,7 +1,10 @@
+mod tcp;
 mod uds;
 
 use std::{collections::HashMap, sync::Arc};
 
+use crate::kernel::{KernelAddr, connection::uds::UdsTransposeConfig};
+use futures::{SinkExt, StreamExt};
 use switchboard_model::{
     control::{
         ControlCommandData, ControlSigner, ControllerMessage, KernelAuthResponse, KernelMessage,
@@ -9,72 +12,163 @@ use switchboard_model::{
     },
     kernel::{self, KernelInfoAndState},
 };
-use tokio::sync::RwLock;
+use tokio::{
+    io::{AsyncRead, AsyncWrite},
+    sync::RwLock,
+};
+use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use tracing::Instrument;
-
-use crate::kernel::{KernelAddr, connection::uds::UdsTransposeConfig};
 pub trait KernelTranspose: Send + 'static {
     type Error: std::error::Error + Send + Sync + 'static;
     fn send(
         &mut self,
         message: ControllerMessage,
     ) -> impl Future<Output = Result<(), Self::Error>> + Send;
-    fn receive(&mut self) -> impl Future<Output = Result<KernelMessage, Self::Error>> + Send;
+    fn receive(
+        &mut self,
+    ) -> impl Future<Output = Option<Result<KernelMessage, Self::Error>>> + Send;
     fn close(self) -> impl Future<Output = Result<(), Self::Error>> + Send;
+}
+
+pub struct FramedStreamTranspose<S> {
+    framed_stream: Framed<S, LengthDelimitedCodec>,
+}
+
+impl<S> FramedStreamTranspose<S>
+where
+    S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+{
+    pub fn new_with_max_frame_size(stream: S, max_frame_size: u32) -> Self {
+        let framed_stream = Framed::new(
+            stream,
+            LengthDelimitedCodec::builder()
+                .max_frame_length(max_frame_size as usize)
+                .new_codec(),
+        );
+        Self { framed_stream }
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum FramedStreamTransposeError {
+    #[error("")]
+    BincodeEncode(#[from] bincode::error::EncodeError),
+    #[error("")]
+    BincodeDecode(#[from] bincode::error::DecodeError),
+    #[error("transport error when sending message: {0}")]
+    SendingMessage(#[source] std::io::Error),
+    #[error("transport error when receiving message: {0}")]
+    ReceivingMessage(#[source] std::io::Error),
+    #[error("transport error when closing connection: {0}")]
+    CloseError(#[source] std::io::Error),
+    #[error("stream closed")]
+    StreamClosed,
+}
+
+impl<S> KernelTranspose for FramedStreamTranspose<S>
+where
+    S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+{
+    type Error = FramedStreamTransposeError;
+    async fn send(&mut self, message: ControllerMessage) -> Result<(), Self::Error> {
+        let bytes = bincode::encode_to_vec(message, bincode::config::standard())?;
+        self.framed_stream
+            .send(bytes.into())
+            .await
+            .map_err(FramedStreamTransposeError::SendingMessage)?;
+        Ok(())
+    }
+    async fn receive(&mut self) -> Option<Result<KernelMessage, Self::Error>> {
+        let next_result = self
+            .framed_stream
+            .next()
+            .await?
+            .map_err(FramedStreamTransposeError::ReceivingMessage);
+        match next_result {
+            Err(e) => Some(Err(e)),
+            Ok(bytes) => {
+                let (message, _): (KernelMessage, _) =
+                    match bincode::decode_from_slice(&bytes, bincode::config::standard()) {
+                        Err(e) => {
+                            return Some(Err(FramedStreamTransposeError::BincodeDecode(e)));
+                        }
+                        Ok(res) => res,
+                    };
+                Some(Ok(message))
+            }
+        }
+    }
+    async fn close(mut self) -> Result<(), Self::Error> {
+        self.framed_stream
+            .close()
+            .await
+            .map_err(FramedStreamTransposeError::CloseError)?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum KernelConnectionError {
+    #[error("connection establishment error: {0}")]
+    ConnectError(#[from] ConnectError),
     #[error("connection error: {0}")]
-    TransposeError(#[from] KernelConnectionTransposeError),
-    #[error("unexpected message: {expected}, got: {actual:?}")]
+    TransposeError(#[source] Box<dyn std::error::Error + Send + Sync>),
+    #[error("unexpected message, expect {expected}, got: {actual:?}")]
     UnexpectedMessage {
         expected: &'static str,
         actual: KernelMessage,
     },
+    #[error("unexpected end, expect {expected}")]
+    UnexpectedEnd { expected: &'static str },
     #[error("connection closed")]
     ConnectionClosed,
     #[error("heartbeat timeout after {:.02} seconds", .after.as_secs_f64())]
     HeartbeatTimeout { after: tokio::time::Duration },
 }
 
+impl KernelConnectionError {
+    pub fn transpose<E>(error: E) -> KernelConnectionError
+    where
+        E: std::error::Error + Send + Sync + 'static,
+    {
+        KernelConnectionError::TransposeError(Box::new(error))
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
-pub enum KernelConnectionTransposeError {
-    #[error("uds connection error: {0}")]
-    UdsConnectionError(#[from] uds::UdsTransposeError),
+pub enum ConnectError {
+    #[error("uds connect error: {0}")]
+    Uds(#[source] std::io::Error),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum KernelTransposeError {
+    #[error("stream connection error: {0}")]
+    FramedStream(#[from] FramedStreamTransposeError),
 }
 
 pub enum Transpose {
-    Uds(Box<uds::UdsTranspose>),
+    Uds(Box<FramedStreamTranspose<tokio::net::UnixStream>>),
 }
 
 impl KernelTranspose for Transpose {
-    type Error = KernelConnectionTransposeError;
-    async fn send(
-        &mut self,
-        message: switchboard_model::control::ControllerMessage,
-    ) -> Result<(), Self::Error> {
+    type Error = KernelTransposeError;
+    async fn send(&mut self, message: ControllerMessage) -> Result<(), Self::Error> {
         match self {
-            Transpose::Uds(conn) => conn
-                .send(message)
-                .await
-                .map_err(KernelConnectionTransposeError::from),
+            Transpose::Uds(conn) => conn.send(message).await.map_err(KernelTransposeError::from),
         }
     }
-    async fn receive(&mut self) -> Result<switchboard_model::control::KernelMessage, Self::Error> {
+    async fn receive(&mut self) -> Option<Result<KernelMessage, Self::Error>> {
         match self {
             Transpose::Uds(conn) => conn
                 .receive()
                 .await
-                .map_err(KernelConnectionTransposeError::from),
+                .map(|result| result.map_err(KernelTransposeError::from)),
         }
     }
     async fn close(self) -> Result<(), Self::Error> {
         match self {
-            Transpose::Uds(conn) => conn
-                .close()
-                .await
-                .map_err(KernelConnectionTransposeError::from),
+            Transpose::Uds(conn) => conn.close().await.map_err(KernelTransposeError::from),
         }
     }
 }
@@ -92,9 +186,7 @@ impl KernelAddr {
                     max_frame_size: config.discovery.uds.max_frame_size,
                 })
                 .await
-                .map_err(uds::UdsTransposeError::from)
-                .map_err(KernelConnectionTransposeError::from)
-                .map_err(KernelConnectionError::from)?;
+                .map_err(ConnectError::Uds)?;
                 tracing::info!("Connected to kernel at {:?}", self);
                 Ok(Transpose::Uds(Box::new(connection)))
             }
@@ -105,46 +197,54 @@ impl KernelAddr {
     }
 }
 
-impl Transpose {
-    pub async fn take_over(
-        &mut self,
-        context: &crate::ControllerContext,
-    ) -> Result<KernelInfoAndState, KernelConnectionError> {
-        self.send(ControllerMessage::TakeOver(TakeOver {
-            controller_info: context.controller_config.info.clone(),
-        }))
-        .await?;
-        let maybe_auth = self.receive().await?;
-        let auth = if let KernelMessage::Auth(auth) = maybe_auth {
-            auth
-        } else {
-            return Err(KernelConnectionError::UnexpectedMessage {
-                expected: "KernelInfo",
-                actual: maybe_auth,
-            });
-        };
-        let kernel_info = auth.kernel_info.clone();
-        let controller_message = ControllerMessage::AuthResponse(KernelAuthResponse::sign(
-            &auth,
-            &context.controller_config.kernel.psk,
-        ));
-        self.send(controller_message).await?;
-        // wait for heart beat
-        let maybe_heartbeat = self.receive().await?;
-        let kernel_state = if let KernelMessage::HeartBeat(state) = maybe_heartbeat {
-            state
-        } else {
-            return Err(KernelConnectionError::UnexpectedMessage {
-                expected: "HeartBeat",
-                actual: maybe_heartbeat,
-            });
-        };
-        Ok(KernelInfoAndState {
-            info: kernel_info,
-            state: kernel_state,
-        })
-    }
-}
+// async fn take_over<T: KernelTranspose>(
+//     transpose: &mut T,
+//     context: &crate::ControllerContext,
+// ) -> Result<KernelInfoAndState, KernelConnectionError> {
+//     transpose.send(ControllerMessage::TakeOver(TakeOver {
+//         controller_info: context.controller_config.info.clone(),
+//     }))
+//     .await.map_err(KernelConnectionError::transpose)?;
+//     let maybe_auth = transpose
+//         .receive()
+//         .await
+//         .ok_or(KernelConnectionError::UnexpectedEnd {
+//             expected: "KernelMessage::Auth",
+//         })??;
+//     let auth = if let KernelMessage::Auth(auth) = maybe_auth {
+//         auth
+//     } else {
+//         return Err(KernelConnectionError::UnexpectedMessage {
+//             expected: "KernelInfo",
+//             actual: maybe_auth,
+//         });
+//     };
+//     let kernel_info = auth.kernel_info.clone();
+//     let controller_message = ControllerMessage::AuthResponse(KernelAuthResponse::sign(
+//         &auth,
+//         &context.controller_config.kernel.psk,
+//     ));
+//     transpose.send(controller_message).await?;
+//     // wait for heart beat
+//     let maybe_heartbeat =
+//         transpose.receive()
+//             .await
+//             .ok_or(KernelConnectionError::UnexpectedEnd {
+//                 expected: "KernelMessage::HeartBeat",
+//             })??;
+//     let kernel_state = if let KernelMessage::HeartBeat(state) = maybe_heartbeat {
+//         state
+//     } else {
+//         return Err(KernelConnectionError::UnexpectedMessage {
+//             expected: "HeartBeat",
+//             actual: maybe_heartbeat,
+//         });
+//     };
+//     Ok(KernelInfoAndState {
+//         info: kernel_info,
+//         state: kernel_state,
+//     })
+// }
 
 pub struct KernelConnectionHandle {
     pub addr: KernelAddr,
@@ -216,8 +316,8 @@ impl KernelConnectionHandle {
             }
         }
     }
-    pub fn spawn(
-        mut transpose: Transpose,
+    pub fn spawn<T: KernelTranspose>(
+        mut transpose: T,
         addr: KernelAddr,
         info_and_state: kernel::KernelInfoAndState,
         context: &crate::ControllerContext,
@@ -268,7 +368,7 @@ impl KernelConnectionHandle {
                         }
                         // send heartbeat
                         _ = heartbeat_timer.tick() => {
-                            transpose.send(ControllerMessage::HeartBeat).await?;
+                            transpose.send(ControllerMessage::HeartBeat).await.map_err(KernelConnectionError::transpose)?;
                             tracing::trace!("Sending heartbeat to kernel at {}", addr);
                             continue;
                         }
@@ -279,8 +379,10 @@ impl KernelConnectionHandle {
                             });
                         }
                         kernel_message = transpose.receive() => {
-                            let message = kernel_message?;
-                            Event::KernelMessage(message)
+                            let Some(message) = kernel_message else {
+                                break Err(KernelConnectionError::ConnectionClosed);
+                            };
+                            Event::KernelMessage(message.map_err(KernelConnectionError::transpose)?)
                         }
                         request = event_receiver.recv() => {
                             match request {
@@ -301,7 +403,8 @@ impl KernelConnectionHandle {
                                 pending_requests.insert(command.seq, ack);
                                 transpose
                                     .send(ControllerMessage::ControlCommand(command))
-                                    .await?;
+                                    .await
+                                    .map_err(KernelConnectionError::transpose)?;
                             }
                         },
                         Event::KernelMessage(kernel_message) => {
@@ -351,7 +454,10 @@ impl KernelConnectionHandle {
                         }
                     }
                 };
-                transpose.close().await?;
+                transpose
+                    .close()
+                    .await
+                    .map_err(KernelConnectionError::transpose)?;
                 loop_result
             }
         };

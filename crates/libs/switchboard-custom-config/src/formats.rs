@@ -74,31 +74,31 @@ impl<T> PayloadObject for T where
 pub fn decode_bytes<T: PayloadObject>(format: &[u8], bytes: Bytes) -> Result<T, crate::Error> {
     let value = match format {
         b"bincode" => {
-            let formatter = bincode::Bincode::default();
+            let formatter = bincode::Bincode;
             formatter
                 .decode_bytes::<T>(bytes)
                 .map_err(|e| DecodeError::new(e, formatter.format_name()))?
         }
         b"json" => {
-            let formatter = json::Json::default();
+            let formatter = json::Json;
             formatter
                 .decode_bytes::<T>(bytes)
                 .map_err(|e| DecodeError::new(e, formatter.format_name()))?
         }
         b"toml" => {
-            let formatter = toml::Toml::default();
+            let formatter = toml::Toml;
             formatter
                 .decode_bytes::<T>(bytes)
                 .map_err(|e| DecodeError::new(e, formatter.format_name()))?
         }
         b"toon" => {
-            let formatter = toon::Toon::default();
+            let formatter = toon::Toon;
             formatter
                 .decode_bytes::<T>(bytes)
                 .map_err(|e| DecodeError::new(e, formatter.format_name()))?
         }
         b"plaintext" => {
-            let formatter = plaintext::Plaintext::default();
+            let formatter = plaintext::Plaintext;
             formatter
                 .decode_bytes::<T>(bytes)
                 .map_err(|e| DecodeError::new(e, formatter.format_name()))?
@@ -115,31 +115,31 @@ pub fn decode_bytes<T: PayloadObject>(format: &[u8], bytes: Bytes) -> Result<T, 
 pub fn encode_bytes<T: PayloadObject>(format: &[u8], value: &T) -> Result<Bytes, crate::Error> {
     let bytes = match format {
         b"bincode" => {
-            let formatter = bincode::Bincode::default();
+            let formatter = bincode::Bincode;
             formatter
                 .encode_bytes::<T>(value)
                 .map_err(|e| EncodeError::new(e, formatter.format_name()))?
         }
         b"json" => {
-            let formatter = json::Json::default();
+            let formatter = json::Json;
             formatter
                 .encode_bytes::<T>(value)
                 .map_err(|e| EncodeError::new(e, formatter.format_name()))?
         }
         b"toml" => {
-            let formatter = toml::Toml::default();
+            let formatter = toml::Toml;
             formatter
                 .encode_bytes::<T>(value)
                 .map_err(|e| EncodeError::new(e, formatter.format_name()))?
         }
         b"toon" => {
-            let formatter = toon::Toon::default();
+            let formatter = toon::Toon;
             formatter
                 .encode_bytes::<T>(value)
                 .map_err(|e| EncodeError::new(e, formatter.format_name()))?
         }
         b"plaintext" => {
-            let formatter = plaintext::Plaintext::default();
+            let formatter = plaintext::Plaintext;
             formatter
                 .encode_bytes::<T>(value)
                 .map_err(|e| EncodeError::new(e, formatter.format_name()))?

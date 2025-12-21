@@ -18,9 +18,10 @@ pub trait Class: Send + Sync + 'static {
     fn construct(&self, config: Self::Config) -> Result<InstanceValue, Self::Error>;
 }
 
+type ConstructorFn = dyn Fn(&CustomConfig) -> Result<InstanceValue, ConstructError> + Send + Sync;
 #[derive(Clone)]
 pub struct Constructor {
-    constructor: Arc<dyn Fn(&CustomConfig) -> Result<InstanceValue, ConstructError> + Send + Sync>,
+    constructor: Arc<ConstructorFn>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -35,7 +36,8 @@ impl Constructor {
         Self {
             constructor: Arc::new(move |config: &CustomConfig| {
                 let cfg: C::Config = config
-                    .clone().decode()
+                    .clone()
+                    .decode()
                     .map_err(ConstructError::ConfigDecodeError)?;
                 class
                     .construct(cfg)

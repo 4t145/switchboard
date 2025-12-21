@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package switchboard.kernel;
+
+// KernelService defines the RPC methods for kernel configuration management.
+service KernelService {
+  // UpdateConfig updates the kernel configuration
+  // based on the provided format, version, and config data.
+  rpc UpdateConfig (UpdateConfigRequest) returns (UpdateConfigResponse);
+  // WatchStatus streams the current status of the kernel.
+  rpc WatchStatus(WatchStatusRequest) returns (stream KernelState);
+  // GetKernelInfo retrieves information about the kernel.
+  rpc GetKernelInfo(GetKernelInfoRequest) returns (KernelInfo);
+}
+
+message Empty {
+  
+}
+
+message UpdateConfigRequest {
+  string format  = 1;
+  string version = 2;
+  bytes  config  = 3;
+}
+
+message UpdateConfigRequest {
+  string format  = 1;
+  string version = 2;
+  bytes  config  = 3;
+}
+
+message Error {
+  string message = 1;
+}
+
+message UpdateConfigResponse {
+  oneof result {
+    Empty success = 1;
+    Error error   = 2;
+  }
+}
+
+message WatchStatusRequest {
+
+}
+
+message WaitingConfigStatus {
+
+}
+
+message RunningState {
+  string config_version = 1;
+}
+
+message UpdatingState {
+  string current_version     = 1;
+  string updating_to_version = 2;
+}
+
+message ShuttingDownState {
+
+}
+
+message StoppedState {
+
+}
+
+message KernelStateKind {
+  oneof kind {
+    WaitingConfigStatus waiting_config = 1;
+    RunningState        running        = 2;
+    UpdatingState       updating       = 3;
+    ShuttingDownState   shutting_down  = 4;
+    StoppedState        stopped        = 5;
+  }
+}
+
+message KernelState {
+  KernelStateKind kind  = 1;
+  string          since = 2;
+}
+
+message KernelMeta {
+  string version = 1;
+  string build   = 2;
+}
+
+message KernelInfo {
+  string          name        = 1;
+  string          id          = 2;
+  optional string description = 3;
+  KernelMeta      meta        = 4;
+}
+
+message GetKernelInfoRequest {
+
+}

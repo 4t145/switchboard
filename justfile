@@ -1,3 +1,6 @@
+label := "dev"
+proxy := "false"
+
 build-all:
     cargo build --bin sbk
     cargo build --bin sbc
@@ -13,3 +16,11 @@ dev-sbc:
 dev-sbc-sudo:
     cargo build --bin sbc
     sudo ./target/debug/sbc start examples/config/controller.toml
+
+
+build-container:
+    podman build \
+        --build-arg USE_RSPROXY={{proxy}} \
+        --network host \
+        -f publish/container/sbk.containerfile \
+        -t switchboard/sbk:{{label}} .

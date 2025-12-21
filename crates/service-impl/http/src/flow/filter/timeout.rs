@@ -19,10 +19,10 @@ pub struct TimeoutFilter {
 }
 
 impl FilterLike for TimeoutFilter {
-    async fn call<'c>(
+    async fn call(
         self: std::sync::Arc<Self>,
         req: crate::DynRequest,
-        ctx: &'c mut crate::flow::FlowContext,
+        ctx: &mut crate::flow::FlowContext,
         next: super::Next,
     ) -> crate::DynResponse {
         let result = crate::utils::TimeoutFuture {
@@ -42,8 +42,10 @@ impl FilterLike for TimeoutFilter {
 }
 #[derive(Debug, Clone, Deserialize, Serialize, bincode::Encode, bincode::Decode)]
 pub struct TimeoutConfig {
+    #[serde(with = "crate::utils::duration_expr")]
     pub timeout: Duration,
-    pub timeout_message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timeout_message: Option<String>,
 }
 pub struct Timeout;
 
@@ -60,7 +62,7 @@ impl FilterClass for Timeout {
         let timer = Box::new(TokioTimer::new());
         Ok(TimeoutFilter {
             timeout: config.timeout,
-            timeout_message: config.timeout_message.into(),
+            timeout_message: config.timeout_message.unwrap_or_default().into(),
             timer,
         })
     }

@@ -1,5 +1,5 @@
 pub mod listener;
-
+pub mod grpc_service;
 use crate::{KernelContext, controller::listener::TransportError};
 use serde::{Deserialize, Serialize};
 use switchboard_model::{
@@ -66,7 +66,7 @@ pub struct ControllerConfig {
 impl Default for ControllerConfig {
     fn default() -> Self {
         Self {
-            psk: Base64Bytes(rand::random::<[u8; 16]>().to_vec()),
+            psk: Base64Bytes(Vec::new()),
             connect: ConnectConfig::default(),
             listen: None,
         }

@@ -35,11 +35,11 @@ pub struct ControllerConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Hash, PartialEq, Eq)]
+#[serde(default)]
 pub struct KernelConfig {
-    #[serde(default)]
     pub discovery: KernelDiscoveryConfig,
-    #[serde(default)]
     pub connect: KernelConnectConfig,
+    /// default to be empty, meaning no authentication
     pub psk: Base64Bytes,
 }
 
@@ -78,7 +78,7 @@ impl Default for KernelConfig {
         KernelConfig {
             discovery: KernelDiscoveryConfig::default(),
             connect: KernelConnectConfig::default(),
-            psk: Base64Bytes(rand::random::<[u8; 32]>().to_vec()),
+            psk: Base64Bytes(Vec::new()),
         }
     }
 }

@@ -14,7 +14,9 @@ use crate::{
 
 #[derive(Clone, Deserialize, Serialize, bincode::Encode, bincode::Decode)]
 pub struct UrlRewriteFilterConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hostname: Option<String>,
 }
 
@@ -110,10 +112,10 @@ pub enum UrlRewriteFilterConfigError {
 }
 
 impl FilterLike for UrlRewriteFilter {
-    async fn call<'c>(
+    async fn call(
         self: std::sync::Arc<Self>,
         req: DynRequest,
-        ctx: &'c mut crate::flow::FlowContext,
+        ctx: &mut crate::flow::FlowContext,
         next: super::Next,
     ) -> DynResponse {
         self.rewrite(req, ctx, next).await.unwrap_or_else(|e| {

@@ -10,8 +10,11 @@ use crate::{
 
 #[derive(Clone, Deserialize, Serialize, bincode::Encode, bincode::Decode)]
 pub struct RequestHeaderModifyFilterConfig {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub set: Vec<(String, String)>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub remove: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub extend: Vec<(String, String)>,
 }
 
@@ -89,10 +92,10 @@ impl RequestHeaderModifyFilter {
 }
 
 impl FilterLike for RequestHeaderModifyFilter {
-    async fn call<'c>(
+    async fn call(
         self: std::sync::Arc<Self>,
         req: DynRequest,
-        ctx: &'c mut crate::flow::FlowContext,
+        ctx: &mut crate::flow::FlowContext,
         next: super::Next,
     ) -> DynResponse {
         self.modify(req, ctx, next).await

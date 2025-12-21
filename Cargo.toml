@@ -8,7 +8,10 @@ members = [
     "crates/controller",
     "binary/sbk",
     "binary/sbc",
-    "crates/libs/switchboard-http-router", "crates/libs/switchboard-custom-config",
+    "crates/libs/switchboard-http-router",
+    "crates/libs/switchboard-custom-config",
+    # examples
+    "examples/example-api-server", "crates/libs/switchboard-kernel-control",
 ]
 resolver = "2"
 
@@ -30,8 +33,13 @@ futures = { version = "0" }
 # http
 http = { version = "1" }
 
+# grpc
+tonic = { version = "0.14" }
+tonic-build = { version = "0.14" }
+tonic-prost-build = { version = "0.14" }
+
 # Serde
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive", "rc"] }
 serde_json = { version = "1" }
 toml = { version = "0.9" }
 bincode = { version = "2", features = ["serde"] }

@@ -22,3 +22,21 @@ target/
 
 # local tmp dir for tests
 tmp/
+
+
+# tests
+tests/
+
+# git files
+.git/
+
+# publish files
+publish/*
+!publish/container
+# non-rust stuff
+ui/
+utils/
+
+# documentation
+docs/
+

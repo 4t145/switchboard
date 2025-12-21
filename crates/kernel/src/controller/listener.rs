@@ -1,11 +1,22 @@
 use serde::{Deserialize, Serialize};
+use tokio_util::sync::CancellationToken;
 
 use crate::KernelContext;
 
 pub mod local;
 pub mod tcp;
 pub mod uds;
-pub mod ws;
+
+pub trait ConnectionStreamListener {
+    type Stream: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static;
+    type Error: std::error::Error + Send + Sync + 'static;
+    fn accept_next(
+        &mut self,
+    ) -> impl std::future::Future<Output = Result<Self::Stream, Self::Error>> + Send + 'static;
+    fn close(
+        &mut self,
+    ) -> impl std::future::Future<Output = Result<(), Self::Error>> + Send + 'static;
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum TransportError {
@@ -34,112 +45,49 @@ pub struct ListenerHandle {
     task_handle: tokio::task::JoinHandle<()>,
 }
 
+pub enum ListenerHandleQuitReason {
+    Cancelled,
+    Error(Box<dyn std::error::Error + Send + Sync>),
+}
 impl ListenerHandle {
-    pub async fn shutdown(self) {
-        self.ct.cancel();
-        let _ = self.task_handle.await;
-    }
-    pub fn spawn(context: KernelContext) -> Self {
-        let ct = tokio_util::sync::CancellationToken::new();
-        let ct_child = ct.child_token();
-        let listener_config = context
-            .kernel_config
-            .controller
-            .listen
-            .clone()
-            .unwrap_or_default();
-        let task_handle = tokio::spawn(async move {
-            let uds_listener = if let Some(uds_config) = &listener_config.uds {
-                tracing::info!(
-                    "starting UDS controller listener at {}",
-                    uds_config.path.display()
-                );
-                uds::UdsListener::new(uds_config.clone())
-                    .await
-                    .inspect_err(|e| {
-                        tracing::error!(
-                            "failed to start UDS controller listener at {}: {}",
-                            uds_config.path.display(),
-                            e
-                        );
-                    })
-                    .ok()
-            } else {
-                None
-            };
-            let tcp_listener = if let Some(tcp_config) = &listener_config.tcp {
-                tracing::info!(
-                    "starting TCP controller listener at {}:{}",
-                    tcp_config.host,
-                    tcp_config.port
-                );
-                tcp::TcpListener::new(tcp_config.clone())
-                    .await
-                    .inspect_err(|e| {
-                        tracing::error!(
-                            "failed to start TCP controller listener at {}:{}: {}",
-                            tcp_config.host,
-                            tcp_config.port,
-                            e
-                        );
-                    })
-                    .ok()
-            } else {
-                None
-            };
-            loop {
-                tokio::select! {
-                    _ = ct_child.cancelled() => {
-                        tracing::info!("controller listener task is cancelled, shutting down");
-                        break;
-                    }
-                    accept_uds_result = async {
-                        if let Some(uds_listener) = &uds_listener {
-                            uds_listener.accept().await
-                        } else {
-                            futures::future::pending().await
-                        }
-                    } => {
-                        match accept_uds_result {
-                            Ok(controller_connection) => {
-                                if let Err(e) = context.spawn_controller_connection_event_loop(controller_connection).await {
-                                    tracing::error!("failed to spawn controller connection event loop: {}", e);
-                                }
-                            }
-                            Err(e) => {
-                                tracing::error!("failed to accept controller connection: {}", e);
-                            }
-                        }
-                    }
-                    accept_tcp_result = async {
-                        if let Some(tcp_listener) = &tcp_listener {
-                            tcp_listener.accept().await
-                        } else {
-                            futures::future::pending().await
-                        }
-                    } => {
-                        match accept_tcp_result {
-                            Ok(controller_connection) => {
-                                if let Err(e) = context.spawn_controller_connection_event_loop(controller_connection).await {
-                                    tracing::error!("failed to spawn controller connection event loop: {}", e);
-                                }
-                            }
-                            Err(e) => {
-                                tracing::error!("failed to accept controller connection: {}", e);
-                            }
+    pub async fn run<L: ConnectionStreamListener>(
+        mut listener: L,
+        ct: CancellationToken,
+    ) -> ListenerHandleQuitReason {
+        let quit_reason = loop {
+            let next_stream = tokio::select! {
+                _ = ct.cancelled() => {
+                    break ListenerHandleQuitReason::Cancelled;
+                }
+                accept_result = listener.accept_next() => {
+                    match accept_result {
+                        Ok(stream) =>stream,
+                        Err(e) => {
+                            break ListenerHandleQuitReason::Error(Box::new(e));
                         }
                     }
                 }
-            }
-        });
-        ListenerHandle { ct, task_handle }
+            };
+            use tonic::transport::Server;
+            
+        };
+
+        if let ListenerHandleQuitReason::Error(e) = &quit_reason {
+            tracing::warn!("listener encountered error and is shutting down: {}", e);
+        }
+
+        quit_reason
     }
 }
 
 impl KernelContext {
     pub async fn spawn_listener(&self) {
         let handle = ListenerHandle::spawn(self.clone());
-        let old_handle = self.controller_listener_handle.write().await.replace(handle);
+        let old_handle = self
+            .controller_listener_handle
+            .write()
+            .await
+            .replace(handle);
         if let Some(old_handle) = old_handle {
             old_handle.shutdown().await;
         }

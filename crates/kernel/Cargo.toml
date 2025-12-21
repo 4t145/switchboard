@@ -10,10 +10,6 @@ categories.workspace = true
 readme.workspace = true
 
 [dependencies]
-clap = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
-tokio-util = { workspace = true }
-thiserror = { workspace = true }
 switchboard-model = { workspace = true }
 switchboard-custom-config = { workspace = true }
 switchboard-service = { workspace = true }
@@ -21,6 +17,11 @@ switchboard-socks5 = { path = "../service-impl/socks5" }
 switchboard-pf = { path = "../service-impl/pf" }
 switchboard-uds = { path = "../service-impl/uds" }
 switchboard-http = { path = "../service-impl/http" }
+
+tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true }
+
+thiserror = { workspace = true }
 futures = { workspace = true }
 tracing = { workspace = true }
 toml = { workspace = true }
@@ -35,6 +36,8 @@ rustls = { workspace = true }
 anyhow = { version = "1" }
 bincode = { version = "2", features = ["serde"] }
 base64 = { workspace = true }
+
+tonic = { version = "0.14"}
 # deno_fetch = { version = "0.245" }
 [features]
 binary = ["dep:tracing-subscriber"]
