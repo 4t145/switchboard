@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, net::SocketAddr};
 pub const MODEL_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub use chrono;
 pub mod cursor;
 pub use cursor::*;
 pub mod descriptor;

@@ -23,20 +23,10 @@ message UpdateConfigRequest {
   bytes  config  = 3;
 }
 
-message UpdateConfigRequest {
-  string format  = 1;
-  string version = 2;
-  bytes  config  = 3;
-}
-
-message Error {
-  string message = 1;
-}
-
 message UpdateConfigResponse {
   oneof result {
     Empty success = 1;
-    Error error   = 2;
+    ErrorStack error   = 2;
   }
 }
 
@@ -44,7 +34,7 @@ message WatchStatusRequest {
 
 }
 
-message WaitingConfigStatus {
+message WaitingConfigState {
 
 }
 
@@ -67,7 +57,7 @@ message StoppedState {
 
 message KernelStateKind {
   oneof kind {
-    WaitingConfigStatus waiting_config = 1;
+    WaitingConfigState  waiting_config = 1;
     RunningState        running        = 2;
     UpdatingState       updating       = 3;
     ShuttingDownState   shutting_down  = 4;
@@ -94,4 +84,13 @@ message KernelInfo {
 
 message GetKernelInfoRequest {
 
+}
+
+message ErrorFrame {
+  string message = 1;
+  string type_name = 2;
+}
+
+message ErrorStack {
+  repeated ErrorFrame frames = 1;
 }

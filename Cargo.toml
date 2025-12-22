@@ -19,8 +19,10 @@ resolver = "2"
 switchboard-service = { path = "crates/service" }
 switchboard-socks5 = { path = "crates/service-impl/socks5" }
 switchboard-model = { path = "crates/model" }
+
 switchboard-http-router = { path = "crates/libs/switchboard-http-router" }
 switchboard-custom-config = { path = "crates/libs/switchboard-custom-config" }
+switchboard-kernel-control = { path = "crates/libs/switchboard-kernel-control", default-features = false  }
 
 tokio = { version = "1" }
 tokio-util = { version = "0.7" }
@@ -35,6 +37,8 @@ http = { version = "1" }
 
 # grpc
 tonic = { version = "0.14" }
+tonic-prost = { version = "0.14" }
+prost = { version = "0.14" }
 tonic-build = { version = "0.14" }
 tonic-prost-build = { version = "0.14" }
 

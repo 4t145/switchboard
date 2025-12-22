@@ -2,6 +2,7 @@ use std::{hash::Hash, sync::atomic::AtomicU32};
 
 use hmac::{Mac, digest::MacError};
 use serde::{Deserialize, Serialize};
+use sha2::Digest;
 
 use crate::{Config, controller::ControllerInfo, kernel::KernelState};
 #[derive(Debug, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -165,6 +166,13 @@ impl ControlVerifier {
 }
 
 impl Config {
+    pub fn digest_sha256(&self) -> Vec<u8> {
+        let config_as_bytes = bincode::encode_to_vec(self, bincode::config::standard())
+            .expect("Config should be always serializable");
+        let mut hasher = sha2::Sha256::default();
+        hasher.update(&config_as_bytes);
+        hasher.finalize().to_vec()
+    }
     pub fn sign(&self, key: &[u8]) -> Vec<u8> {
         let config_as_bytes = bincode::encode_to_vec(self, bincode::config::standard())
             .expect("Config should be always serializable");

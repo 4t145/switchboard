@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use tokio_stream::wrappers::UnixListenerStream;
 
 use serde::{Deserialize, Serialize};
 use switchboard_model::{
@@ -19,6 +20,4 @@ fn default_path() -> PathBuf {
     PathBuf::from(UDS_DEFAULT_PATH)
 }
 
-pub async fn listen_on_uds(){
-    
-}
+pub async fn listen_on_uds() {}

@@ -50,11 +50,11 @@ impl Default for KernelMeta {
 pub enum KernelStateKind {
     WaitingConfig,
     Running {
-        config_signature: Vec<u8>,
+        config_version: String,
     },
     Updating {
-        original_config_signature: Vec<u8>,
-        new_config_signature: Vec<u8>,
+        original_config_version:String,
+        new_config_version: String,
     },
     ShuttingDown,
     Stopped,

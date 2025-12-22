@@ -28,8 +28,8 @@ pub fn register_prelude(registry: &mut ServiceProviderRegistry) {
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("Controller Connection error: {0}")]
-    ConfigServiceError(#[from] Box<crate::controller::ConnectError>),
+    // #[error("Controller Connection error: {0}")]
+    // ConfigServiceError(#[from] Box<crate::controller::ConnectError>),
     #[error("TCP Switchboard error: {0}")]
     TcpSwitchboardError(#[from] crate::switchboard::tcp::TcpSwitchboardError),
     // #[error("Config service error: {0}")]
@@ -43,7 +43,7 @@ pub struct KernelContext {
     pub(crate) current_config: Arc<RwLock<model::Config>>,
     pub(crate) tcp_switchboard: Arc<RwLock<TcpSwitchboard>>,
     pub(crate) state: Arc<RwLock<KernelState>>,
-    pub(crate) controller_handle: Arc<RwLock<Option<controller::ControllerHandle>>>,
+    // pub(crate) controller_handle: Arc<RwLock<Option<controller::listener::ListenerHandle>>>,
     pub(crate) controller_listener_handle:
         Arc<RwLock<Option<controller::listener::ListenerHandle>>>,
 }
@@ -54,7 +54,7 @@ impl KernelContext {
             registry: Registry::new(),
             kernel_config: Arc::new(config),
             current_config: Arc::new(RwLock::new(model::Config::default())),
-            controller_handle: Arc::new(tokio::sync::RwLock::new(None)),
+            // controller_handle: Arc::new(tokio::sync::RwLock::new(None)),
             controller_listener_handle: Arc::new(tokio::sync::RwLock::new(None)),
             tcp_switchboard: Arc::new(RwLock::new(TcpSwitchboard::new_halted())),
             state: Arc::new(RwLock::new(KernelState::init())),
@@ -177,29 +177,32 @@ impl KernelContext {
             let mut current_state = self.state.write().await;
             *current_state.deref_mut() = state.clone();
         }
-        if let Some(controller_handle) = &*self.controller_handle.read().await {
-            controller_handle
-                .update_state(state)
-                .await
-                .map_err(Box::new)?;
-        }
+        // if let Some(controller_handle) = &*self.controller_handle.read().await {
+        //     controller_handle
+        //         .update_state(state)
+        //         .await
+        //         .map_err(Box::new)?;
+        // }
+        todo!("push state to connections");
         Ok(())
     }
-    pub fn sign_config(&self, config: &model::Config) -> Vec<u8> {
-        config.sign(&self.kernel_config.controller.psk)
+    pub fn digest_config(&self, config: &model::Config) -> String {
+        use base64::prelude::*;
+        let digest = config.digest_sha256();
+        BASE64_STANDARD.encode(digest)
     }
 
     pub async fn update_config(&self, sb_config: model::Config) -> Result<(), Error> {
-        let original_config_signature = self.sign_config(&*self.current_config.read().await);
-        let new_config_signature = self.sign_config(&sb_config);
+        let original_config_version = self.digest_config(&*self.current_config.read().await);
+        let new_config_version = self.digest_config(&sb_config);
         let new_state = KernelState::new(KernelStateKind::Updating {
-            original_config_signature,
-            new_config_signature: new_config_signature.clone(),
+            original_config_version,
+            new_config_version: new_config_version.clone(),
         });
         self.set_state(new_state).await?;
         self.load_config(sb_config).await?;
         let running_state = KernelState::new(KernelStateKind::Running {
-            config_signature: new_config_signature,
+            config_version: new_config_version,
         });
         self.set_state(running_state).await?;
         Ok(())
@@ -218,7 +221,7 @@ impl KernelContext {
         tracing::info!("Shutting down controller listener...");
         self.shutdown_controller_listener().await;
         // shutdown controller
-        tracing::info!("Shutting down controller...");
-        self.shutdown_controller().await;
+        // tracing::info!("Shutting down controller...");
+        // self.shutdown_controller().await;
     }
 }

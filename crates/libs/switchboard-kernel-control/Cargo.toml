@@ -11,7 +11,14 @@ readme.workspace = true
 
 [dependencies]
 tonic = { workspace = true }
-
+tonic-prost = { workspace = true }
+prost = { workspace = true }
+switchboard-model = { workspace = true }
+thiserror = { workspace = true }
+[features]
+default = ["client", "server"]
+client = []
+server = []
 [build-dependencies]
 tonic-build = { workspace = true }
 tonic-prost-build = { workspace = true }

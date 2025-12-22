@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use switchboard_model::{
-    bytes::Base64Bytes, controller::ControllerInfo, protocol::DEFAULT_HEARTBEAT_INTERVAL_SECS,
+    bytes::Base64Bytes, controller::ControllerInfo, protocol::DEFAULT_STATE_REPORT_INTERVAL_SECS,
 };
 
 use crate::{interface::InterfaceConfig, resolve::ResolveConfig, resource::ResourceConfig};
@@ -59,7 +59,7 @@ pub struct KernelConnectConfig {
 impl Default for KernelConnectConfig {
     fn default() -> Self {
         KernelConnectConfig {
-            heartbeat_interval: DEFAULT_HEARTBEAT_INTERVAL_SECS,
+            heartbeat_interval: DEFAULT_STATE_REPORT_INTERVAL_SECS,
             channel_buffer_size: 32,
         }
     }

@@ -1,30 +1,12 @@
-use serde::{Deserialize, Serialize};
-use tokio_util::sync::CancellationToken;
-
 use crate::KernelContext;
+use serde::{Deserialize, Serialize};
+use tokio::net;
+use tokio_util::sync::CancellationToken;
+use tracing::Instrument;
 
-pub mod local;
+// pub mod local;
 pub mod tcp;
 pub mod uds;
-
-pub trait ConnectionStreamListener {
-    type Stream: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static;
-    type Error: std::error::Error + Send + Sync + 'static;
-    fn accept_next(
-        &mut self,
-    ) -> impl std::future::Future<Output = Result<Self::Stream, Self::Error>> + Send + 'static;
-    fn close(
-        &mut self,
-    ) -> impl std::future::Future<Output = Result<(), Self::Error>> + Send + 'static;
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum TransportError {
-    #[error("tcp transport error: {0}")]
-    TcpTransportError(#[from] tcp::TcpTransportError),
-    #[error("uds transport error: {0}")]
-    UdsTransportError(#[from] uds::UdsTransportError),
-}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ListenerConfig {
@@ -42,7 +24,7 @@ impl Default for ListenerConfig {
 }
 pub struct ListenerHandle {
     pub ct: tokio_util::sync::CancellationToken,
-    task_handle: tokio::task::JoinHandle<()>,
+    join_set: tokio::task::JoinSet<(std::result::Result<(), tonic::transport::Error>)>,
 }
 
 pub enum ListenerHandleQuitReason {
@@ -50,47 +32,83 @@ pub enum ListenerHandleQuitReason {
     Error(Box<dyn std::error::Error + Send + Sync>),
 }
 impl ListenerHandle {
-    pub async fn run<L: ConnectionStreamListener>(
-        mut listener: L,
-        ct: CancellationToken,
-    ) -> ListenerHandleQuitReason {
-        let quit_reason = loop {
-            let next_stream = tokio::select! {
-                _ = ct.cancelled() => {
-                    break ListenerHandleQuitReason::Cancelled;
+    pub async fn shutdown(mut self) {
+        self.ct.cancel();
+        while let Some(res) = self.join_set.join_next().await {
+            match res {
+                Ok(Ok(())) => {}
+                Ok(Err(e)) => {
+                    tracing::error!("Controller listener taskjoined with error: {}", e);
                 }
-                accept_result = listener.accept_next() => {
-                    match accept_result {
-                        Ok(stream) =>stream,
-                        Err(e) => {
-                            break ListenerHandleQuitReason::Error(Box::new(e));
-                        }
-                    }
+                Err(e) => {
+                    tracing::error!("Controller listener task join error: {}", e);
                 }
-            };
-            use tonic::transport::Server;
-            
-        };
-
-        if let ListenerHandleQuitReason::Error(e) = &quit_reason {
-            tracing::warn!("listener encountered error and is shutting down: {}", e);
+            }
         }
-
-        quit_reason
     }
 }
 
 impl KernelContext {
-    pub async fn spawn_listener(&self) {
-        let handle = ListenerHandle::spawn(self.clone());
-        let old_handle = self
-            .controller_listener_handle
-            .write()
-            .await
-            .replace(handle);
-        if let Some(old_handle) = old_handle {
-            old_handle.shutdown().await;
+    pub async fn spawn_listener(&self) -> ListenerHandle {
+        let ct = tokio_util::sync::CancellationToken::new();
+        let grpc_server = self.build_grpc_server();
+        let listener_config = &self.kernel_config.controller.listen;
+        let mut join_set = tokio::task::JoinSet::new();
+        'bind_tcp: {
+            if let Some(tcp_config) = &listener_config.tcp {
+                let addr: std::net::SocketAddr = (tcp_config.host, tcp_config.port).into();
+                let bind_result = tokio::net::TcpListener::bind(addr).await;
+                let listener = match bind_result {
+                    Err(e) => {
+                        tracing::error!(
+                            "Failed to bind controller tcp listener on {}: {}",
+                            addr,
+                            e
+                        );
+                        break 'bind_tcp;
+                    }
+                    Ok(listener) => listener,
+                };
+                let incoming = tokio_stream::wrappers::TcpListenerStream::new(
+                    tokio::net::TcpListener::bind(addr).await.unwrap(),
+                );
+                tracing::info!("Controller gRPC listening on tcp://{}", addr);
+                let span = tracing::info_span!("controller-tcp-listener", %addr);
+                join_set.spawn(
+                    tonic::transport::Server::builder()
+                        .add_service(grpc_server.clone())
+                        .serve_with_incoming_shutdown(incoming, ct.child_token().cancelled_owned())
+                        .instrument(span),
+                );
+            }
         }
+        'bind_uds: {
+            if let Some(uds_config) = &listener_config.uds {
+                let path = &uds_config.path;
+                let path_display = path.to_string_lossy();
+                let listener = match tokio::net::UnixListener::bind(path.clone()) {
+                    Err(e) => {
+                        tracing::error!(
+                            "Failed to bind controller uds listener on {}: {}",
+                            path_display,
+                            e
+                        );
+                        break 'bind_uds;
+                    }
+                    Ok(listener) => listener,
+                };
+                let incoming = tokio_stream::wrappers::UnixListenerStream::new(listener);
+                tracing::info!("Controller gRPC listening on uds://{}", path_display);
+                let span = tracing::info_span!("controller-uds-listener", path = %path_display);
+                join_set.spawn(
+                    tonic::transport::Server::builder()
+                        .add_service(grpc_server)
+                        .serve_with_incoming_shutdown(incoming, ct.child_token().cancelled_owned())
+                        .instrument(span),
+                );
+            }
+        }
+        ListenerHandle { ct, join_set }
     }
     pub async fn shutdown_controller_listener(&self) {
         if let Some(handle) = self.controller_listener_handle.write().await.take() {
