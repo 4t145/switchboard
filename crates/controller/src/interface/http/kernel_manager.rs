@@ -30,17 +30,6 @@ pub async fn refresh_kernels(State(state): State<HttpState>) -> Response {
     super::result_to_json_response(state.controller_context.refresh_kernels().await)
 }
 
-pub async fn take_over_all_kernels(State(state): State<HttpState>) -> Response {
-    super::result_to_json_response(state.controller_context.take_over_all_kernels().await)
-}
-
-pub async fn take_over_kernel(
-    State(state): State<HttpState>,
-    axum::extract::Path(addr): axum::extract::Path<KernelAddr>,
-) -> Response {
-    super::result_to_json_response(state.controller_context.take_over_kernel(addr).await)
-}
-
 pub fn router() -> axum::Router<HttpState> {
     axum::Router::new()
         .route(
@@ -48,12 +37,4 @@ pub fn router() -> axum::Router<HttpState> {
             axum::routing::get(get_kernel_states).put(update_config),
         )
         .route("/refresh", axum::routing::post(refresh_kernels))
-        .route(
-            "/take_over_all",
-            axum::routing::post(take_over_all_kernels),
-        )
-        .route(
-            "/take_over/{addr}",
-            axum::routing::post(take_over_kernel),
-        )
 }

@@ -1,8 +1,12 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
+use crate::error::ErrorStack;
+
 pub const UDS_DEFAULT_PATH: &str = "/var/run/switchboard/kernel/default.sock";
 pub const UDS_DEFAULT_DIR: &str = "/var/run/switchboard/kernel/";
+pub const HTTP_DEFAULT_PORT: u16 = 8056;
+
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[serde(default)]
@@ -96,5 +100,6 @@ pub struct KernelInfoAndState {
 #[serde(tag = "connection", content = "state")]
 pub enum KernelConnectionAndState {
     Connected(KernelInfoAndState),
+    FetchError(ErrorStack),
     Disconnected,
 }

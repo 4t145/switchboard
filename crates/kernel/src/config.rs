@@ -1,13 +1,13 @@
-use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
-pub mod mem;
-pub mod file;
-#[derive(Clone, Debug, Deserialize)]
+use serde::Deserialize;
+
+#[derive(Clone, Debug, Deserialize, Default)]
+#[serde(default)]
 pub struct KernelConfig {
-    #[serde(default)]
     pub info: switchboard_model::kernel::KernelInfo,
-    #[serde(default)]
-    pub controller: crate::controller::ControllerConfig, 
-    // #[serde(with = "file")] 
-    // pub startup: switchboard_model::Config,
+    pub controller: crate::controller::ControllerConfig,
+    pub config: Option<PathBuf>,
 }
+
+pub use switchboard_model::resolve::fs::*;

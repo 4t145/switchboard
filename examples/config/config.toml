@@ -10,16 +10,16 @@ binds = [
 
 [[tls]]
 name = "single-example"
-cert_path = "examples/config/tls/single.crt"
-key_path = "examples/config/tls/single.key"
+cert = "file://examples/config/tls/single.crt"
+key = "file://examples/config/tls/single.key"
 
 [[tls]]
 name = "sni-example"
     [[tls.sni]]
     domain = "sni-a.test.local"
-    cert_path = "examples/config/tls/sni-a.crt"
-    key_path = "examples/config/tls/sni-a.key"
+    cert = "file://examples/config/tls/sni-a.crt"
+    key = "file://examples/config/tls/sni-a.key"
     [[tls.sni]]
     domain = "sni-b.test.local"
-    cert_path = "examples/config/tls/sni-b.crt"
-    key_path = "examples/config/tls/sni-b.key"
+    cert = "file://examples/config/tls/sni-b.crt"
+    key = "file://examples/config/tls/sni-b.key"

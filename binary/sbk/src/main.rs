@@ -21,9 +21,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
         .with_env_filter("debug,switchboard-http=trace")
         .init();
-    let config = retrieve_kernel_config().await?;
-    tracing::debug!("Starting kernel with config: {:?}", config);
-    let context = KernelContext::new(config);
+    let kernel_config = retrieve_kernel_config().await?;
+
+    tracing::debug!("Starting kernel with config: {:?}", kernel_config);
+    let context = KernelContext::new(kernel_config);
     tracing::info!("Kernel starting up...");
     context.startup().await?;
     tracing::info!("Kernel startup complete");

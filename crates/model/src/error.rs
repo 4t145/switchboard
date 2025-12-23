@@ -6,6 +6,18 @@ pub struct ErrorStack {
     pub frames: Vec<ErrorStackFrame>,
 }
 
+impl std::fmt::Display for ErrorStack {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Error stack trace:")?;
+        for frame in &self.frames {
+            writeln!(f, "{}: {}", frame.type_name, frame.error)?;
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for ErrorStack {}
+
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorStackFrame {

@@ -3887,10 +3887,12 @@ dependencies = [
  "serde",
  "switchboard-custom-config",
  "switchboard-http-router",
+ "switchboard-kernel-control",
  "switchboard-model",
  "thiserror 2.0.17",
  "tokio",
  "tokio-util",
+ "tonic",
  "tracing",
 ]
 
@@ -3987,6 +3989,7 @@ dependencies = [
  "switchboard-uds",
  "thiserror 2.0.17",
  "tokio",
+ "tokio-rustls",
  "tokio-stream",
  "tokio-util",
  "toml",
@@ -4004,6 +4007,7 @@ dependencies = [
  "thiserror 2.0.17",
  "tonic",
  "tonic-build",
+ "tonic-health",
  "tonic-prost",
  "tonic-prost-build",
 ]
@@ -4027,6 +4031,7 @@ dependencies = [
  "switchboard-custom-config",
  "thiserror 2.0.17",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -4365,6 +4370,7 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]
@@ -4442,6 +4448,7 @@ dependencies = [
  "socket2",
  "sync_wrapper",
  "tokio",
+ "tokio-rustls",
  "tokio-stream",
  "tower",
  "tower-layer",
@@ -4459,6 +4466,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "tonic-health"
+version = "0.14.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a82868bf299e0a1d2e8dce0dc33a46c02d6f045b2c1f1d6cc8dc3d0bf1812ef"
+dependencies = [
+ "prost",
+ "tokio",
+ "tokio-stream",
+ "tonic",
+ "tonic-prost",
 ]
 
 [[package]]

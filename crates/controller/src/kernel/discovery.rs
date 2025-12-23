@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-
 use crate::{ControllerContext, kernel::KernelAddr};
 
 // 1. scan uds
@@ -24,7 +23,7 @@ pub async fn scan_uds(
             "UDS socket dir {:?} does not exist, skipping UDS kernel discovery",
             socket_dir
         );
-        return Ok(HashMap::new())
+        return Ok(HashMap::new());
     }
     let mut dir = tokio::fs::read_dir(socket_dir).await?;
     let mut instances = HashMap::default();
@@ -35,7 +34,10 @@ pub async fn scan_uds(
             let stem = path
                 .file_stem()
                 .ok_or_else(|| KernelDiscoveryError::SocketWithoutFileStem(path.clone()))?;
-            instances.insert(stem.to_string_lossy().to_string(), KernelAddr::Uds(path));
+            instances.insert(
+                stem.to_string_lossy().to_string(),
+                KernelAddr::Uds(path.as_path().into()),
+            );
         }
     }
 
@@ -82,34 +84,16 @@ impl ControllerContext {
         }
         Ok(())
     }
-    pub async fn take_over_kernel(
-        &self,
-        addr: crate::kernel::KernelAddr,
-    ) -> Result<(), crate::Error> {
-        let mut kernel_manager = self.kernel_manager.write().await;
-        if let Some(kernel_handle) = kernel_manager.kernels.get_mut(&addr) {
-            kernel_handle
-                .take_over(self.controller_config.kernel.clone(), self)
-                .await?;
-        }
-        Ok(())
-    }
-    pub async fn take_over_all_kernels(&self) -> Result<(), crate::Error> {
-        let mut kernel_manager = self.kernel_manager.write().await;
-        for (_, kernel_handle) in kernel_manager.kernels.iter_mut() {
-            if kernel_handle.is_connected() {
-                continue;
-            }
-            kernel_handle
-                .take_over(self.controller_config.kernel.clone(), self)
-                .await?;
-        }
-        Ok(())
-    }
     pub async fn update_config(
         &self,
         new_config: switchboard_model::Config,
-    ) -> Result<Vec<(KernelAddr, std::result::Result<(), crate::kernel::KernelConnectionError>)>, crate::Error> {
+    ) -> Result<
+        Vec<(
+            KernelAddr,
+            std::result::Result<(), crate::kernel::KernelGrpcConnectionError>,
+        )>,
+        crate::Error,
+    > {
         let kernel_manager = self.kernel_manager.read().await;
         let results = kernel_manager.update_config(new_config).await;
         Ok(results)

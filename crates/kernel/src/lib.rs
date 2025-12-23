@@ -32,6 +32,8 @@ pub enum Error {
     // ConfigServiceError(#[from] Box<crate::controller::ConnectError>),
     #[error("TCP Switchboard error: {0}")]
     TcpSwitchboardError(#[from] crate::switchboard::tcp::TcpSwitchboardError),
+    #[error("Fetch service config error: {0}")]
+    ResolveConfigFileError(#[from] crate::config::ResolveConfigFileError),
     // #[error("Config service error: {0}")]
     // ConfigError(C::Error),
 }
@@ -42,7 +44,9 @@ pub struct KernelContext {
     pub(crate) kernel_config: Arc<KernelConfig>,
     pub(crate) current_config: Arc<RwLock<model::Config>>,
     pub(crate) tcp_switchboard: Arc<RwLock<TcpSwitchboard>>,
-    pub(crate) state: Arc<RwLock<KernelState>>,
+    // pub(crate) state: Arc<RwLock<KernelState>>,
+    pub(crate) state: tokio::sync::watch::Sender<KernelState>,
+    pub(crate) state_receiver: tokio::sync::watch::Receiver<KernelState>,
     // pub(crate) controller_handle: Arc<RwLock<Option<controller::listener::ListenerHandle>>>,
     pub(crate) controller_listener_handle:
         Arc<RwLock<Option<controller::listener::ListenerHandle>>>,
@@ -50,6 +54,7 @@ pub struct KernelContext {
 
 impl KernelContext {
     pub fn new(config: KernelConfig) -> Self {
+        let (state, state_receiver) = tokio::sync::watch::channel(KernelState::init());
         Self {
             registry: Registry::new(),
             kernel_config: Arc::new(config),
@@ -57,21 +62,29 @@ impl KernelContext {
             // controller_handle: Arc::new(tokio::sync::RwLock::new(None)),
             controller_listener_handle: Arc::new(tokio::sync::RwLock::new(None)),
             tcp_switchboard: Arc::new(RwLock::new(TcpSwitchboard::new_halted())),
-            state: Arc::new(RwLock::new(KernelState::init())),
+            state,
+            state_receiver,
         }
     }
-    pub async fn get_state(&self) -> KernelState {
+    pub fn get_state(&self) -> KernelState {
         use std::ops::Deref;
-        self.state.read().await.deref().clone()
+        self.state.borrow().deref().clone()
     }
     pub async fn startup(&self) -> Result<(), Error> {
+        let service_config = {
+            if let Some(config_path) = &self.kernel_config.config {
+                tracing::info!("Loading service config from file: {:?}", config_path);
+                Some(crate::config::fetch_config(config_path).await?)
+            } else {
+                tracing::info!(
+                    "No service config file specified, will waiting for controller to provide config"
+                );
+                None
+            }
+        };
         // preload
         {
             self.registry.load_prelude().await;
-        }
-        // listen controller
-        {
-            self.spawn_listener().await;
         }
         // start tcp switchboard
         {
@@ -79,7 +92,13 @@ impl KernelContext {
         }
         // load startup config
         {
-            // self.load_config(self.kernel_config.startup.clone()).await?;
+            if let Some(sb_config) = service_config {
+                self.load_config(sb_config).await?;
+            }
+        }
+        // listen controller requests
+        {
+            self.spawn_controller_listener().await;
         }
         Ok(())
     }
@@ -171,57 +190,42 @@ impl KernelContext {
         }
         Ok(())
     }
-    pub async fn set_state(&self, state: KernelState) -> Result<(), Error> {
-        use std::ops::DerefMut;
+    pub fn set_state(&self, state: KernelState) {
         {
-            let mut current_state = self.state.write().await;
-            *current_state.deref_mut() = state.clone();
+            self.state
+                .send(state)
+                .expect("shouldn't fail since we hold a receiver");
         }
-        // if let Some(controller_handle) = &*self.controller_handle.read().await {
-        //     controller_handle
-        //         .update_state(state)
-        //         .await
-        //         .map_err(Box::new)?;
-        // }
-        todo!("push state to connections");
-        Ok(())
-    }
-    pub fn digest_config(&self, config: &model::Config) -> String {
-        use base64::prelude::*;
-        let digest = config.digest_sha256();
-        BASE64_STANDARD.encode(digest)
     }
 
     pub async fn update_config(&self, sb_config: model::Config) -> Result<(), Error> {
-        let original_config_version = self.digest_config(&*self.current_config.read().await);
-        let new_config_version = self.digest_config(&sb_config);
+        let original_config_version = self.current_config.read().await.digest_sha256_base64();
+        let new_config_version = sb_config.digest_sha256_base64();
         let new_state = KernelState::new(KernelStateKind::Updating {
             original_config_version,
             new_config_version: new_config_version.clone(),
         });
-        self.set_state(new_state).await?;
+        self.set_state(new_state);
         self.load_config(sb_config).await?;
         let running_state = KernelState::new(KernelStateKind::Running {
             config_version: new_config_version,
         });
-        self.set_state(running_state).await?;
+        self.set_state(running_state);
         Ok(())
     }
     pub async fn shutdown(&self) {
-        self.set_state(KernelState::new(KernelStateKind::ShuttingDown))
-            .await
-            .ok();
+        self.set_state(KernelState::new(KernelStateKind::ShuttingDown));
+
         // shutdown supervisor
         tracing::info!("Shutting down TCP switchboard...");
         self.shutdown_tcp_switchboard().await;
-        self.set_state(KernelState::new(KernelStateKind::Stopped))
-            .await
-            .ok();
+        self.set_state(KernelState::new(KernelStateKind::Stopped));
         // shutdown controller listener
         tracing::info!("Shutting down controller listener...");
         self.shutdown_controller_listener().await;
         // shutdown controller
         // tracing::info!("Shutting down controller...");
         // self.shutdown_controller().await;
+        tracing::info!("Kernel shutdown complete.");
     }
 }

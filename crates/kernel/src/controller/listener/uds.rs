@@ -1,15 +1,8 @@
 use std::path::PathBuf;
-use tokio_stream::wrappers::UnixListenerStream;
 
 use serde::{Deserialize, Serialize};
-use switchboard_model::{
-    control::{ControllerMessage, KernelMessage},
-    kernel::UDS_DEFAULT_PATH,
-};
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::UnixStream,
-};
+use switchboard_model::kernel::UDS_DEFAULT_PATH;
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct UdsListenerConfig {
     #[serde(default = "default_path")]

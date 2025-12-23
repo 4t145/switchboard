@@ -11,6 +11,8 @@ service KernelService {
   rpc WatchStatus(WatchStatusRequest) returns (stream KernelState);
   // GetKernelInfo retrieves information about the kernel.
   rpc GetKernelInfo(GetKernelInfoRequest) returns (KernelInfo);
+  // Get KernelState once
+  rpc GetCurrentState(GetCurrentStateRequest) returns (KernelState);
 }
 
 message Empty {
@@ -93,4 +95,8 @@ message ErrorFrame {
 
 message ErrorStack {
   repeated ErrorFrame frames = 1;
+}
+
+message GetCurrentStateRequest {
+
 }

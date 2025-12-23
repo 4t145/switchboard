@@ -1,11 +1,10 @@
 use std::{future::ready, pin::Pin, time::Duration};
 
-use futures::future::BoxFuture;
 use switchboard_custom_config::formats::decode_bytes;
-use switchboard_kernel_control::kernel::{
+use switchboard_kernel_control::{kernel::{
     kernel_service_server::{KernelService, KernelServiceServer},
     *,
-};
+}, tonic_health};
 use switchboard_model::Config;
 
 use crate::KernelContext;
@@ -26,13 +25,9 @@ impl KernelServiceImpl {
 pub(crate) struct StatusStream {
     kernel_context: KernelContext,
     interval: tokio::time::Interval,
-    poll: StatusStreamPoll,
 }
 
-pub enum StatusStreamPoll {
-    Interval,
-    PollRead(BoxFuture<'static, tokio::sync::OwnedRwLockReadGuard<switchboard_model::kernel::KernelState>>),
-}
+
 
 impl StatusStream {
     pub fn new(kernel_context: &KernelContext) -> Self {
@@ -42,7 +37,6 @@ impl StatusStream {
         Self {
             kernel_context: kernel_context.clone(),
             interval,
-            poll: StatusStreamPoll::Interval,
         }
     }
 }
@@ -55,36 +49,20 @@ impl tokio_stream::Stream for StatusStream {
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
         let this = self.get_mut();
-        loop {
-            match &mut this.poll {
-                StatusStreamPoll::Interval => {
-                    match Pin::new(&mut this.interval).poll_tick(cx) {
-                        std::task::Poll::Ready(_) => {
-                            let poll_read = Box::pin(this
-                                                            .kernel_context
-                                                            .state
-                                                            .clone()
-                                                            .read_owned());
-                            this.poll =
-                                StatusStreamPoll::PollRead(poll_read);
-                        }
-                        std::task::Poll::Pending => {
-                            return std::task::Poll::Pending;
-                        }
-                    }
+        if this.kernel_context.state_receiver.has_changed().expect("state channel has been closed unexpectedly") {
+            let state = this.kernel_context.get_state();
+            let status: KernelState = state.into();
+            return std::task::Poll::Ready(Some(Ok(status)));
+        } else {
+            // poll interval
+            match Pin::new(&mut this.interval).poll_tick(cx) {
+                std::task::Poll::Ready(_) => {
+                    let state = this.kernel_context.get_state();
+                    let status: KernelState = state.into();
+                    return std::task::Poll::Ready(Some(Ok(status)));
                 }
-                StatusStreamPoll::PollRead(poll_read) => {
-                    match Pin::new(poll_read).poll(cx) {
-                        std::task::Poll::Ready(guard) => {
-                            let state = guard.to_owned();
-                            let status: KernelState = state.into();
-                            this.poll = StatusStreamPoll::Interval;
-                            return std::task::Poll::Ready(Some(Ok(status)));
-                        }
-                        std::task::Poll::Pending => {
-                            return std::task::Poll::Pending;
-                        }
-                    }
+                std::task::Poll::Pending => {
+                    return std::task::Poll::Pending;
                 }
             }
         }
@@ -133,7 +111,7 @@ impl KernelService for KernelServiceImpl {
         let request = request.into_inner();
         let format = request.format;
         let config_data = request.config;
-        let version = request.version;
+        let controller_send_version = request.version;
         // parse config
         let decode_result = decode_bytes(format.as_bytes(), config_data.into());
         let config: Config = match decode_result {
@@ -146,6 +124,14 @@ impl KernelService for KernelServiceImpl {
             }
             Ok(config) => config,
         };
+        let local_calculated_version = config.digest_sha256_base64();
+        if controller_send_version != local_calculated_version {
+            let status = tonic::Status::invalid_argument(format!(
+                "Config version mismatch: controller sent version {}, but calculated version is {}",
+                controller_send_version, local_calculated_version
+            ));
+            return Box::pin(ready(Err(status)));
+        }
         Box::pin(async move {
             let update_result = self.kernel_context.update_config(config).await;
             match update_result {
@@ -186,6 +172,13 @@ impl KernelService for KernelServiceImpl {
         let response = tonic::Response::new(stream);
         Box::pin(ready(Ok(response)))
     }
+
+    fn get_current_state<'life0,'async_trait>(&'life0 self, _request:tonic::Request<switchboard_kernel_control::kernel::GetCurrentStateRequest> ,) ->  Pin<Box<dyn Future<Output = std::result::Result<tonic::Response<switchboard_kernel_control::kernel::KernelState> ,tonic::Status> > + Send+'async_trait> >where 'life0:'async_trait,Self:'async_trait {
+        let current_state = self.kernel_context.get_state();
+        let proto_state: switchboard_kernel_control::kernel::KernelState = current_state.into();
+        let response = tonic::Response::new(proto_state);
+        Box::pin(ready(Ok(response)))
+    }
 }
 
 
@@ -194,4 +187,7 @@ impl KernelContext {
         let kernel_service = KernelServiceImpl::new(self);
         KernelServiceServer::new(kernel_service)
     }
+    // pub(crate) fn build_health_grpc_service(&self) -> tonic_health::server::HealthService {
+    //     let health_reporter = tonic_health::server::HealthReporter::new();
+    // }
 }

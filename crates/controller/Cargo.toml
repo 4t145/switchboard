@@ -14,6 +14,7 @@ tokio = { workspace = true, features = ["full"] }
 futures = { workspace = true }
 thiserror = { workspace = true }
 switchboard-model = { workspace = true }
+switchboard-kernel-control = { workspace = true, features = ["client"] }
 tracing = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 bincode = { version = "2", features = ["serde"] }
@@ -25,6 +26,9 @@ dirs = { version = "6" }
 ## http
 http = { workspace = true }
 axum = { version  = "0.8" }
+# grpc
+tonic = { workspace = true, features = ["transport"] }
+
 ## mcp
 # rmcp = { version = "0.10" }
 base64 = { workspace = true }

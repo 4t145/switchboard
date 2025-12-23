@@ -4,25 +4,30 @@ use std::{
     fmt::Display,
     net::SocketAddr,
     str::FromStr,
+    sync::Arc,
 };
 
 pub use discovery::*;
 mod connection;
+pub mod grpc_client;
 pub use connection::*;
 use futures::FutureExt;
 use serde::Serialize;
-use switchboard_model::kernel::KernelConnectionAndState;
+use switchboard_model::{
+    error::ErrorStack,
+    kernel::{KernelConnectionAndState, KernelInfoAndState},
+};
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum KernelAddr {
-    Uds(std::path::PathBuf),
-    Tcp(SocketAddr),
+    Uds(Arc<std::path::Path>),
+    Http(Arc<str>),
 }
 
 impl Display for KernelAddr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            KernelAddr::Uds(path) => write!(f, "uds://{}", path.display()),
-            KernelAddr::Tcp(addr) => write!(f, "tcp://{}", addr),
+            KernelAddr::Uds(path) => write!(f, "unix://{}", path.display()),
+            KernelAddr::Http(addr) => write!(f, "{}", addr),
         }
     }
 }
@@ -41,11 +46,10 @@ impl FromStr for KernelAddr {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Some((schema, path)) = s.split_once("://") {
             match schema {
-                "uds" => Ok(KernelAddr::Uds(std::path::PathBuf::from(path))),
-                "tcp" => {
-                    let addr: SocketAddr = path.parse()?;
-                    Ok(KernelAddr::Tcp(addr))
-                }
+                "uds" | "unix" => Ok(KernelAddr::Uds(
+                    std::path::PathBuf::from(path).as_path().into(),
+                )),
+                "http" | "https" | "grpc" => Ok(KernelAddr::Http(path.into())),
                 _ => Err(KernelAddrParseError::UnknownFormat {
                     format: schema.to_string(),
                 }),
@@ -88,14 +92,40 @@ impl KernelManager {
     }
     pub async fn get_kernel_states(&self) -> BTreeMap<KernelAddr, KernelConnectionAndState> {
         let mut states = BTreeMap::new();
-        for (addr, handle) in self.kernels.iter() {
-            let state = match &handle.state {
-                KernelHandleState::Disconnected => KernelConnectionAndState::Disconnected,
-                KernelHandleState::Connected(handle) => {
-                    KernelConnectionAndState::Connected(handle.get_info_and_state().await)
+        let mut task_set = tokio::task::JoinSet::new();
+        for handle in self.kernels.values() {
+            match &handle.state {
+                KernelHandleState::Disconnected => {
+                    states.insert(handle.addr.clone(), KernelConnectionAndState::Disconnected);
+                }
+                KernelHandleState::Connected(conn) => {
+                    let addr = handle.addr.clone();
+                    let mut conn = conn.clone();
+                    let info = conn.get_info_from_cache();
+                    let addr = addr.clone();
+                    task_set.spawn(async move {
+                        let result = conn.get_current_state().await;
+                        (addr, info, result)
+                    });
                 }
             };
-            states.insert(addr.clone(), state);
+        }
+        for (addr, info, result) in task_set.join_all().await {
+            match result {
+                Ok(state) => {
+                    states.insert(
+                        addr,
+                        KernelConnectionAndState::Connected(KernelInfoAndState { info, state }),
+                    );
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to get state from kernel at addr {:?}: {}", addr, e);
+                    states.insert(
+                        addr,
+                        KernelConnectionAndState::FetchError(ErrorStack::from_std(e)),
+                    );
+                }
+            }
         }
         states
     }
@@ -108,19 +138,15 @@ impl KernelManager {
         if let Some(handle) = handle
             && let KernelHandleState::Connected(connected) = handle.state
         {
-            let close_result = connected.close().await;
-            if let Err(e) = close_result {
-                tracing::error!("Error closing connection to kernel at {:?}: {}", addr, e);
-            }
+            drop(connected);
         }
     }
     pub async fn disconnect_kernel(&mut self, addr: &KernelAddr) {
         if let Some(handle) = self.kernels.get_mut(addr) {
             let old_state = std::mem::replace(&mut handle.state, KernelHandleState::Disconnected);
             if let KernelHandleState::Connected(connected) = old_state {
-                let close_result = connected.close().await;
-                if let Err(e) = close_result {
-                    tracing::error!("Error disconnecting kernel at {:?}: {}", addr, e);
+                {
+                    drop(connected);
                 }
             }
         }
@@ -134,16 +160,20 @@ impl KernelManager {
     pub async fn update_config(
         &self,
         new_config: switchboard_model::Config,
-    ) -> Vec<(KernelAddr, Result<(), KernelConnectionError>)> {
+    ) -> Vec<(KernelAddr, Result<(), KernelGrpcConnectionError>)> {
         let mut task_set = tokio::task::JoinSet::new();
+        let new_config = std::sync::Arc::new(new_config);
         for (addr, kernel) in &self.kernels {
             if let Some(handle) = kernel.get_connected_handle() {
                 let addr = addr.clone();
-                task_set.spawn(
+                let config = new_config.clone();
+                let mut handle = handle.clone();
+                task_set.spawn(async move {
                     handle
-                        .update_config(new_config.clone())
-                        .map(|result| (addr, result)),
-                );
+                        .update_config(config.as_ref())
+                        .map(|result| (addr, result))
+                        .await
+                });
             }
         }
         task_set.join_all().await.into_iter().collect()
@@ -156,7 +186,7 @@ impl KernelManager {
         }
     }
 }
-
+#[derive(Clone)]
 pub struct KernelHandle {
     pub addr: KernelAddr,
     pub state: KernelHandleState,
@@ -172,32 +202,17 @@ impl KernelHandle {
     pub fn is_connected(&self) -> bool {
         matches!(self.state, KernelHandleState::Connected(_))
     }
-    pub async fn take_over(
-        &mut self,
-        config: crate::config::KernelConfig,
-        context: &crate::ControllerContext,
-    ) -> Result<(), KernelConnectionError> {
-        // check if already connected
-        if self.is_connected() {
-            tracing::info!("Kernel at {:?} is already connected", self.addr);
-            return Ok(());
-        }
-        let mut transpose = self.addr.connect(config).await?;
-        let info_and_state = transpose.take_over(context).await?;
-        let connection_handle =
-            KernelConnectionHandle::spawn(transpose, self.addr.clone(), info_and_state, context);
-        self.state = KernelHandleState::Connected(connection_handle);
-        Ok(())
-    }
-    pub fn get_connected_handle(&self) -> Option<&KernelConnectionHandle> {
+
+    pub fn get_connected_handle(&self) -> Option<KernelGrpcConnection> {
         match &self.state {
-            KernelHandleState::Connected(handle) => Some(handle),
+            KernelHandleState::Connected(conn) => Some(conn.clone()),
             _ => None,
         }
     }
 }
 
+#[derive(Clone)]
 pub enum KernelHandleState {
     Disconnected,
-    Connected(KernelConnectionHandle),
+    Connected(KernelGrpcConnection),
 }

@@ -12,6 +12,7 @@ readme.workspace = true
 [dependencies]
 tonic = { workspace = true }
 tonic-prost = { workspace = true }
+tonic-health = { workspace = true }
 prost = { workspace = true }
 switchboard-model = { workspace = true }
 thiserror = { workspace = true }

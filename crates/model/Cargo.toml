@@ -10,7 +10,7 @@ categories.workspace = true
 readme.workspace = true
 
 [dependencies]
-tokio = { workspace = true, features = ["io-util"] }
+tokio = { workspace = true, features = ["io-util", "fs"] }
 serde = { workspace = true, features = ["derive"] }
 bon = { version = "3.6" }
 chrono = { version = "0.4", features = ["serde"] }
@@ -26,3 +26,5 @@ regex = { version = "1" }
 http = { version = "1"}
 
 switchboard-custom-config = { workspace = true }
+
+tracing = { workspace = true }

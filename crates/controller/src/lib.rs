@@ -54,7 +54,7 @@ pub enum Error {
     #[error("Kernel discovery error: {0}")]
     KernelDiscoveryError(#[from] KernelDiscoveryError),
     #[error("Kernel connection error: {0}")]
-    KernelConnectionError(#[from] crate::kernel::KernelConnectionError),
+    KernelConnectionError(#[from] crate::kernel::KernelGrpcConnectionError),
     #[error("Startup http interface error: {0}")]
     StartupHttpInterfaceError(#[source] std::io::Error),
 
