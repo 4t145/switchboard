@@ -1,4 +1,4 @@
-use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Visitor};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::{VariantAccess, Visitor}};
 mod collection;
 pub use collection::*;
 mod option;
@@ -78,7 +78,7 @@ impl SerdeValue {
                     .into_inner()
                     .into_iter()
                     .filter(|v| filter(v))
-                    .map(|v| map(v))
+                    .map(&map)
                     .collect();
                 SerdeValue::Sequence(collection::SerdeSequence(mapped))
             }
@@ -209,9 +209,9 @@ impl Serializer for SerdeValueSerializer {
         self,
         _name: &'static str,
         _variant_index: u32,
-        _variant: &'static str,
+        variant: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
-        Ok(SerdeValue::Unit)
+        Ok(SerdeValue::String(variant.to_string()))
     }
 
     fn serialize_newtype_struct<T>(
@@ -403,6 +403,24 @@ impl<'de> Visitor<'de> for SerdeAnyVisitor {
     {
         SerdeValue::deserialize(deserializer)
     }
+
+    // fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
+    // where
+    //     A: serde::de::EnumAccess<'de>,
+    // {
+    //     let (v, x) = data.variant::<SerdeValue>()?;
+    //     match v {
+    //         SerdeValue::String(s) => {
+    //             l
+                
+    //         },
+    //         SerdeValue::Unit => Ok(x.unit_variant()?),
+    //         _ => Err(serde::de::Error::custom(
+    //             "enum variant must be a string or unit",
+    //         )),
+    //     }
+
+    // }
 }
 impl<'de> Deserialize<'de> for SerdeValue {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -417,8 +435,8 @@ impl<'de> Deserializer<'de> for SerdeValue {
     type Error = Error;
     serde::forward_to_deserialize_any! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string
-        bytes byte_buf option unit unit_struct newtype_struct seq
-        tuple tuple_struct map struct enum identifier ignored_any
+        bytes byte_buf unit unit_struct seq newtype_struct tuple tuple_struct
+        map identifier ignored_any struct enum
     }
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
@@ -435,6 +453,19 @@ impl<'de> Deserializer<'de> for SerdeValue {
                 Some(value) => visitor.visit_some(*value),
                 None => visitor.visit_none(),
             },
+        }
+    }
+
+    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        match self {
+            SerdeValue::Option(o) => match o.0 {
+                Some(value) => visitor.visit_some(*value),
+                None => visitor.visit_none(),
+            },
+            v => v.deserialize_any(visitor),
         }
     }
 }

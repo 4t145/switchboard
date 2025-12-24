@@ -2,26 +2,19 @@ use crate::KernelContext;
 use futures::TryStreamExt;
 use serde::{Deserialize, Serialize};
 
+use switchboard_custom_config::fs::FsLinkResolver;
 use tracing::Instrument;
 
 // pub mod local;
 pub mod http;
 pub mod uds;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
 pub struct ListenerConfig {
     pub uds: Option<uds::UdsListenerConfig>,
     pub http: Option<http::HttpListenerConfig>,
 }
 
-impl Default for ListenerConfig {
-    fn default() -> Self {
-        Self {
-            uds: None,
-            http: None,
-        }
-    }
-}
 pub struct ListenerHandle {
     pub ct: tokio_util::sync::CancellationToken,
     join_set: tokio::task::JoinSet<std::result::Result<(), tonic::transport::Error>>,
@@ -59,7 +52,7 @@ impl KernelContext {
                 let addr: std::net::SocketAddr = (http_config.host, http_config.port).into();
                 let mut tls_acceptor = None;
                 if let Some(tls) = &http_config.tls {
-                    match tls.resolver.resolve_from_fs().await {
+                    match tls.resolver.clone().resolve(&FsLinkResolver).await {
                         Ok(tls_resolver) => {
                             let tls_option = tls.options.clone();
                             let tls = switchboard_model::Tls {

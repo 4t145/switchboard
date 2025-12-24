@@ -15,14 +15,16 @@ pub fn detect_format_from_path(path: &std::path::Path) -> &str {
     }
 }
 
-impl crate::CustomConfig {
+impl<V> crate::ConfigWithFormat<V> 
+where V: crate::formats::TransferObject
+{
     pub async fn read_from_file(path: &std::path::Path) -> Result<Self, crate::Error> {
         // read file type
         let format = detect_format_from_path(path);
         let data = tokio::fs::read(path)
             .await
             .map_err(|e| crate::Error::resolve_error(e, Link::from(path.to_path_buf())))?;
-        Ok(crate::CustomConfig::decode(format, data.into())?)
+        crate::ConfigWithFormat::decode(format, data.into())
     }
     pub async fn save_to_file(&self, path: &std::path::Path) -> Result<(), crate::Error> {
         let mut path = path.to_path_buf();
@@ -34,18 +36,18 @@ impl crate::CustomConfig {
         Ok(())
     }
 }
-
+#[derive(Clone, Debug, Default)]
 pub struct FsLinkResolver;
 impl LinkResolver for FsLinkResolver {
-    async fn fetch(&self, link: &Link) -> Result<crate::CustomConfig, crate::Error> {
+    async fn fetch<V: crate::formats::TransferObject>(&self, link: &Link) -> Result<crate::ConfigWithFormat<V>, crate::Error> {
         if let Some(path) = link.as_file_path() {
-            crate::CustomConfig::read_from_file(path).await
+            crate::ConfigWithFormat::read_from_file(path).await
         } else {
             Err(crate::Error::resolve_error("Not a file link", link.clone()))
         }
     }
 
-    async fn upload(&self, link: &Link, config: &crate::CustomConfig) -> Result<(), crate::Error> {
+    async fn upload<V: crate::formats::TransferObject >(&self, link: &Link, config: &crate::ConfigWithFormat<V>) -> Result<(), crate::Error> {
         if let Some(path) = link.as_file_path() {
             config.save_to_file(path).await
         } else {

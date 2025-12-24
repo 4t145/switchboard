@@ -59,6 +59,8 @@ pub trait TransferObject:
     + ::bincode::Encode
     + ::bincode::Decode<()>
     + std::any::Any
+    + Send
+    + Sync
 {
 }
 
@@ -68,6 +70,8 @@ impl<T> TransferObject for T where
         + ::bincode::Encode
         + ::bincode::Decode<()>
         + std::any::Any
+        + Send
+        + Sync
 {
 }
 
@@ -116,7 +120,10 @@ pub fn decode_bytes<T: TransferObject>(
     Ok(value)
 }
 
-pub fn encode_bytes<T: TransferObject>(format: impl AsRef<str>, value: &T) -> Result<Bytes, crate::Error> {
+pub fn encode_bytes<T: TransferObject>(
+    format: impl AsRef<str>,
+    value: &T,
+) -> Result<Bytes, crate::Error> {
     let format = format.as_ref();
     let bytes = match format {
         "bincode" => {

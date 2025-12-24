@@ -1,6 +1,6 @@
 use schemars::{JsonSchema, Schema};
 use serde::{Deserialize, Serialize};
-use switchboard_custom_config::{CustomConfig, SerdeValue};
+use switchboard_custom_config::{ConfigWithFormat, SerdeValue};
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(rename_all = "camelCase")]
@@ -83,6 +83,7 @@ pub enum InstanceType {
     bincode::Encode,
     bincode::Decode,
 )]
+#[serde(transparent)]
 /// instance id can only contain alphanumeric characters, hyphens, dots, and underscores
 pub struct InstanceId(pub(crate) Arc<str>);
 
@@ -99,7 +100,7 @@ impl std::fmt::Display for InstanceId {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-pub struct InstanceData<Cfg = CustomConfig> {
+pub struct InstanceData<Cfg = ConfigWithFormat> {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     pub class: ClassId,
@@ -109,7 +110,7 @@ pub struct InstanceData<Cfg = CustomConfig> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-pub struct InstanceDataWithoutType<Cfg = CustomConfig> {
+pub struct InstanceDataWithoutType<Cfg = ConfigWithFormat> {
     pub name: Option<String>,
     pub class: ClassId,
     pub config: Cfg,

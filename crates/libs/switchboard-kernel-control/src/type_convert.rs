@@ -1,7 +1,4 @@
-use switchboard_model::{
-    self as model,
-    chrono::{DateTime, Utc},
-};
+use switchboard_model::{self as model, chrono::DateTime};
 
 use crate::kernel::{KernelStateKind, RunningState};
 
@@ -19,13 +16,13 @@ impl From<super::kernel::KernelInfo> for model::kernel::KernelInfo {
     }
 }
 
-impl Into<super::kernel::KernelInfo> for model::kernel::KernelInfo {
-    fn into(self) -> super::kernel::KernelInfo {
+impl From<model::kernel::KernelInfo> for super::kernel::KernelInfo {
+    fn from(val: model::kernel::KernelInfo) -> Self {
         super::kernel::KernelInfo {
-            name: self.name,
-            id: self.id,
-            description: self.description,
-            meta: Some(self.meta.into()),
+            name: val.name,
+            id: val.id,
+            description: val.description,
+            meta: Some(val.meta.into()),
         }
     }
 }
@@ -39,11 +36,11 @@ impl From<super::kernel::KernelMeta> for model::kernel::KernelMeta {
     }
 }
 
-impl Into<super::kernel::KernelMeta> for model::kernel::KernelMeta {
-    fn into(self) -> super::kernel::KernelMeta {
+impl From<model::kernel::KernelMeta> for super::kernel::KernelMeta {
+    fn from(val: model::kernel::KernelMeta) -> Self {
         super::kernel::KernelMeta {
-            version: self.version,
-            build: self.build,
+            version: val.version,
+            build: val.build,
         }
     }
 }
@@ -60,10 +57,10 @@ impl From<super::kernel::ErrorStack> for model::error::ErrorStack {
     }
 }
 
-impl Into<super::kernel::ErrorStack> for model::error::ErrorStack {
-    fn into(self) -> super::kernel::ErrorStack {
+impl From<model::error::ErrorStack> for super::kernel::ErrorStack {
+    fn from(val: model::error::ErrorStack) -> Self {
         super::kernel::ErrorStack {
-            frames: self.frames.into_iter().map(|f| f.into()).collect(),
+            frames: val.frames.into_iter().map(|f| f.into()).collect(),
         }
     }
 }
@@ -77,11 +74,11 @@ impl From<super::kernel::ErrorFrame> for model::error::ErrorStackFrame {
     }
 }
 
-impl Into<super::kernel::ErrorFrame> for model::error::ErrorStackFrame {
-    fn into(self) -> super::kernel::ErrorFrame {
+impl From<model::error::ErrorStackFrame> for super::kernel::ErrorFrame {
+    fn from(val: model::error::ErrorStackFrame) -> Self {
         super::kernel::ErrorFrame {
-            message: self.error,
-            type_name: self.type_name,
+            message: val.error,
+            type_name: val.type_name,
         }
     }
 }
@@ -125,9 +122,9 @@ impl TryFrom<super::kernel::KernelState> for model::kernel::KernelState {
     }
 }
 
-impl Into<super::kernel::KernelState> for model::kernel::KernelState {
-    fn into(self) -> super::kernel::KernelState {
-        let kind = match self.kind {
+impl From<model::kernel::KernelState> for super::kernel::KernelState {
+    fn from(val: model::kernel::KernelState) -> Self {
+        let kind = match val.kind {
             model::kernel::KernelStateKind::Running { config_version } => {
                 super::kernel::kernel_state_kind::Kind::Running(RunningState { config_version })
             }
@@ -154,7 +151,7 @@ impl Into<super::kernel::KernelState> for model::kernel::KernelState {
         };
         super::kernel::KernelState {
             kind: Some(KernelStateKind { kind: Some(kind) }),
-            since: self.since.to_rfc2822(),
+            since: val.since.to_rfc2822(),
         }
     }
 }

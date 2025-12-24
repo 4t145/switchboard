@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use switchboard_model::Tls;
-use switchboard_custom_config::CustomConfig;
+use switchboard_custom_config::ConfigWithFormat;
 use switchboard_service::SerdeValue;
 // use switchboard_service::tcp::RunningTcpService;
 

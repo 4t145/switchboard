@@ -1,6 +1,7 @@
 use std::{collections::HashSet, sync::Arc};
 
 use registry::Registry;
+use switchboard_custom_config::fs::FsLinkResolver;
 use switchboard_model::kernel::{KernelState, KernelStateKind};
 use switchboard_service::tcp::TcpListener;
 
@@ -61,8 +62,10 @@ impl KernelContext {
     pub async fn startup(&self) -> Result<(), Error> {
         let service_config = {
             if let Some(config_path) = &self.kernel_config.config {
-                tracing::info!("Loading service config from file: {:?}", config_path);
-                Some(crate::config::fetch_config(config_path).await?)
+                if let Some(link) = config_path.as_link() {
+                    tracing::info!("Loading service config from file: {}", link);
+                }
+                Some(crate::config::fetch_config(config_path.clone(), &FsLinkResolver).await?)
             } else {
                 tracing::info!(
                     "No service config file specified, will waiting for controller to provide config"

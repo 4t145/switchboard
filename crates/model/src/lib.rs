@@ -57,43 +57,7 @@ impl<ServiceConfig, TlsResolver> Default for Config<ServiceConfig, TlsResolver> 
     }
 }
 
-impl<ServiceConfig> Config<ServiceConfig, crate::tls::TlsResolverInFile> {
-    pub async fn resolve_tls_with_skip(self) -> Config<ServiceConfig, crate::tls::TlsResolver> {
-        let mut resolved_tls = BTreeMap::new();
-        let mut task_set = tokio::task::JoinSet::<
-            Result<(String, Tls<crate::tls::TlsResolver>), crate::tls::TlsResolverLoadError>,
-        >::new();
-        for (name, tls_in_file) in self.tls.clone().into_iter() {
-            task_set.spawn(async move {
-                let resolver = tls_in_file.resolver.resolve_from_fs().await?;
-                let tls = crate::tls::Tls {
-                    resolver,
-                    options: tls_in_file.options,
-                };
-                Ok((name, tls))
-            });
-        }
-        while let Some(res) = task_set.join_next().await {
-            match res {
-                Ok(Ok((name, tls))) => {
-                    resolved_tls.insert(name, tls);
-                }
-                Ok(Err(e)) => {
-                    tracing::error!("Failed to resolve TLS: {}", e);
-                }
-                Err(e) => {
-                    tracing::error!("TLS resolve task join error: {}", e);
-                }
-            }
-        }
-        Config {
-            tcp_services: self.tcp_services,
-            tcp_listeners: self.tcp_listeners,
-            tcp_routes: self.tcp_routes,
-            tls: resolved_tls,
-        }
-    }
-}
+
 impl<ServiceConfig, TlsResolver> Config<ServiceConfig, TlsResolver> {
     pub fn get_tcp_service(&self, name: &str) -> Option<&TcpServiceConfig<ServiceConfig>> {
         self.tcp_services.get(name)

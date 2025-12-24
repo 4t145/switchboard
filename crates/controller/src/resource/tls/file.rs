@@ -93,7 +93,7 @@ impl FileTlsCertResource {
                 path: self.key_path.clone(),
             }
         })?;
-        let params = TlsCertParams::from_pem_file(&cert_bytes, &key_bytes)?;
+        let params = TlsCertParams::from_bytes(&cert_bytes, &key_bytes)?;
         Ok(params)
     }
 }

@@ -3,7 +3,5 @@
         "switchboard",
         "thiserror"
     ],
-    "rust-analyzer.cargo.features": [
-        "bincode"
-    ]
+    "rust-analyzer.cargo.features": []
 }

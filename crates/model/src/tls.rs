@@ -1,6 +1,7 @@
-use std::{borrow::Cow, collections::BTreeMap, fmt::Debug, str::FromStr};
+use std::{collections::BTreeMap, fmt::Debug};
 
 use serde::{Deserialize, Serialize};
+use switchboard_custom_config::{LinkOrValue, LinkResolver};
 
 use crate::bytes::Base64Bytes;
 #[derive(
@@ -48,8 +49,8 @@ pub enum TlsCertParamsError {
     KeyParseError(pem::PemError),
 }
 impl TlsCertParams {
-    pub fn from_pem_file(cert_bytes: &[u8], key_bytes: &[u8]) -> Result<Self, TlsCertParamsError> {
-        let mut certs = Vec::new();
+    pub fn from_bytes(cert_bytes: &[u8], key_bytes: &[u8]) -> Result<Self, TlsCertParamsError> {
+        let mut certs: Vec<Base64Bytes> = Vec::new();
         for pem in pem::parse_many(cert_bytes).map_err(TlsCertParamsError::CertParseError)? {
             let bytes = pem.into_contents();
             certs.push(Base64Bytes(bytes));
@@ -58,6 +59,22 @@ impl TlsCertParams {
             .map_err(TlsCertParamsError::KeyParseError)?
             .into_contents();
         let key = Base64Bytes(key);
+        Ok(TlsCertParams {
+            certs,
+            key,
+            ocsp: None,
+        })
+    }
+    pub fn from_resolved_pem_files(
+        certs: PemsFile,
+        key: PemFile,
+    ) -> Result<Self, TlsCertParamsError> {
+        let certs: Vec<Base64Bytes> = certs
+            .0
+            .into_iter()
+            .map(|pem| Base64Bytes(pem.into_contents()))
+            .collect();
+        let key = Base64Bytes(key.0.into_contents());
         Ok(TlsCertParams {
             certs,
             key,
@@ -119,84 +136,149 @@ impl Default for TlsOptions {
         }
     }
 }
+#[derive(Debug, Clone, PartialEq)]
+pub struct PemFile(pub pem::Pem);
 
-#[derive(Debug, Clone, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq)]
-pub enum EmbeddedOrFilePem {
-    Embedded(String),
-    File(std::path::PathBuf),
-}
-
-impl EmbeddedOrFilePem {
-    pub fn path(&self) -> Option<&std::path::Path> {
-        match self {
-            EmbeddedOrFilePem::Embedded(_) => None,
-            EmbeddedOrFilePem::File(path) => Some(path.as_path()),
-        }
+impl bincode::Encode for PemFile {
+    fn encode<E: bincode::enc::Encoder>(
+        &self,
+        encoder: &mut E,
+    ) -> Result<(), bincode::error::EncodeError> {
+        let s = pem::encode(&self.0);
+        s.encode(encoder)
     }
 }
 
-impl Serialize for EmbeddedOrFilePem {
+impl<C> bincode::Decode<C> for PemFile {
+    fn decode<D: bincode::de::Decoder<Context = C>>(
+        decoder: &mut D,
+    ) -> Result<Self, bincode::error::DecodeError> {
+        let s = String::decode(decoder)?;
+        let pem =
+            pem::parse(s).map_err(|e| bincode::error::DecodeError::OtherString(e.to_string()))?;
+        Ok(PemFile(pem))
+    }
+}
+
+impl<'de, C> bincode::de::BorrowDecode<'de, C> for PemFile {
+    fn borrow_decode<D: bincode::de::BorrowDecoder<'de, Context = C>>(
+        decoder: &mut D,
+    ) -> Result<Self, bincode::error::DecodeError> {
+        let s = String::borrow_decode(decoder)?;
+        let pem =
+            pem::parse(s).map_err(|e| bincode::error::DecodeError::OtherString(e.to_string()))?;
+        Ok(PemFile(pem))
+    }
+}
+
+impl Serialize for PemFile {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        match self {
-            EmbeddedOrFilePem::Embedded(s) => serializer.serialize_str(s),
-            EmbeddedOrFilePem::File(path) => {
-                let s = format!("file://{}", path.display());
-                serializer.serialize_str(&s)
-            }
-        }
+        let s = pem::encode(&self.0);
+        serializer.serialize_str(&s)
     }
 }
 
-impl<'de> Deserialize<'de> for EmbeddedOrFilePem {
+impl<'de> Deserialize<'de> for PemFile {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        EmbeddedOrFilePem::from_str(&s).map_err(serde::de::Error::custom)
+        let pem = pem::parse(s).map_err(serde::de::Error::custom)?;
+        Ok(PemFile(pem))
     }
 }
 
-impl FromStr for EmbeddedOrFilePem {
-    type Err = std::convert::Infallible;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.starts_with("file://") {
-            let path = &s[7..];
-            Ok(EmbeddedOrFilePem::File(std::path::PathBuf::from(path)))
-        } else {
-            Ok(EmbeddedOrFilePem::Embedded(s.to_string()))
-        }
+#[derive(Debug, Clone, PartialEq)]
+pub struct PemsFile(pub Vec<pem::Pem>);
+
+impl bincode::Encode for PemsFile {
+    fn encode<E: bincode::enc::Encoder>(
+        &self,
+        encoder: &mut E,
+    ) -> Result<(), bincode::error::EncodeError> {
+        let s = pem::encode_many(&self.0);
+        s.encode(encoder)
     }
 }
 
-#[derive(
-    Debug, Clone, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq,
-)]
-pub struct TlsResolverItemInFile {
+impl<C> bincode::Decode<C> for PemsFile {
+    fn decode<D: bincode::de::Decoder<Context = C>>(
+        decoder: &mut D,
+    ) -> Result<Self, bincode::error::DecodeError> {
+        let s = String::decode(decoder)?;
+        let pems = pem::parse_many(s)
+            .map_err(|e| bincode::error::DecodeError::OtherString(e.to_string()))?;
+        Ok(PemsFile(pems))
+    }
+}
+
+impl<'de, C> bincode::de::BorrowDecode<'de, C> for PemsFile {
+    fn borrow_decode<D: bincode::de::BorrowDecoder<'de, Context = C>>(
+        decoder: &mut D,
+    ) -> Result<Self, bincode::error::DecodeError> {
+        let s = String::borrow_decode(decoder)?;
+        let pem = pem::parse_many(s)
+            .map_err(|e| bincode::error::DecodeError::OtherString(e.to_string()))?;
+        Ok(PemsFile(pem))
+    }
+}
+
+impl Serialize for PemsFile {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let s = pem::encode_many(&self.0);
+        serializer.serialize_str(&s)
+    }
+}
+
+impl<'de> Deserialize<'de> for PemsFile {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let pem = pem::parse_many(s).map_err(serde::de::Error::custom)?;
+        Ok(PemsFile(pem))
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct FileStyleTlsResolverItem {
     #[serde(alias = "cert")]
-    pub certs: EmbeddedOrFilePem,
-    pub key: EmbeddedOrFilePem,
+    pub certs: LinkOrValue<PemsFile>,
+    pub key: LinkOrValue<PemFile>,
 }
 
-#[derive(
-    Debug, Clone, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq,
-)]
+impl FileStyleTlsResolverItem {
+    pub async fn resolve<R: LinkResolver>(
+        self,
+        resolver: &R,
+    ) -> Result<TlsCertParams, TlsResolverLoadError> {
+        let certs = self.certs.resolve(resolver).await?;
+        let key = self.key.resolve(resolver).await?;
+        let params = TlsCertParams::from_resolved_pem_files(certs, key)?;
+        Ok(params)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct TlsResolverItemInFileWithHostname {
     #[serde(alias = "domain")]
     pub hostname: String,
     #[serde(flatten)]
-    pub tls_in_file: TlsResolverItemInFile,
+    pub tls_in_file: FileStyleTlsResolverItem,
 }
 
-#[derive(
-    Debug, Clone, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq,
-)]
+#[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(untagged)]
-pub enum TlsResolverInFile {
-    Single(TlsResolverItemInFile),
+pub enum FileStyleTlsResolver {
+    Single(FileStyleTlsResolverItem),
     Sni {
         sni: Vec<TlsResolverItemInFileWithHostname>,
     },
@@ -208,51 +290,74 @@ pub enum TlsResolverLoadError {
     IoError(#[from] std::io::Error),
     #[error("TLS cert params error: {0}")]
     TlsCertParamsError(#[from] TlsCertParamsError),
-}
-impl TlsResolverInFile {
-    async fn resolve_to_bytes(pem: &EmbeddedOrFilePem) -> Result<Cow<'_, [u8]>, std::io::Error> {
-        match pem {
-            EmbeddedOrFilePem::Embedded(s) => Ok(s.as_bytes().into()),
-            EmbeddedOrFilePem::File(path) => {
-                let bytes = tokio::fs::read(path).await?;
-                Ok(bytes.into())
-            }
-        }
-    }
-}
-impl TlsResolverItemInFile {
-    pub async fn resolve_from_fs(&self) -> Result<TlsCertParams, TlsResolverLoadError> {
-        if let Some(path) = self.certs.path() {
-            tracing::debug!("Loading TLS certs from file: {}", path.display());
-        }
-        let certs_bytes = TlsResolverInFile::resolve_to_bytes(&self.certs).await?;
-        if let Some(path) = self.key.path() {
-            tracing::debug!("Loading TLS key from file: {}", path.display());
-        }
-        let key_bytes = TlsResolverInFile::resolve_to_bytes(&self.key).await?;
-        let params = TlsCertParams::from_pem_file(&certs_bytes, &key_bytes)?;
-        Ok(params)
-    }
+    #[error("Resolve error: {0}")]
+    ResolveError(#[from] switchboard_custom_config::Error),
 }
 
-impl TlsResolverInFile {
-    pub async fn resolve_from_fs(&self) -> Result<TlsResolver, TlsResolverLoadError> {
+impl FileStyleTlsResolver {
+    pub async fn resolve<R: LinkResolver>(
+        self,
+        resolver: &R,
+    ) -> Result<TlsResolver, TlsResolverLoadError> {
         match self {
-            TlsResolverInFile::Single(tls_in_file) => {
-                let params = tls_in_file.resolve_from_fs().await?;
+            FileStyleTlsResolver::Single(tls_in_file) => {
+                let params = tls_in_file.resolve(resolver).await?;
+
                 Ok(TlsResolver::Single(params))
             }
-            TlsResolverInFile::Sni { sni: tls_files } => {
+            FileStyleTlsResolver::Sni { sni: tls_files } => {
                 let mut map = BTreeMap::new();
-                for tls_in_file_with_hostname in tls_files.iter() {
+                for tls_in_file_with_hostname in tls_files.into_iter() {
                     let params = tls_in_file_with_hostname
                         .tls_in_file
-                        .resolve_from_fs()
+                        .resolve(resolver)
                         .await?;
                     map.insert(tls_in_file_with_hostname.hostname.clone(), params);
                 }
                 Ok(TlsResolver::Sni(map))
             }
+        }
+    }
+}
+
+impl<ServiceConfig> crate::Config<ServiceConfig, crate::tls::FileStyleTlsResolver> {
+    pub async fn resolve_tls_with_skip<R: LinkResolver>(
+        self,
+        resolver: &R,
+    ) -> crate::Config<ServiceConfig, crate::tls::TlsResolver> {
+        let mut resolved_tls = BTreeMap::new();
+        let mut task_set = tokio::task::JoinSet::<
+            Result<(String, Tls<crate::tls::TlsResolver>), crate::tls::TlsResolverLoadError>,
+        >::new();
+        for (name, tls_in_file) in self.tls.clone().into_iter() {
+            let resolver = resolver.clone();
+            task_set.spawn(async move {
+                let resolver = tls_in_file.resolver.resolve(&resolver).await?;
+                let tls = crate::tls::Tls {
+                    resolver,
+                    options: tls_in_file.options,
+                };
+                Ok((name, tls))
+            });
+        }
+        while let Some(res) = task_set.join_next().await {
+            match res {
+                Ok(Ok((name, tls))) => {
+                    resolved_tls.insert(name, tls);
+                }
+                Ok(Err(e)) => {
+                    tracing::error!("Failed to resolve TLS: {}", e);
+                }
+                Err(e) => {
+                    tracing::error!("TLS resolve task join error: {}", e);
+                }
+            }
+        }
+        crate::Config {
+            tcp_services: self.tcp_services,
+            tcp_listeners: self.tcp_listeners,
+            tcp_routes: self.tcp_routes,
+            tls: resolved_tls,
         }
     }
 }

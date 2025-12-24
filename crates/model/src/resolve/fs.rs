@@ -32,18 +32,16 @@ pub fn default_switchboard_config_path() -> PathBuf {
 use crate::{services::http::InstanceType, *};
 use serde::{Deserialize, Serialize};
 
-#[derive(
-    Clone, Debug, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq,
-)]
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct FileTcpServiceConfig {
     pub provider: String,
     pub name: String,
-    pub config: Option<Link>,
+    pub config: Option<LinkOrValue>,
     pub description: Option<String>,
     pub binds: Vec<FileBind>,
 }
 
-#[derive(Clone, Debug, Serialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, bincode::Encode, bincode::Decode)]
 pub struct FileBind {
     pub bind: SocketAddr,
     pub tls: Option<String>,
@@ -115,28 +113,24 @@ impl FileBind {
     }
 }
 
-#[derive(
-    Clone, Debug, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq,
-)]
-pub struct FileConfig {
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct FileStyleConfig {
     #[serde(default)]
     pub tcp_services: Vec<FileTcpServiceConfig>,
     #[serde(default)]
-    pub tls: Vec<FileTls>,
+    pub tls: Vec<FileStyleTls>,
 }
 
-#[derive(
-    Clone, Debug, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq,
-)]
-pub struct FileTls {
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct FileStyleTls {
     pub name: String,
     #[serde(flatten)]
-    pub resolver: TlsResolverInFile,
+    pub resolver: FileStyleTlsResolver,
     #[serde(default)]
     pub options: Option<TlsOptions>,
 }
 
-use switchboard_custom_config::{CustomConfig, Link, LinkResolver, SerdeValue};
+use switchboard_custom_config::{LinkOrValue, LinkResolver, SerdeValue};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ResolveConfigFileError {
@@ -158,19 +152,11 @@ pub enum ResolveConfigFileError {
     },
 }
 
-pub async fn fetch_config(
-    root_config_path: &Path,
+pub async fn fetch_config<R: LinkResolver>(
+    service_config: LinkOrValue<FileStyleConfig>,
+    resolver: &R,
 ) -> Result<crate::Config, ResolveConfigFileError> {
-    let bytes = tokio::fs::read(root_config_path).await.map_err(|source| {
-        ResolveConfigFileError::ReadFile {
-            source,
-            path: root_config_path.to_path_buf(),
-        }
-    })?;
-    let format = switchboard_custom_config::fs::detect_format_from_path(root_config_path);
-    let config: FileConfig =
-        switchboard_custom_config::formats::decode_bytes(format, bytes.into())?;
-    let fs_link_resolver = switchboard_custom_config::fs::FsLinkResolver;
+    let config: FileStyleConfig = service_config.resolve(resolver).await?;
     let mut resolved_tcp_services = std::collections::BTreeMap::new();
     let mut tcp_listeners = std::collections::BTreeMap::new();
     let mut tcp_routes = BTreeMap::new();
@@ -190,11 +176,9 @@ pub async fn fetch_config(
     for service_config in config.tcp_services.into_iter() {
         let service_name = service_config.name.clone();
         let resolved_config = if let Some(link) = &service_config.config {
-            let resolved = fs_link_resolver.fetch(link).await?.value;
-            // specially handle http service config
-            tracing::debug!(%service_name, %service_config.provider, "trying to preprocess service config");
-            let resolved = fs_preprocess_service_config(&service_config.provider, resolved).await?;
-            tracing::debug!(%service_name, %service_config.provider, "finished preprocessing service config");
+            let resolved = link.clone().resolve(resolver).await?;
+            let resolved =
+                fs_preprocess_service_config(&service_config.provider, resolver, resolved).await?;
             Some(resolved)
         } else {
             None
@@ -230,18 +214,19 @@ pub async fn fetch_config(
         tcp_routes,
         tls,
     };
-    let config = config.resolve_tls_with_skip().await;
+    let config = config.resolve_tls_with_skip(resolver).await;
     Ok(config)
 }
 
-pub async fn fs_preprocess_service_config(
+pub async fn fs_preprocess_service_config<R: LinkResolver>(
     provider: &str,
+    resolver: &R,
     resolved_config: SerdeValue,
 ) -> Result<SerdeValue, ResolveConfigFileError> {
     match provider {
         "http" => {
-            let http_config = resolved_config
-                .deserialize_into::<crate::services::http::Config<Link>>()?;
+            let http_config =
+                resolved_config.deserialize_into::<crate::services::http::Config<LinkOrValue>>()?;
             let mut new_instances = BTreeMap::new();
             for (instance_id, instance_data) in http_config
                 .flow
@@ -262,11 +247,7 @@ pub async fn fs_preprocess_service_config(
                         .map(|(id, instance)| (id, instance.with_type(InstanceType::Node))),
                 )
             {
-                let resolver = switchboard_custom_config::fs::FsLinkResolver;
-                let actual_config =
-                    resolver
-                        .fetch(&instance_data.config)
-                        .await?.value;
+                let actual_config = instance_data.config.resolve(resolver).await?;
                 let resolved_instance_data = crate::services::http::InstanceData {
                     config: actual_config,
                     name: instance_data.name,
@@ -286,7 +267,7 @@ pub async fn fs_preprocess_service_config(
                 server: http_config.server,
             };
             let encoded_config = SerdeValue::serialize_from(&resolved_config)?;
-            return Ok(encoded_config);
+            Ok(encoded_config)
         }
         _ => Ok(resolved_config.clone()),
     }

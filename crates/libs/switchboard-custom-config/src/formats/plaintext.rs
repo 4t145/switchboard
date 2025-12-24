@@ -1,5 +1,7 @@
 use std::string::FromUtf8Error;
 
+use switchboard_serde_value::SerdeValue;
+
 use crate::formats::TransferObject;
 
 use super::Formats;
@@ -11,14 +13,17 @@ pub struct Plaintext;
 pub enum PlaintextDecodeError {
     #[error("UTF-8 conversion error: {0}")]
     Utf8Error(#[from] FromUtf8Error),
-    #[error("Decode target type is not String")]
-    InvalidType,
+    #[error("Serde value decode error: {0}")]
+    DecodeError(#[from] switchboard_serde_value::Error),
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum PlaintextEncodeError {
     #[error("Decode target type is not String")]
     InvalidType,
+
+    #[error("Serde value encode error: {0}")]
+    EncodeError(#[from] switchboard_serde_value::Error),
 }
 
 impl Formats for Plaintext {
@@ -30,24 +35,21 @@ impl Formats for Plaintext {
     }
 
     fn decode_bytes<T: TransferObject>(&self, bytes: bytes::Bytes) -> Result<T, Self::DecodeError> {
-        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<String>() {
-            let s = String::from_utf8(bytes.to_vec())?;
-            // SAFETY: We just checked that T is String
-            let t = unsafe { std::mem::transmute_copy::<String, T>(&s) };
-            std::mem::forget(s);
-            Ok(t)
-        } else {
-            Err(PlaintextDecodeError::InvalidType)
-        }
+        let s = String::from_utf8(bytes.to_vec())?;
+        let value = SerdeValue::String(s);
+        let value = value.deserialize_into()?;
+        Ok(value)
     }
 
-    fn encode_bytes<T: TransferObject>(&self, value: &T) -> Result<bytes::Bytes, Self::EncodeError> {
-        let vec = if std::any::TypeId::of::<T>() == std::any::TypeId::of::<String>() {
-            let s: &String = unsafe { &*(value as *const T as *const String) };
-            s.as_bytes().to_vec()
-        } else {
-            return Err(PlaintextEncodeError::InvalidType);
-        };
-        Ok(bytes::Bytes::from(vec))
+    fn encode_bytes<T: TransferObject>(
+        &self,
+        value: &T,
+    ) -> Result<bytes::Bytes, Self::EncodeError> {
+        let value: SerdeValue =
+            SerdeValue::serialize_from(value).map_err(|_| PlaintextEncodeError::InvalidType)?;
+        match value {
+            SerdeValue::String(s) => Ok(bytes::Bytes::from(s.into_bytes())),
+            _ => Err(PlaintextEncodeError::InvalidType),
+        }
     }
 }

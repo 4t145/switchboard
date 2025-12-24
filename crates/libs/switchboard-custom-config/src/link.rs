@@ -1,6 +1,6 @@
 use std::{path::{Path, PathBuf}, str::FromStr};
 
-use crate::CustomConfig;
+use crate::{ConfigWithFormat, formats::TransferObject};
 
 impl From<PathBuf> for Link {
     fn from(path: PathBuf) -> Self {
@@ -35,11 +35,11 @@ impl<'de> serde::Deserialize<'de> for Link {
     }
 }
 
-impl ToString for Link {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for Link {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Link::Fs { path } => format!("file://{}", path.to_string_lossy()),
-            Link::Http { url } => url.clone(),
+            Link::Fs { path } => write!(f, "file://{}", path.to_string_lossy()),
+            Link::Http { url } => write!(f, "{}", url),
         }
     }
 }
@@ -83,11 +83,11 @@ impl Link {
         matches!(self, Link::Http { .. })
     }
 }
-pub trait LinkResolver {
-    fn fetch(&self, link: &Link) -> impl Future<Output = Result<CustomConfig, crate::Error>> + Send;
-    fn upload(
+pub trait LinkResolver: Clone + Send + Sync + 'static {
+    fn fetch<V: TransferObject>(&self, link: &Link) -> impl Future<Output = Result<ConfigWithFormat<V>, crate::Error>> + Send;
+    fn upload<V: TransferObject>(
         &self,
         link: &Link,
-        config: &CustomConfig,
+        config: &ConfigWithFormat<V>,
     ) -> impl Future<Output = Result<(), crate::Error>> + Send;
 }

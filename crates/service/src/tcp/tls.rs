@@ -11,7 +11,7 @@ where
             Some(tls_acceptor) => {
                 let tls_stream = tls_acceptor.accept(stream).await?;
                 Ok(TcpAccepted {
-                    stream: MaybeTlsStream::Tls(tls_stream),
+                    stream: MaybeTlsStream::Tls(Box::new(tls_stream)),
                     context,
                 })
             }
@@ -24,13 +24,13 @@ where
 }
 
 pub enum MaybeTlsStream<S> {
-    Tls(tokio_rustls::server::TlsStream<S>),
+    Tls(Box<tokio_rustls::server::TlsStream<S>>),
     Plain(S),
 }
 
 impl<S> MaybeTlsStream<S> {
     pub fn new_tls(stream: tokio_rustls::server::TlsStream<S>) -> Self {
-        MaybeTlsStream::Tls(stream)
+        MaybeTlsStream::Tls(Box::new(stream))
     }
 
     pub fn new_plain(stream: S) -> Self {

@@ -11,7 +11,7 @@ use gateway_api::httproutes::{
 use http::HeaderName;
 use kube::{ResourceExt, api::ListParams};
 use serde::{Deserialize, Serialize};
-use switchboard_custom_config::CustomConfig;
+use switchboard_custom_config::ConfigWithFormat;
 use switchboard_http_router::{
     rule::{HeaderMatch, QueryMatch, RuleMatch},
     serde::rule::{
@@ -196,7 +196,7 @@ impl K8sGatewayGatewayData {
                 for rule in rules {}
             }
         }
-        let mut flow_config = FlowConfig::<CustomConfig> {
+        let mut flow_config = FlowConfig::<ConfigWithFormat> {
             entrypoint: NodeTarget {
                 id: default_router_id.clone(),
                 port: NodePort::Default,
