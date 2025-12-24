@@ -1,4 +1,4 @@
-config = "examples/config/config.toml"
+config = "file://examples/config/config.toml"
 
 [info]
 name = "Switchboard Kernel"

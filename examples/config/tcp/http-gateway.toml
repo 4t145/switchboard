@@ -8,7 +8,7 @@ config = "file://examples/config/tcp/http-gateway/router.toml"
 
 [flow.nodes."api-service"]
 class = "reverse-proxy"
-config = "file://examples/config/tcp/http-gateway/api-service.toml"
+config = { backend = "localhost:8081", schema = "http" }
 
 [flow.nodes."frontend-service"]
 class = "reverse-proxy"
@@ -24,4 +24,4 @@ config = "file://examples/config/tcp/http-gateway/i-am-healthy.toml"
 
 [flow.filters."rewrite-rest"]
 class = "url-rewrite"
-config = "file://examples/config/tcp/http-gateway/rewrite-rest.toml"
+config = { path = "/{rest}" }
