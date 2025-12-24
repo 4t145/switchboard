@@ -2,11 +2,12 @@ use std::net::SocketAddr;
 
 use switchboard_model::Tls;
 use switchboard_custom_config::CustomConfig;
+use switchboard_service::SerdeValue;
 // use switchboard_service::tcp::RunningTcpService;
 
 use super::RegistryError;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct TcpServiceInfo {
     // id is the unique identifier of the TCP service
     pub id: String,
@@ -14,7 +15,7 @@ pub struct TcpServiceInfo {
     pub bind: SocketAddr,
     // if provider or config changed, we can update inner service
     pub provider: String,
-    pub config: Option<CustomConfig>,
+    pub config: Option<SerdeValue>,
     // if name or description changed, we can just update metadata
     pub name: Option<String>,
     pub bind_description: Option<String>,

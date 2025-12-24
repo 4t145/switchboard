@@ -2,5 +2,8 @@
     "cSpell.words": [
         "switchboard",
         "thiserror"
+    ],
+    "rust-analyzer.cargo.features": [
+        "bincode"
     ]
 }

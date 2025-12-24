@@ -1,0 +1,7 @@
+{
+    "name": "json",
+    "inline_config": {
+        "field": "value"
+    },
+    "linked_config": "file://to/some/other/path/config.json"
+}

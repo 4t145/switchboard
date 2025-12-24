@@ -101,9 +101,8 @@ impl KernelGrpcConnection {
     ) -> Result<(), KernelGrpcConnectionError> {
         let version = new_config.digest_sha256_base64();
         const FORMAT: &str = "bincode";
-        let config_bytes =
-            switchboard_custom_config::formats::encode_bytes(FORMAT.as_bytes(), new_config)
-                .map_err(|e| tonic::Status::internal(format!("Config encode error: {}", e)))?;
+        let config_bytes = switchboard_custom_config::formats::encode_bytes(FORMAT, new_config)
+            .map_err(|e| tonic::Status::internal(format!("Config encode error: {}", e)))?;
         let request = switchboard_kernel_control::kernel::UpdateConfigRequest {
             format: FORMAT.to_string(),
             config: config_bytes.to_vec(),

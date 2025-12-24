@@ -136,7 +136,7 @@ pub struct FileTls {
     pub options: Option<TlsOptions>,
 }
 
-use switchboard_custom_config::{CustomConfig, Link, LinkResolver};
+use switchboard_custom_config::{CustomConfig, Link, LinkResolver, SerdeValue};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ResolveConfigFileError {
@@ -146,14 +146,10 @@ pub enum ResolveConfigFileError {
         source: std::io::Error,
         path: PathBuf,
     },
-    #[error("Decode config error")]
-    DecodeConfig(#[from] switchboard_custom_config::Error),
-    #[error("Link resolution error")]
-    LinkResolution {
-        #[source]
-        source: std::io::Error,
-        link: String,
-    },
+    #[error("Value deserialize error")]
+    ValueDeserialize(#[from] switchboard_custom_config::SerdeValueError),
+    #[error("config error")]
+    ConfigError(#[from] switchboard_custom_config::Error),
     #[error("Resolve tls cert error")]
     ResolveTlsCert {
         #[source]
@@ -194,12 +190,7 @@ pub async fn fetch_config(
     for service_config in config.tcp_services.into_iter() {
         let service_name = service_config.name.clone();
         let resolved_config = if let Some(link) = &service_config.config {
-            let resolved = fs_link_resolver.fetch(link).await.map_err(|source| {
-                ResolveConfigFileError::LinkResolution {
-                    source,
-                    link: link.0.clone(),
-                }
-            })?;
+            let resolved = fs_link_resolver.fetch(link).await?.value;
             // specially handle http service config
             tracing::debug!(%service_name, %service_config.provider, "trying to preprocess service config");
             let resolved = fs_preprocess_service_config(&service_config.provider, resolved).await?;
@@ -245,11 +236,12 @@ pub async fn fetch_config(
 
 pub async fn fs_preprocess_service_config(
     provider: &str,
-    resolved_config: CustomConfig,
-) -> Result<CustomConfig, ResolveConfigFileError> {
+    resolved_config: SerdeValue,
+) -> Result<SerdeValue, ResolveConfigFileError> {
     match provider {
         "http" => {
-            let http_config = resolved_config.decode::<crate::services::http::Config<Link>>()?;
+            let http_config = resolved_config
+                .deserialize_into::<crate::services::http::Config<Link>>()?;
             let mut new_instances = BTreeMap::new();
             for (instance_id, instance_data) in http_config
                 .flow
@@ -274,11 +266,7 @@ pub async fn fs_preprocess_service_config(
                 let actual_config =
                     resolver
                         .fetch(&instance_data.config)
-                        .await
-                        .map_err(|source| ResolveConfigFileError::LinkResolution {
-                            source,
-                            link: instance_data.config.0.clone(),
-                        })?;
+                        .await?.value;
                 let resolved_instance_data = crate::services::http::InstanceData {
                     config: actual_config,
                     name: instance_data.name,
@@ -297,7 +285,7 @@ pub async fn fs_preprocess_service_config(
                 },
                 server: http_config.server,
             };
-            let encoded_config = CustomConfig::encode("bincode", &resolved_config)?;
+            let encoded_config = SerdeValue::serialize_from(&resolved_config)?;
             return Ok(encoded_config);
         }
         _ => Ok(resolved_config.clone()),

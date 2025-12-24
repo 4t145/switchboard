@@ -7,8 +7,7 @@ use std::{
 };
 
 use switchboard_service::{
-    CustomConfig, PayloadError, TcpServiceProvider,
-    tcp::{AsyncStream, TcpService},
+    SerdeValue, SerdeValueError,TcpServiceProvider, tcp::{AsyncStream, TcpService}
 };
 
 use tokio::io;
@@ -80,10 +79,10 @@ pub struct UdsProvider;
 impl TcpServiceProvider for UdsProvider {
     const NAME: &'static str = "uds";
     type Service = Uds;
-    type Error = PayloadError;
+    type Error = SerdeValueError;
 
-    async fn construct(&self, config: Option<CustomConfig>) -> Result<Self::Service, Self::Error> {
-        let config: String = config.unwrap_or_default().decode()?;
+    async fn construct(&self, config: Option<SerdeValue>) -> Result<Self::Service, Self::Error> {
+        let config: String = config.unwrap_or_default().deserialize_into()?;
         let to = PathBuf::from_str(&config).expect("infallible error");
         Ok(Uds { to })
     }

@@ -1,4 +1,4 @@
-use crate::formats::PayloadObject;
+use crate::formats::TransferObject;
 
 use super::Formats;
 
@@ -13,12 +13,12 @@ impl Formats for Json {
         "json"
     }
 
-    fn decode_bytes<T: PayloadObject>(&self, bytes: bytes::Bytes) -> Result<T, Self::DecodeError> {
+    fn decode_bytes<T: TransferObject>(&self, bytes: bytes::Bytes) -> Result<T, Self::DecodeError> {
         let t = serde_json::from_slice(&bytes)?;
         Ok(t)
     }
 
-    fn encode_bytes<T: PayloadObject>(&self, value: &T) -> Result<bytes::Bytes, Self::EncodeError> {
+    fn encode_bytes<T: TransferObject>(&self, value: &T) -> Result<bytes::Bytes, Self::EncodeError> {
         let vec = serde_json::to_vec(value)?;
         Ok(bytes::Bytes::from(vec))
     }

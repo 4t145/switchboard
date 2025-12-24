@@ -8,7 +8,8 @@ pub mod url_rewrite;
 use std::sync::Arc;
 
 use futures::future::BoxFuture;
-use switchboard_model::services::http::*;
+use serde::de::DeserializeOwned;
+use switchboard_model::{custom_config::formats::TransferObject, services::http::*};
 
 use crate::{
     DynRequest, DynResponse, IntoDynResponse,
@@ -99,7 +100,7 @@ impl Filter {
 pub trait FilterClass: Send + Sync + 'static {
     type Filter: FilterLike;
     type Error: std::error::Error + Send + Sync + 'static;
-    type Config: switchboard_service::PayloadObject;
+    type Config: DeserializeOwned;
     fn id(&self) -> ClassId;
     fn meta(&self) -> ClassMeta {
         ClassMeta::from_env()

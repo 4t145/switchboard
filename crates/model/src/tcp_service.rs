@@ -1,11 +1,21 @@
 use serde::{Deserialize, Serialize};
-use switchboard_custom_config::CustomConfig;
+use switchboard_custom_config::SerdeValue;
 
-#[derive(Clone, Debug, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq)]
-#[derive(bon::Builder)]
+#[derive(
+    Clone,
+    Debug,
+    Serialize,
+    Deserialize,
+    Hash,
+    bincode::Encode,
+    bincode::Decode,
+    PartialEq,
+    Eq,
+    bon::Builder,
+)]
 #[serde(rename_all = "camelCase")]
 #[builder(on(String, into))]
-pub struct TcpServiceConfig<Cfg = CustomConfig> {
+pub struct TcpServiceConfig<Cfg = SerdeValue> {
     pub provider: String,
     pub name: String,
     pub config: Option<Cfg>,
@@ -15,12 +25,15 @@ pub struct TcpServiceConfig<Cfg = CustomConfig> {
 pub type TcpServiceConfigWithLink = TcpServiceConfig<switchboard_custom_config::Link>;
 
 impl TcpServiceConfigWithLink {
-    pub async fn resolve_links<R>(self, resolver: &R) -> Result<TcpServiceConfig, R::Error>
+    pub async fn resolve_links<R>(
+        self,
+        resolver: &R,
+    ) -> Result<TcpServiceConfig, switchboard_custom_config::Error>
     where
         R: switchboard_custom_config::LinkResolver,
     {
         if let Some(linked_config) = self.config {
-            let resolved_config = resolver.fetch(&linked_config).await?;
+            let resolved_config = resolver.fetch(&linked_config).await?.value;
             Ok(TcpServiceConfig {
                 provider: self.provider,
                 name: self.name,
@@ -28,7 +41,6 @@ impl TcpServiceConfigWithLink {
                 description: self.description,
             })
         } else {
-            
             Ok(TcpServiceConfig {
                 provider: self.provider,
                 name: self.name,

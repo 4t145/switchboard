@@ -1,6 +1,7 @@
 use std::{net::SocketAddr, sync::Arc};
 use switchboard_model::TcpServiceConfig;
 use switchboard_service::{
+    TcpServiceProvider,
     registry::{ServiceProviderRegistry, ServiceProviderRegistryError},
     tcp::SharedTcpService,
 };
@@ -8,6 +9,8 @@ mod handle;
 
 pub use handle::*;
 use tokio::sync::RwLock;
+
+use crate::KernelContext;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RegistryError {
@@ -52,7 +55,17 @@ impl Registry {
             .await?;
         Ok(service)
     }
-    pub async fn load_prelude(&self) {
-        crate::register_prelude(&mut *self.registry.write().await);
+    // pub async fn load_prelude(&self) {
+    //     crate::register_prelude(&mut *self.registry.write().await);
+    // }
+}
+
+impl KernelContext {
+    pub async fn register_service<P: TcpServiceProvider>(&self, provider: P) {
+        self.registry
+            .registry
+            .write()
+            .await
+            .register_tcp_provider(provider);
     }
 }

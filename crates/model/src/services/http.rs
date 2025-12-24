@@ -1,10 +1,10 @@
 use schemars::{JsonSchema, Schema};
 use serde::{Deserialize, Serialize};
-use switchboard_custom_config::CustomConfig;
+use switchboard_custom_config::{CustomConfig, SerdeValue};
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(rename_all = "camelCase")]
-pub struct Config<Cfg = CustomConfig> {
+pub struct Config<Cfg = SerdeValue> {
     pub flow: FlowConfig<Cfg>,
     #[serde(default)]
     pub server: ServerConfig,
@@ -37,7 +37,7 @@ pub enum HttpVersion {
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(rename_all = "camelCase")]
-pub struct FlowConfig<Cfg = CustomConfig> {
+pub struct FlowConfig<Cfg = SerdeValue> {
     pub entrypoint: NodeTarget,
     #[serde(alias = "instance")]
     #[serde(default = "BTreeMap::new", skip_serializing_if = "BTreeMap::is_empty")]

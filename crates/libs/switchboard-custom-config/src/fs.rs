@@ -2,62 +2,54 @@ use std::ffi::OsStr;
 
 use crate::{Link, link::LinkResolver};
 
-pub fn detect_format_from_path(path: &std::path::Path) -> &[u8] {
+pub fn detect_format_from_path(path: &std::path::Path) -> &str {
     match path.extension().and_then(OsStr::to_str) {
-        Some("bincode") => b"bincode",
-        Some("json") => b"json",
-        Some("toml") => b"toml",
-        Some("toon") => b"toon",
+        Some("bincode") => "bincode",
+        Some("json") => "json",
+        Some("toml") => "toml",
+        Some("toon") => "toon",
         _ => {
             // decode as plaintext by default
-            b"plaintext"
+            "plaintext"
         }
     }
 }
 
 impl crate::CustomConfig {
-    pub async fn read_from_file(path: &std::path::Path) -> Result<Self, std::io::Error> {
+    pub async fn read_from_file(path: &std::path::Path) -> Result<Self, crate::Error> {
         // read file type
         let format = detect_format_from_path(path);
-        let data = tokio::fs::read(path).await?;
-        Ok(crate::CustomConfig::new(format, data))
+        let data = tokio::fs::read(path)
+            .await
+            .map_err(|e| crate::Error::resolve_error(e, Link::from(path.to_path_buf())))?;
+        Ok(crate::CustomConfig::decode(format, data.into())?)
     }
-    pub async fn save_to_file(&self, path: &std::path::Path) -> Result<(), std::io::Error> {
-        let (format, parts) = self.clone().into_parts();
-        let format_str = String::from_utf8(format).unwrap_or_default();
+    pub async fn save_to_file(&self, path: &std::path::Path) -> Result<(), crate::Error> {
         let mut path = path.to_path_buf();
-        path.set_extension(format_str);
-        tokio::fs::write(path, parts).await
+        path.set_extension(&self.format);
+        let bytes = self.encode()?;
+        tokio::fs::write(&path, bytes)
+            .await
+            .map_err(|e| crate::Error::resolve_error(e, Link::from(path.to_path_buf())))?;
+        Ok(())
     }
 }
 
 pub struct FsLinkResolver;
 impl LinkResolver for FsLinkResolver {
-    type Error = std::io::Error;
-
-    async fn fetch(&self, link: &Link) -> Result<crate::CustomConfig, Self::Error> {
-        if link.0.starts_with("file://") {
-            let path_str = &link.0[7..];
-            let path = std::path::Path::new(path_str);
+    async fn fetch(&self, link: &Link) -> Result<crate::CustomConfig, crate::Error> {
+        if let Some(path) = link.as_file_path() {
             crate::CustomConfig::read_from_file(path).await
         } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidInput,
-                "Unsupported link scheme",
-            ))
+            Err(crate::Error::resolve_error("Not a file link", link.clone()))
         }
     }
 
-    async fn upload(&self, link: &Link, config: &crate::CustomConfig) -> Result<(), Self::Error> {
-        if link.0.starts_with("file://") {
-            let path_str = &link.0[7..];
-            let path = std::path::Path::new(path_str);
+    async fn upload(&self, link: &Link, config: &crate::CustomConfig) -> Result<(), crate::Error> {
+        if let Some(path) = link.as_file_path() {
             config.save_to_file(path).await
         } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidInput,
-                "Unsupported link scheme",
-            ))
+            Err(crate::Error::resolve_error("Not a file link", link.clone()))
         }
     }
 }

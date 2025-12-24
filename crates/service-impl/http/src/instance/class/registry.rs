@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-use switchboard_service::CustomConfig;
+use switchboard_service::SerdeValue;
 use tokio::sync::RwLock;
 
 use crate::{
@@ -62,7 +62,7 @@ impl ClassRegistry {
     pub fn construct(
         &self,
         class_id: ClassId,
-        config: CustomConfig,
+        config: SerdeValue,
     ) -> Result<InstanceValue, ClassRegistryError> {
         let class_data = self
             .class_data

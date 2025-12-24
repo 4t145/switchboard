@@ -3,13 +3,15 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-use switchboard_custom_config::CustomConfig;
+use crate::SerdeValue;
 use tokio::sync::RwLock;
 
 use crate::{
-    BoxTcpServiceProvider, BoxedError, DynTcpServiceProvider, TcpServiceProvider,
-    tcp::SharedTcpService
-    // tcp::{DynTcpService, tls::TlsService},
+    BoxTcpServiceProvider,
+    BoxedError,
+    DynTcpServiceProvider,
+    TcpServiceProvider,
+    tcp::SharedTcpService, // tcp::{DynTcpService, tls::TlsService},
 };
 
 pub struct ServiceProviderRegistry {
@@ -27,7 +29,7 @@ impl ServiceProviderRegistry {
     pub async fn construct_tcp(
         &self,
         name: &str,
-        config: Option<CustomConfig>,
+        config: Option<SerdeValue>,
     ) -> Result<SharedTcpService, ServiceProviderRegistryError> {
         let provider = self.tcp.get(name).ok_or_else(|| {
             ServiceProviderRegistryError::ServiceProviderNotFound(name.to_owned())

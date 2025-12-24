@@ -113,7 +113,7 @@ impl KernelService for KernelServiceImpl {
         let config_data = request.config;
         let controller_send_version = request.version;
         // parse config
-        let decode_result = decode_bytes(format.as_bytes(), config_data.into());
+        let decode_result = decode_bytes(&format, config_data.into());
         let config: Config = match decode_result {
             Err(e) => {
                 let status = tonic::Status::invalid_argument(format!(

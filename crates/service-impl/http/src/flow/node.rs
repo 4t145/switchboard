@@ -2,10 +2,11 @@ use std::sync::Arc;
 
 use futures::future::BoxFuture;
 use schemars::{JsonSchema, Schema, schema_for};
+use serde::de::DeserializeOwned;
 
 use crate::{DynRequest, DynResponse, flow::FlowContext, instance::class::Class};
 
-use switchboard_model::services::http::{ClassId, ClassMeta, InstanceType, NodeInterface};
+use switchboard_model::{custom_config::formats::TransferObject, services::http::{ClassId, ClassMeta, InstanceType, NodeInterface}};
 pub type NodeFn =
     dyn Fn(DynRequest, &mut FlowContext) -> BoxFuture<'_, DynResponse> + Send + Sync + 'static;
 #[derive(Clone)]
@@ -56,15 +57,15 @@ pub trait IntoNode {
 }
 
 pub trait NodeType {
-    type Config: switchboard_service::PayloadObject + JsonSchema;
+    type Config: DeserializeOwned;
     type Error: std::error::Error + Send + Sync + 'static;
     fn id(&self) -> ClassId;
     fn meta(&self) -> ClassMeta {
         ClassMeta::default()
     }
-    fn schema(&self) -> Schema {
-        schema_for!(Self::Config)
-    }
+    // fn schema(&self) -> Schema {
+    //     schema_for!(Self::Config)
+    // }
     fn construct(&self, config: Self::Config) -> Result<Node, Self::Error>;
 }
 
@@ -72,7 +73,7 @@ pub struct AsNodeClass<N>(pub N);
 pub trait NodeClass: Send + Sync + 'static {
     type Node: NodeLike;
     type Error: std::error::Error + Send + Sync + 'static;
-    type Config: switchboard_service::PayloadObject;
+    type Config: DeserializeOwned;
     fn id(&self) -> ClassId;
     fn meta(&self) -> ClassMeta {
         ClassMeta::from_env()

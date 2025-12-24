@@ -1,12 +1,8 @@
 use std::{collections::HashSet, sync::Arc};
 
 use registry::Registry;
-use switchboard_http::HttpProvider;
 use switchboard_model::kernel::{KernelState, KernelStateKind};
-use switchboard_pf::PortForwardProvider;
-use switchboard_service::{registry::ServiceProviderRegistry, tcp::TcpListener};
-use switchboard_socks5::Socks5Provider;
-use switchboard_uds::UdsProvider;
+use switchboard_service::tcp::TcpListener;
 
 pub mod config;
 pub mod controller;
@@ -17,14 +13,6 @@ pub use switchboard_model as model;
 use tokio::sync::RwLock;
 
 use crate::{config::KernelConfig, switchboard::tcp::TcpSwitchboard};
-
-pub fn register_prelude(registry: &mut ServiceProviderRegistry) {
-    // Register the prelude services
-    registry.register_tcp_provider(Socks5Provider);
-    registry.register_tcp_provider(PortForwardProvider);
-    registry.register_tcp_provider(HttpProvider);
-    registry.register_tcp_provider(UdsProvider);
-}
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -82,10 +70,6 @@ impl KernelContext {
                 None
             }
         };
-        // preload
-        {
-            self.registry.load_prelude().await;
-        }
         // start tcp switchboard
         {
             self.tcp_switchboard.write().await.ensure_running();

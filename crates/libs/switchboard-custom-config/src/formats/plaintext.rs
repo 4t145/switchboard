@@ -1,6 +1,6 @@
 use std::string::FromUtf8Error;
 
-use crate::formats::PayloadObject;
+use crate::formats::TransferObject;
 
 use super::Formats;
 
@@ -29,7 +29,7 @@ impl Formats for Plaintext {
         "plaintext"
     }
 
-    fn decode_bytes<T: PayloadObject>(&self, bytes: bytes::Bytes) -> Result<T, Self::DecodeError> {
+    fn decode_bytes<T: TransferObject>(&self, bytes: bytes::Bytes) -> Result<T, Self::DecodeError> {
         if std::any::TypeId::of::<T>() == std::any::TypeId::of::<String>() {
             let s = String::from_utf8(bytes.to_vec())?;
             // SAFETY: We just checked that T is String
@@ -41,7 +41,7 @@ impl Formats for Plaintext {
         }
     }
 
-    fn encode_bytes<T: PayloadObject>(&self, value: &T) -> Result<bytes::Bytes, Self::EncodeError> {
+    fn encode_bytes<T: TransferObject>(&self, value: &T) -> Result<bytes::Bytes, Self::EncodeError> {
         let vec = if std::any::TypeId::of::<T>() == std::any::TypeId::of::<String>() {
             let s: &String = unsafe { &*(value as *const T as *const String) };
             s.as_bytes().to_vec()

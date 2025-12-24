@@ -1,7 +1,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use futures::{FutureExt, future::BoxFuture};
-pub use switchboard_custom_config::{CustomConfig, Error as PayloadError, formats::PayloadObject};
+pub use switchboard_serde_value::{Error as SerdeValueError, SerdeValue};
 use tcp::{SharedTcpService, TcpService};
 use tokio::io::AsyncRead;
 use udp::UdpService;
@@ -56,7 +56,7 @@ pub trait TcpServiceProvider: Send + Sync + 'static {
     }
     fn construct(
         &self,
-        config: Option<CustomConfig>,
+        config: Option<SerdeValue>,
     ) -> impl Future<Output = Result<Self::Service, Self::Error>> + Send + '_;
 }
 
@@ -67,7 +67,7 @@ pub trait DynTcpServiceProvider: Send + Sync + 'static {
     fn name(&self) -> Cow<'static, str>;
     fn construct(
         &self,
-        config: Option<CustomConfig>,
+        config: Option<SerdeValue>,
     ) -> BoxFuture<'_, Result<SharedTcpService, BoxedError>>;
 }
 
@@ -80,7 +80,7 @@ impl<T: TcpServiceProvider> DynTcpServiceProvider for T {
     }
     fn construct(
         &self,
-        config: Option<CustomConfig>,
+        config: Option<SerdeValue>,
     ) -> BoxFuture<'_, Result<SharedTcpService, BoxedError>> {
         self.construct(config)
             .map(|result| {

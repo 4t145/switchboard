@@ -10,6 +10,7 @@ pub mod listener;
 pub use listener::*;
 pub mod tag;
 use serde::{Deserialize, Serialize};
+use switchboard_custom_config::SerdeValue;
 pub use tag::*;
 pub mod tcp_service;
 pub use tcp_service::*;
@@ -36,7 +37,7 @@ pub enum ConfigEvent {
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode)]
 #[serde(rename_all = "camelCase")]
 pub struct Config<
-    ServiceConfig = switchboard_custom_config::CustomConfig,
+    ServiceConfig = SerdeValue,
     TlsResolver = crate::tls::TlsResolver,
 > {
     pub tcp_services: BTreeMap<String, TcpServiceConfig<ServiceConfig>>,

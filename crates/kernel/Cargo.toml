@@ -14,10 +14,7 @@ switchboard-model = { workspace = true }
 switchboard-custom-config = { workspace = true }
 switchboard-kernel-control = { workspace = true, default-features = false, features = ["server"] }
 switchboard-service = { workspace = true }
-switchboard-socks5 = { path = "../service-impl/socks5" }
-switchboard-pf = { path = "../service-impl/pf" }
-switchboard-uds = { path = "../service-impl/uds" }
-switchboard-http = { path = "../service-impl/http" }
+
 
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true }

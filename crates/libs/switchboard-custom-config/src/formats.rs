@@ -9,8 +9,8 @@ pub trait Formats {
     type EncodeError: std::error::Error + Send + Sync + 'static;
     type DecodeError: std::error::Error + Send + Sync + 'static;
     fn format_name(&self) -> &'static str;
-    fn decode_bytes<T: PayloadObject>(&self, bytes: Bytes) -> Result<T, Self::DecodeError>;
-    fn encode_bytes<T: PayloadObject>(&self, value: &T) -> Result<Bytes, Self::EncodeError>;
+    fn decode_bytes<T: TransferObject>(&self, bytes: Bytes) -> Result<T, Self::DecodeError>;
+    fn encode_bytes<T: TransferObject>(&self, value: &T) -> Result<Bytes, Self::EncodeError>;
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -53,7 +53,7 @@ impl EncodeError {
     }
 }
 
-pub trait PayloadObject:
+pub trait TransferObject:
     serde::Serialize
     + serde::de::DeserializeOwned
     + ::bincode::Encode
@@ -62,7 +62,7 @@ pub trait PayloadObject:
 {
 }
 
-impl<T> PayloadObject for T where
+impl<T> TransferObject for T where
     T: serde::Serialize
         + serde::de::DeserializeOwned
         + ::bincode::Encode
@@ -71,33 +71,37 @@ impl<T> PayloadObject for T where
 {
 }
 
-pub fn decode_bytes<T: PayloadObject>(format: &[u8], bytes: Bytes) -> Result<T, crate::Error> {
+pub fn decode_bytes<T: TransferObject>(
+    format: impl AsRef<str>,
+    bytes: Bytes,
+) -> Result<T, crate::Error> {
+    let format = format.as_ref();
     let value = match format {
-        b"bincode" => {
+        "bincode" => {
             let formatter = bincode::Bincode;
             formatter
                 .decode_bytes::<T>(bytes)
                 .map_err(|e| DecodeError::new(e, formatter.format_name()))?
         }
-        b"json" => {
+        "json" => {
             let formatter = json::Json;
             formatter
                 .decode_bytes::<T>(bytes)
                 .map_err(|e| DecodeError::new(e, formatter.format_name()))?
         }
-        b"toml" => {
+        "toml" => {
             let formatter = toml::Toml;
             formatter
                 .decode_bytes::<T>(bytes)
                 .map_err(|e| DecodeError::new(e, formatter.format_name()))?
         }
-        b"toon" => {
+        "toon" => {
             let formatter = toon::Toon;
             formatter
                 .decode_bytes::<T>(bytes)
                 .map_err(|e| DecodeError::new(e, formatter.format_name()))?
         }
-        b"plaintext" => {
+        "plaintext" => {
             let formatter = plaintext::Plaintext;
             formatter
                 .decode_bytes::<T>(bytes)
@@ -105,40 +109,41 @@ pub fn decode_bytes<T: PayloadObject>(format: &[u8], bytes: Bytes) -> Result<T, 
         }
         _ => {
             return Err(crate::Error::UnknownFormat {
-                format: format.to_vec(),
+                format: format.to_string(),
             });
         }
     };
     Ok(value)
 }
 
-pub fn encode_bytes<T: PayloadObject>(format: &[u8], value: &T) -> Result<Bytes, crate::Error> {
+pub fn encode_bytes<T: TransferObject>(format: impl AsRef<str>, value: &T) -> Result<Bytes, crate::Error> {
+    let format = format.as_ref();
     let bytes = match format {
-        b"bincode" => {
+        "bincode" => {
             let formatter = bincode::Bincode;
             formatter
                 .encode_bytes::<T>(value)
                 .map_err(|e| EncodeError::new(e, formatter.format_name()))?
         }
-        b"json" => {
+        "json" => {
             let formatter = json::Json;
             formatter
                 .encode_bytes::<T>(value)
                 .map_err(|e| EncodeError::new(e, formatter.format_name()))?
         }
-        b"toml" => {
+        "toml" => {
             let formatter = toml::Toml;
             formatter
                 .encode_bytes::<T>(value)
                 .map_err(|e| EncodeError::new(e, formatter.format_name()))?
         }
-        b"toon" => {
+        "toon" => {
             let formatter = toon::Toon;
             formatter
                 .encode_bytes::<T>(value)
                 .map_err(|e| EncodeError::new(e, formatter.format_name()))?
         }
-        b"plaintext" => {
+        "plaintext" => {
             let formatter = plaintext::Plaintext;
             formatter
                 .encode_bytes::<T>(value)
@@ -146,10 +151,9 @@ pub fn encode_bytes<T: PayloadObject>(format: &[u8], value: &T) -> Result<Bytes,
         }
         _ => {
             return Err(crate::Error::UnknownFormat {
-                format: format.to_vec(),
+                format: format.to_string(),
             });
         }
     };
     Ok(bytes)
 }
-

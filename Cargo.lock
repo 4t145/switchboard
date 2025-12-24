@@ -1165,17 +1165,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
-name = "erased-serde"
-version = "0.4.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89e8918065695684b2b0702da20382d5ae6065cf3327bc2d6436bd49a71ce9f3"
-dependencies = [
- "serde",
- "serde_core",
- "typeid",
-]
-
-[[package]]
 name = "errno"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3050,7 +3039,11 @@ dependencies = [
  "clap",
  "rustls",
  "serde_json",
+ "switchboard-http",
  "switchboard-kernel",
+ "switchboard-pf",
+ "switchboard-socks5",
+ "switchboard-uds",
  "tokio",
  "toml",
  "tracing",
@@ -3903,10 +3896,10 @@ dependencies = [
  "base64",
  "bincode 2.0.1",
  "bytes",
- "erased-serde",
  "serde",
  "serde_json",
  "serde_toon",
+ "switchboard-serde-value",
  "thiserror 2.0.17",
  "tokio",
  "toml",
@@ -3980,13 +3973,9 @@ dependencies = [
  "serde",
  "serde_json",
  "switchboard-custom-config",
- "switchboard-http",
  "switchboard-kernel-control",
  "switchboard-model",
- "switchboard-pf",
  "switchboard-service",
- "switchboard-socks5",
- "switchboard-uds",
  "thiserror 2.0.17",
  "tokio",
  "tokio-rustls",
@@ -4045,13 +4034,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "switchboard-serde-value"
+version = "0.1.0"
+dependencies = [
+ "bincode 2.0.1",
+ "serde",
+ "serde_json",
+ "toml",
+]
+
+[[package]]
 name = "switchboard-service"
 version = "0.1.0"
 dependencies = [
  "futures",
  "pin-project-lite",
  "rustls",
- "switchboard-custom-config",
+ "switchboard-serde-value",
  "thiserror 2.0.17",
  "tokio",
  "tokio-rustls",
@@ -4634,12 +4633,6 @@ name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
-
-[[package]]
-name = "typeid"
-version = "1.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc7d623258602320d5c55d1bc22793b57daff0ec7efc270ea7d55ce1d5f5471c"
 
 [[package]]
 name = "typenum"

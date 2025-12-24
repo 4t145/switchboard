@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-
+mod register;
 use clap::Parser;
 use switchboard_kernel::{KernelContext, config::KernelConfig};
 
@@ -25,6 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::debug!("Starting kernel with config: {:?}", kernel_config);
     let context = KernelContext::new(kernel_config);
+    register::register_prelude(&context).await;
     tracing::info!("Kernel starting up...");
     context.startup().await?;
     tracing::info!("Kernel startup complete");

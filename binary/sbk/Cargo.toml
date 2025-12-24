@@ -21,3 +21,7 @@ rustls = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 serde_json = { workspace = true }
 toml = { workspace = true }
+switchboard-socks5 = { path = "../../crates/service-impl/socks5" }
+switchboard-pf = { path = "../../crates/service-impl/pf" }
+switchboard-uds = { path = "../../crates/service-impl/uds" }
+switchboard-http = { path = "../../crates/service-impl/http" }

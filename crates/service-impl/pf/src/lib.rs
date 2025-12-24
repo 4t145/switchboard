@@ -1,7 +1,7 @@
 use std::{net::SocketAddr, pin::Pin, sync::Arc};
 
 use switchboard_service::{
-    CustomConfig, PayloadError, TcpServiceProvider,
+    SerdeValue, SerdeValueError, TcpServiceProvider,
     tcp::{AsyncStream, TcpService},
 };
 use tokio::{io, net::TcpStream};
@@ -35,8 +35,15 @@ impl TcpService for PortForward {
     fn name(&self) -> &str {
         "port-forward"
     }
-    fn serve(self: Arc<Self>, accepted: switchboard_service::tcp::TcpAccepted) -> Pin<Box<dyn Future<Output = io::Result<()>> + 'static + Send>> {
-        Box::pin(self.serve_inner(accepted.stream, accepted.context.ct, accepted.context.peer_addr))
+    fn serve(
+        self: Arc<Self>,
+        accepted: switchboard_service::tcp::TcpAccepted,
+    ) -> Pin<Box<dyn Future<Output = io::Result<()>> + 'static + Send>> {
+        Box::pin(self.serve_inner(
+            accepted.stream,
+            accepted.context.ct,
+            accepted.context.peer_addr,
+        ))
     }
 }
 
@@ -55,10 +62,10 @@ pub struct PortForwardProvider;
 impl TcpServiceProvider for PortForwardProvider {
     const NAME: &'static str = "pf";
     type Service = PortForward;
-    type Error = PayloadError;
+    type Error = SerdeValueError;
 
-    async fn construct(&self, config: Option<CustomConfig>) -> Result<Self::Service, Self::Error> {
-        let to = config.unwrap_or_default().decode()?;
+    async fn construct(&self, config: Option<SerdeValue>) -> Result<Self::Service, Self::Error> {
+        let to = config.unwrap_or_default().deserialize_into()?;
         Ok(PortForward { to })
     }
 }

@@ -1,4 +1,4 @@
-use crate::formats::PayloadObject;
+use crate::formats::TransferObject;
 
 use super::Formats;
 #[derive(Debug, Clone, Default)]
@@ -12,12 +12,12 @@ impl Formats for Toml {
         "toml"
     }
 
-    fn decode_bytes<T: PayloadObject>(&self, bytes: bytes::Bytes) -> Result<T, Self::DecodeError> {
+    fn decode_bytes<T: TransferObject>(&self, bytes: bytes::Bytes) -> Result<T, Self::DecodeError> {
         let t = toml::from_slice(&bytes)?;
         Ok(t)
     }
 
-    fn encode_bytes<T: PayloadObject>(&self, value: &T) -> Result<bytes::Bytes, Self::EncodeError> {
+    fn encode_bytes<T: TransferObject>(&self, value: &T) -> Result<bytes::Bytes, Self::EncodeError> {
         let vec = toml::to_string(value)?;
         Ok(bytes::Bytes::from(vec))
     }

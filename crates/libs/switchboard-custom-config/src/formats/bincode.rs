@@ -1,4 +1,4 @@
-use crate::formats::PayloadObject;
+use crate::formats::TransferObject;
 
 use super::Formats;
 
@@ -13,12 +13,12 @@ impl Formats for Bincode {
         "bincode"
     }
 
-    fn decode_bytes<T: PayloadObject>(&self, bytes: bytes::Bytes) -> Result<T, Self::DecodeError> {
+    fn decode_bytes<T: TransferObject>(&self, bytes: bytes::Bytes) -> Result<T, Self::DecodeError> {
         let (t, _) = bincode::decode_from_slice(&bytes, bincode::config::standard())?;
         Ok(t)
     }
 
-    fn encode_bytes<T: PayloadObject>(&self, value: &T) -> Result<bytes::Bytes, Self::EncodeError> {
+    fn encode_bytes<T: TransferObject>(&self, value: &T) -> Result<bytes::Bytes, Self::EncodeError> {
         let vec = bincode::encode_to_vec(value, bincode::config::standard())?;
         Ok(bytes::Bytes::from(vec))
     }

@@ -1,0 +1,27 @@
+[package]
+name = "switchboard-serde-value"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+readme.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+bincode = { workspace = true, optional = true, features = ["derive"]}
+
+[features]
+default = []
+bincode = ["dep:bincode"]
+[dev-dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+toml = { workspace = true }
+
+[[test]]
+name = "test_custom_config"
+path = "tests/test_custom_config.rs"
+required-features = ["bincode"]

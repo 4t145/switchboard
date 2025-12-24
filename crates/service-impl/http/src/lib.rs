@@ -15,8 +15,7 @@ use rustls::ServerConfig;
 use std::{ops::Deref, sync::Arc};
 use switchboard_model::services::http::HttpVersion;
 use switchboard_service::{
-    CustomConfig, PayloadError, TcpServiceProvider,
-    tcp::{TcpAccepted, TcpConnectionContext},
+    SerdeValue, SerdeValueError, TcpServiceProvider, tcp::{TcpAccepted, TcpConnectionContext}
 };
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
@@ -176,7 +175,7 @@ impl switchboard_service::tcp::TcpService for Http {
 #[derive(Debug, thiserror::Error)]
 pub enum HttpBuildError {
     #[error("Failed to decode config: {0}")]
-    PayloadDecodeError(#[from] PayloadError),
+    PayloadDecodeError(#[from] SerdeValueError),
 
     #[error("Failed to build flow: {0}")]
     FlowBuildError(#[from] FlowBuildError),
@@ -188,8 +187,8 @@ impl TcpServiceProvider for HttpProvider {
     const NAME: &'static str = "http";
     type Service = Http;
     type Error = HttpBuildError;
-    async fn construct(&self, config: Option<CustomConfig>) -> Result<Self::Service, Self::Error> {
-        let config: config::Config = config.unwrap_or_default().decode()?;
+    async fn construct(&self, config: Option<SerdeValue>) -> Result<Self::Service, Self::Error> {
+        let config: config::Config = config.unwrap_or_default().deserialize_into()?;
         let class_registry = ClassRegistry::global();
         let flow = Flow::build(
             config.flow,
