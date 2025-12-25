@@ -1,5 +1,14 @@
 use bytes::Bytes;
-
+pub const BINCODE: &str = "bincode";
+pub const JSON: &str = "json";
+pub const TOML: &str = "toml";
+pub const TOON: &str = "toon";
+pub const PLAINTEXT: &str = "plaintext";
+// pub const BINCODE_FORMAT: bincode::Bincode = bincode::Bincode;
+// pub const JSON_FORMAT: json::Json = json::Json;
+// pub const TOML_FORMAT: toml::Toml = toml::Toml;
+// pub const TOON_FORMAT: toon::Toon = toon::Toon;
+// pub const PLAINTEXT_FORMAT: plaintext::Plaintext = plaintext::Plaintext;
 pub mod bincode;
 pub mod json;
 pub mod plaintext;
@@ -81,31 +90,31 @@ pub fn decode_bytes<T: TransferObject>(
 ) -> Result<T, crate::Error> {
     let format = format.as_ref();
     let value = match format {
-        "bincode" => {
+        BINCODE => {
             let formatter = bincode::Bincode;
             formatter
                 .decode_bytes::<T>(bytes)
                 .map_err(|e| DecodeError::new(e, formatter.format_name()))?
         }
-        "json" => {
+        JSON => {
             let formatter = json::Json;
             formatter
                 .decode_bytes::<T>(bytes)
                 .map_err(|e| DecodeError::new(e, formatter.format_name()))?
         }
-        "toml" => {
+        TOML => {
             let formatter = toml::Toml;
             formatter
                 .decode_bytes::<T>(bytes)
                 .map_err(|e| DecodeError::new(e, formatter.format_name()))?
         }
-        "toon" => {
+        TOON => {
             let formatter = toon::Toon;
             formatter
                 .decode_bytes::<T>(bytes)
                 .map_err(|e| DecodeError::new(e, formatter.format_name()))?
         }
-        "plaintext" => {
+        PLAINTEXT => {
             let formatter = plaintext::Plaintext;
             formatter
                 .decode_bytes::<T>(bytes)
@@ -126,31 +135,31 @@ pub fn encode_bytes<T: TransferObject>(
 ) -> Result<Bytes, crate::Error> {
     let format = format.as_ref();
     let bytes = match format {
-        "bincode" => {
+        BINCODE => {
             let formatter = bincode::Bincode;
             formatter
                 .encode_bytes::<T>(value)
                 .map_err(|e| EncodeError::new(e, formatter.format_name()))?
         }
-        "json" => {
+        JSON => {
             let formatter = json::Json;
             formatter
                 .encode_bytes::<T>(value)
                 .map_err(|e| EncodeError::new(e, formatter.format_name()))?
         }
-        "toml" => {
+        TOML => {
             let formatter = toml::Toml;
             formatter
                 .encode_bytes::<T>(value)
                 .map_err(|e| EncodeError::new(e, formatter.format_name()))?
         }
-        "toon" => {
+        TOON => {
             let formatter = toon::Toon;
             formatter
                 .encode_bytes::<T>(value)
                 .map_err(|e| EncodeError::new(e, formatter.format_name()))?
         }
-        "plaintext" => {
+        PLAINTEXT => {
             let formatter = plaintext::Plaintext;
             formatter
                 .encode_bytes::<T>(value)

@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use switchboard_controller::config::ControllerConfig;
+use switchboard_model::custom_config::{LinkOrValue, fs::FsLinkResolver};
 
 #[derive(clap::Parser)]
 pub struct CliArgs {
@@ -43,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let sb_config = {
         let path = &controller_config.resolve.fs.path;
-        switchboard_controller::resolve::fs::fetch_config(path).await?
+        switchboard_controller::resolve::fs::fetch_config(LinkOrValue::Link(path.into()), &FsLinkResolver).await?
     };
     let context = switchboard_controller::ControllerContext::new(controller_config);
     context.startup().await?;

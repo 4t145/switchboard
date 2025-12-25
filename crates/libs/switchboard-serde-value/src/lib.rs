@@ -1,10 +1,15 @@
-use serde::{Deserialize, Deserializer, Serialize, Serializer, de::{VariantAccess, Visitor}};
+
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Visitor};
 mod collection;
+mod variant;
 pub use collection::*;
 mod option;
 pub use option::*;
 mod primitive;
 pub use primitive::*;
+
+use crate::variant::SerializeVariant;
+pub mod macros;
 macro_rules! for_primitives {
     ($($f:ident $T: ty;)*) => {
         $(
@@ -39,6 +44,61 @@ pub enum SerdeValue {
     Sequence(collection::SerdeSequence) = 5,
     Option(option::SerdeOption) = 6,
 }
+
+impl From<Vec<u8>> for SerdeValue {
+    fn from(value: Vec<u8>) -> Self {
+        SerdeValue::Bytes(value)
+    }
+}
+
+impl From<&[u8]> for SerdeValue {
+    fn from(value: &[u8]) -> Self {
+        SerdeValue::Bytes(value.to_vec())
+    }
+}
+
+impl From<()> for SerdeValue {
+    fn from(_value: ()) -> Self {
+        SerdeValue::Unit
+    }
+}
+
+impl From<primitive::SerdePrimitive> for SerdeValue {
+    fn from(value: primitive::SerdePrimitive) -> Self {
+        SerdeValue::Primitive(value)
+    }
+}
+
+impl From<String> for SerdeValue {
+    fn from(value: String) -> Self {
+        SerdeValue::String(value)
+    }
+}
+
+impl From<&str> for SerdeValue {
+    fn from(value: &str) -> Self {
+        SerdeValue::String(value.to_string())
+    }
+}
+
+impl From<collection::SerdeMap> for SerdeValue {
+    fn from(value: collection::SerdeMap) -> Self {
+        SerdeValue::Map(value)
+    }
+}
+
+impl From<collection::SerdeSequence> for SerdeValue {
+    fn from(value: collection::SerdeSequence) -> Self {
+        SerdeValue::Sequence(value)
+    }
+}
+
+impl From<option::SerdeOption> for SerdeValue {
+    fn from(value: option::SerdeOption) -> Self {
+        SerdeValue::Option(value)
+    }
+}
+
 
 impl SerdeValue {
     pub fn serialize_from<T: Serialize>(value: &T) -> Result<Self, Error> {
@@ -151,10 +211,10 @@ impl Serializer for SerdeValueSerializer {
     type SerializeSeq = collection::SerdeSequence;
     type SerializeTuple = collection::SerdeSequence;
     type SerializeTupleStruct = collection::SerdeSequence;
-    type SerializeTupleVariant = collection::SerdeSequence;
+    type SerializeTupleVariant = SerializeVariant<collection::SerdeSequence>;
     type SerializeMap = collection::SerdeMap;
     type SerializeStruct = collection::SerdeMap;
-    type SerializeStructVariant = collection::SerdeMap;
+    type SerializeStructVariant = SerializeVariant<collection::SerdeMap>;
     fn is_human_readable(&self) -> bool {
         false
     }
@@ -229,13 +289,17 @@ impl Serializer for SerdeValueSerializer {
         self,
         _name: &'static str,
         _variant_index: u32,
-        _variant: &'static str,
+        variant: &'static str,
         value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
         T: ?Sized + Serialize,
     {
-        value.serialize(SerdeValueSerializer)
+        let v = value.serialize(SerdeValueSerializer)?;
+        Ok(SerdeValue::Map(SerdeMap(vec![(
+            SerdeValue::String(variant.to_string().into()),
+            v,
+        )])))
     }
 
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
@@ -260,10 +324,13 @@ impl Serializer for SerdeValueSerializer {
         self,
         _name: &'static str,
         _variant_index: u32,
-        _variant: &'static str,
+        variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant, Self::Error> {
-        Ok(collection::SerdeSequence(Vec::with_capacity(len)))
+        Ok(SerializeVariant::new(
+            variant,
+            collection::SerdeSequence(Vec::with_capacity(len)),
+        ))
     }
 
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
@@ -282,10 +349,13 @@ impl Serializer for SerdeValueSerializer {
         self,
         _name: &'static str,
         _variant_index: u32,
-        _variant: &'static str,
+        variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant, Self::Error> {
-        Ok(collection::SerdeMap(Vec::with_capacity(len)))
+        Ok(SerializeVariant::new(
+            variant,
+            collection::SerdeMap(Vec::with_capacity(len)),
+        ))
     }
 }
 
@@ -403,24 +473,6 @@ impl<'de> Visitor<'de> for SerdeAnyVisitor {
     {
         SerdeValue::deserialize(deserializer)
     }
-
-    // fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
-    // where
-    //     A: serde::de::EnumAccess<'de>,
-    // {
-    //     let (v, x) = data.variant::<SerdeValue>()?;
-    //     match v {
-    //         SerdeValue::String(s) => {
-    //             l
-                
-    //         },
-    //         SerdeValue::Unit => Ok(x.unit_variant()?),
-    //         _ => Err(serde::de::Error::custom(
-    //             "enum variant must be a string or unit",
-    //         )),
-    //     }
-
-    // }
 }
 impl<'de> Deserialize<'de> for SerdeValue {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -436,7 +488,7 @@ impl<'de> Deserializer<'de> for SerdeValue {
     serde::forward_to_deserialize_any! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string
         bytes byte_buf unit unit_struct seq newtype_struct tuple tuple_struct
-        map identifier ignored_any struct enum
+        map identifier ignored_any struct
     }
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
@@ -466,6 +518,30 @@ impl<'de> Deserializer<'de> for SerdeValue {
                 None => visitor.visit_none(),
             },
             v => v.deserialize_any(visitor),
+        }
+    }
+
+    fn deserialize_enum<V>(
+        self,
+        _name: &'static str,
+        _variants: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        match self {
+            SerdeValue::String(s) => {
+                let de = serde::de::value::StrDeserializer::new(&s);
+                visitor.visit_enum(de)
+            }
+            SerdeValue::Map(m) => {
+                let mut map_access = m.access();
+                visitor.visit_enum(serde::de::value::MapAccessDeserializer::new(
+                    &mut map_access,
+                ))
+            }
+            v => visitor.visit_newtype_struct(v),
         }
     }
 }

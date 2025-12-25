@@ -8,6 +8,24 @@ use crate::SerdeValue;
 #[cfg_attr(feature = "bincode", derive(bincode::Encode, bincode::Decode))]
 pub struct SerdeOption(pub Option<Box<SerdeValue>>);
 
+impl From<Option<SerdeValue>> for SerdeOption {
+    fn from(value: Option<SerdeValue>) -> Self {
+        SerdeOption(value.map(Box::new))
+    }
+}
+
+impl From<SerdeOption> for Option<SerdeValue> {
+    fn from(value: SerdeOption) -> Self {
+        value.0.map(|b| *b)
+    }
+}
+
+impl From<Option<Box<SerdeValue>>> for SerdeOption {
+    fn from(value: Option<Box<SerdeValue>>) -> Self {
+        SerdeOption(value)
+    }
+}
+
 impl SerdeOption {
     pub fn into_inner(self) -> Option<Box<SerdeValue>> {
         self.0

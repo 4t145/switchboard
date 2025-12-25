@@ -18,7 +18,6 @@ use switchboard_service::{
     SerdeValue, SerdeValueError, TcpServiceProvider, tcp::{TcpAccepted, TcpConnectionContext}
 };
 use tokio_util::sync::CancellationToken;
-use tracing::instrument;
 use utils::read_version;
 
 use crate::{

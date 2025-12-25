@@ -5,13 +5,21 @@ use std::{collections::BTreeMap, sync::Arc};
 use crate::{hostname::HostnameTree, path::PathTree};
 
 #[derive(
-    Debug, Clone, Default, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode,
+    Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct RouterSerde<T> {
     #[serde(default = "BTreeMap::new")]
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub hostname: BTreeMap<String, path::PathTreeSerdeMapStyle<T>>,
+}
+
+impl <T> Default for RouterSerde<T> {
+    fn default() -> Self {
+        Self {
+            hostname: BTreeMap::new(),
+        }
+    }
 }
 
 impl<T> TryInto<crate::Router<T>> for RouterSerde<T>

@@ -1,7 +1,7 @@
 use std::{collections::HashSet, sync::Arc};
 
 use registry::Registry;
-use switchboard_custom_config::fs::FsLinkResolver;
+use switchboard_custom_config::FsLinkResolver;
 use switchboard_model::kernel::{KernelState, KernelStateKind};
 use switchboard_service::tcp::TcpListener;
 
@@ -59,20 +59,19 @@ impl KernelContext {
         use std::ops::Deref;
         self.state.borrow().deref().clone()
     }
-    pub async fn startup(&self) -> Result<(), Error> {
-        let service_config = {
-            if let Some(config_path) = &self.kernel_config.config {
-                if let Some(link) = config_path.as_link() {
-                    tracing::info!("Loading service config from file: {}", link);
-                }
-                Some(crate::config::fetch_config(config_path.clone(), &FsLinkResolver).await?)
-            } else {
-                tracing::info!(
-                    "No service config file specified, will waiting for controller to provide config"
-                );
-                None
+    pub async fn fetch_config_locally(&self) -> Result<Option<model::Config>, Error> {
+        if let Some(config_path) = &self.kernel_config.config {
+            if let Some(link) = config_path.as_link() {
+                tracing::info!("Loading service config from file: {}", link);
             }
-        };
+            let config = crate::config::fetch_config(config_path.clone(), &FsLinkResolver).await?;
+            Ok(Some(config))
+        } else {
+            Ok(None)
+        }
+    }
+    pub async fn startup(&self) -> Result<(), Error> {
+        let service_config = self.fetch_config_locally().await?;
         // start tcp switchboard
         {
             self.tcp_switchboard.write().await.ensure_running();

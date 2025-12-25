@@ -1,9 +1,8 @@
 pub mod formats;
-#[cfg(feature = "fs")]
-pub mod fs;
+
 mod link;
 use bytes::Bytes;
-pub use link::{Link, LinkResolver};
+pub use link::*;
 pub use switchboard_serde_value::{self, Error as SerdeValueError, SerdeValue};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]

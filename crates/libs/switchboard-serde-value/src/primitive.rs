@@ -25,6 +25,11 @@ macro_rules! derive_from {
                     SerdePrimitive::$v(value)
                 }
             }
+            impl From<$T> for crate::SerdeValue {
+                fn from(value: $T) -> Self {
+                    crate::SerdeValue::Primitive(SerdePrimitive::$v(value))
+                }
+            }
         )*
     };
 }

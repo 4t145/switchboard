@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use serde::Deserialize;
 
 #[derive(Clone, Debug, Deserialize, Default)]

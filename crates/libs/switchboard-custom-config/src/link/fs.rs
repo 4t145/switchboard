@@ -47,12 +47,12 @@ impl LinkResolver for FsLinkResolver {
         }
     }
 
-    async fn upload<V: crate::formats::TransferObject >(&self, link: &Link, config: &crate::ConfigWithFormat<V>) -> Result<(), crate::Error> {
-        if let Some(path) = link.as_file_path() {
-            config.save_to_file(path).await
-        } else {
-            Err(crate::Error::resolve_error("Not a file link", link.clone()))
-        }
-    }
+    // async fn upload<V: crate::formats::TransferObject >(&self, link: &Link, config: &crate::ConfigWithFormat<V>) -> Result<(), crate::Error> {
+    //     if let Some(path) = link.as_file_path() {
+    //         config.save_to_file(path).await
+    //     } else {
+    //         Err(crate::Error::resolve_error("Not a file link", link.clone()))
+    //     }
+    // }
 }
 impl Link {}

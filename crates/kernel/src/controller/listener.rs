@@ -2,7 +2,7 @@ use crate::KernelContext;
 use futures::TryStreamExt;
 use serde::{Deserialize, Serialize};
 
-use switchboard_custom_config::fs::FsLinkResolver;
+use switchboard_custom_config::FsLinkResolver;
 use tracing::Instrument;
 
 // pub mod local;

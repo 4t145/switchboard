@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
-use switchboard_model::TlsCertParams;
+use switchboard_model::{FileStyleTlsResolver, TlsCertParams};
 
 use crate::dir::app_dir;
 
@@ -33,9 +33,9 @@ pub enum FileTlsCertResourceError {
 }
 
 impl crate::ControllerContext {
-    pub async fn discovery_tls_cert_from_file(
+    pub async fn discovery_tls_resolver_from_file(
         &self,
-    ) -> Result<BTreeMap<String, FileTlsCertResource>, FileTlsCertResourceError> {
+    ) -> Result<BTreeMap<String, FileStyleTlsResolver>, FileTlsCertResourceError> {
         let mut results = BTreeMap::new();
         let Some(config) = &self.controller_config.resource.tls.file else {
             return Ok(results);
@@ -77,28 +77,4 @@ impl crate::ControllerContext {
         }
         Ok(results)
     }
-}
-
-impl FileTlsCertResource {
-    pub async fn fetch(&self) -> Result<TlsCertParams, FileTlsCertResourceError> {
-        let cert_bytes = tokio::fs::read(&self.cert_path).await.map_err(|source| {
-            FileTlsCertResourceError::ReadPemError {
-                source,
-                path: self.cert_path.clone(),
-            }
-        })?;
-        let key_bytes = tokio::fs::read(&self.key_path).await.map_err(|source| {
-            FileTlsCertResourceError::ReadPemError {
-                source,
-                path: self.key_path.clone(),
-            }
-        })?;
-        let params = TlsCertParams::from_bytes(&cert_bytes, &key_bytes)?;
-        Ok(params)
-    }
-}
-#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq, bincode::Encode, bincode::Decode,)]
-pub struct FileTlsCertResource {
-    pub cert_path: PathBuf,
-    pub key_path: PathBuf,
 }

@@ -2,10 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use serde::{
     Deserialize, Serialize,
-    ser::{
-        SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
-        SerializeTupleStruct, SerializeTupleVariant,
-    },
+    ser::{SerializeMap, SerializeSeq, SerializeStruct, SerializeTuple, SerializeTupleStruct},
 };
 
 use crate::SerdeValue;
@@ -13,6 +10,24 @@ use crate::SerdeValue;
 #[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
 #[cfg_attr(feature = "bincode", derive(bincode::Encode, bincode::Decode))]
 pub struct SerdeSequence(pub Vec<crate::SerdeValue>);
+
+impl<T> From<Vec<T>> for SerdeSequence
+where
+    T: Into<crate::SerdeValue>,
+{
+    fn from(value: Vec<T>) -> Self {
+        SerdeSequence(value.into_iter().map(Into::into).collect())
+    }
+}
+
+impl<const N: usize, T> From<[T; N]> for SerdeSequence
+where
+    T: Into<crate::SerdeValue>,
+{
+    fn from(value: [T; N]) -> Self {
+        SerdeSequence(value.into_iter().map(Into::into).collect())
+    }
+}
 
 impl Deref for SerdeSequence {
     type Target = Vec<crate::SerdeValue>;
@@ -102,27 +117,9 @@ impl SerializeTupleStruct for SerdeSequence {
     }
 }
 
-impl SerializeTupleVariant for SerdeSequence {
-    type Ok = crate::SerdeValue;
-    type Error = crate::Error;
-
-    fn serialize_field<T>(&mut self, value: &T) -> Result<(), Self::Error>
-    where
-        T: ?Sized + Serialize,
-    {
-        let value = value.serialize(crate::SerdeValueSerializer)?;
-        self.0.push(value);
-        Ok(())
-    }
-
-    fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(SerdeValue::Sequence(self))
-    }
-}
-
 pub(crate) struct SerdeSequenceAccess(std::vec::IntoIter<crate::SerdeValue>);
 impl<'de> serde::de::SeqAccess<'de> for SerdeSequenceAccess {
-    type Error =  crate::Error;
+    type Error = crate::Error;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
     where
@@ -171,6 +168,15 @@ impl<'de> Deserialize<'de> for SerdeSequence {
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "bincode", derive(bincode::Encode, bincode::Decode))]
 pub struct SerdeMap(pub Vec<(crate::SerdeValue, crate::SerdeValue)>);
+
+impl SerdeMap {
+    pub fn new() -> Self {
+        SerdeMap(Vec::new())
+    }
+    pub fn add_entry(&mut self, key: crate::SerdeValue, value: crate::SerdeValue) {
+        self.0.push((key, value));
+    }
+}
 
 impl Deref for SerdeMap {
     type Target = Vec<(crate::SerdeValue, crate::SerdeValue)>;
@@ -238,25 +244,6 @@ impl SerializeMap for SerdeMap {
 }
 
 impl SerializeStruct for SerdeMap {
-    type Ok = SerdeValue;
-    type Error = crate::Error;
-
-    fn serialize_field<T>(&mut self, key: &str, value: &T) -> Result<(), Self::Error>
-    where
-        T: ?Sized + Serialize,
-    {
-        let key = key.serialize(crate::SerdeValueSerializer)?;
-        let value = value.serialize(crate::SerdeValueSerializer)?;
-        self.0.push((key, value));
-        Ok(())
-    }
-
-    fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(SerdeValue::Map(self))
-    }
-}
-
-impl SerializeStructVariant for SerdeMap {
     type Ok = SerdeValue;
     type Error = crate::Error;
 

@@ -1,13 +1,22 @@
 use schemars::{JsonSchema, Schema};
 use serde::{Deserialize, Serialize};
-use switchboard_custom_config::{ConfigWithFormat, SerdeValue};
-
+use switchboard_custom_config::SerdeValue;
+pub mod consts;
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(rename_all = "camelCase")]
 pub struct Config<Cfg = SerdeValue> {
     pub flow: FlowConfig<Cfg>,
     #[serde(default)]
     pub server: ServerConfig,
+}
+
+impl<Cfg> Default for Config<Cfg> {
+    fn default() -> Self {
+        Self {
+            flow: FlowConfig::new(),
+            server: ServerConfig::default(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -50,6 +59,18 @@ pub struct FlowConfig<Cfg = SerdeValue> {
     pub filters: BTreeMap<InstanceId, InstanceDataWithoutType<Cfg>>,
     #[serde(default)]
     pub options: FlowOptions,
+}
+
+impl<Cfg> FlowConfig<Cfg> {
+    pub fn new() -> Self {
+        Self {
+            entrypoint: NodeTarget::from("inbound"),
+            instances: BTreeMap::new(),
+            nodes: BTreeMap::new(),
+            filters: BTreeMap::new(),
+            options: FlowOptions::default(),
+        }
+    }
 }
 
 pub type FlowConfigWithLink = FlowConfig<switchboard_custom_config::Link>;
@@ -100,7 +121,7 @@ impl std::fmt::Display for InstanceId {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-pub struct InstanceData<Cfg = ConfigWithFormat> {
+pub struct InstanceData<Cfg = SerdeValue> {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     pub class: ClassId,
@@ -110,7 +131,7 @@ pub struct InstanceData<Cfg = ConfigWithFormat> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-pub struct InstanceDataWithoutType<Cfg = ConfigWithFormat> {
+pub struct InstanceDataWithoutType<Cfg = SerdeValue> {
     pub name: Option<String>,
     pub class: ClassId,
     pub config: Cfg,
@@ -138,7 +159,35 @@ pub enum NodePort {
     Default,
 }
 
+impl From<&str> for NodePort {
+    fn from(s: &str) -> Self {
+        if s == "$default" {
+            NodePort::Default
+        } else {
+            NodePort::Named(Arc::from(s))
+        }
+    }
+}
+
+impl From<String> for NodePort {
+    fn from(s: String) -> Self {
+        if s == "$default" {
+            NodePort::Default
+        } else {
+            NodePort::Named(Arc::from(s))
+        }
+    }
+}
+
+
+
 impl NodePort {
+    pub fn new(name: impl AsRef<str>) -> Self {
+        Self::from(name.as_ref())
+    }
+    pub fn is_default(&self) -> bool {
+        matches!(self, NodePort::Default)
+    }
     pub fn as_str(&self) -> &str {
         match self {
             NodePort::Named(name) => name,
@@ -252,6 +301,18 @@ impl NodeInterface {
 pub struct NodeTarget {
     pub id: NodeId,
     pub port: NodePort,
+}
+
+impl From<&str> for NodeTarget {
+    fn from(s: &str) -> Self {
+        Self::from_str(s).expect("Infallible")
+    }
+}
+
+impl From<String> for NodeTarget {
+    fn from(s: String) -> Self {
+        Self::from_str(&s).expect("Infallible")
+    }
 }
 
 impl Serialize for NodeTarget {

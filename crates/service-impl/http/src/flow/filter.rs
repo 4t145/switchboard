@@ -1,15 +1,15 @@
-pub mod timeout;
 pub mod request_header_modify;
-pub mod response_header_modify;
 pub mod request_mirror;
 pub mod request_redirect;
+pub mod response_header_modify;
+pub mod timeout;
 pub mod url_rewrite;
 
 use std::sync::Arc;
 
 use futures::future::BoxFuture;
 use serde::de::DeserializeOwned;
-use switchboard_model::{custom_config::formats::TransferObject, services::http::*};
+use switchboard_model::services::http::*;
 
 use crate::{
     DynRequest, DynResponse, IntoDynResponse,
@@ -17,7 +17,7 @@ use crate::{
     instance::{InstanceValue, class::Class},
 };
 
-#[derive( Clone)]
+#[derive(Clone)]
 pub struct Next {
     pub target: NodeTarget,
     pub output_filters: Vec<FilterReference>,
@@ -26,7 +26,7 @@ pub struct Next {
     pub location: NextLocation,
 }
 
-#[derive( Clone)]
+#[derive(Clone)]
 pub enum NextLocation {
     Source,
     Target,

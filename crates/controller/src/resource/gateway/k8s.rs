@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::{BTreeMap, HashMap},
     sync::Arc,
 };
@@ -11,14 +12,30 @@ use gateway_api::httproutes::{
 use http::HeaderName;
 use kube::{ResourceExt, api::ListParams};
 use serde::{Deserialize, Serialize};
-use switchboard_custom_config::ConfigWithFormat;
+use switchboard_custom_config::{
+    ConfigWithFormat,
+    switchboard_serde_value::{self, value},
+};
 use switchboard_http_router::{
     rule::{HeaderMatch, QueryMatch, RuleMatch},
     serde::rule::{
         HeaderMatchSerde, QueryMatchSerde, RegexOrExactSerde, RuleBucketSerde, RuleMatchSerde,
     },
 };
+use switchboard_model::services::{
+    self,
+    http::{NodePort, NodeTarget},
+};
+mod filter;
 
+fn target_name(name: &str, namespace: Option<&str>, port: Option<u16>) -> String {
+    match (namespace, port) {
+        (Some(ns), Some(p)) => format!("{}.{}.port{}", name, ns, p),
+        (Some(ns), None) => format!("{}.{}", name, ns),
+        (None, Some(p)) => format!("{}.port{}", name, p),
+        (None, None) => name.to_string(),
+    }
+}
 #[derive(Debug, Clone, Deserialize, Serialize, Hash, PartialEq, Eq)]
 pub struct K8sGatewayResourceConfig {
     pub gateway_namespace: String,
@@ -88,102 +105,136 @@ pub fn k8s_query_match_to_http_query_match(
     }
 }
 
-type RouteKey = Arc<str>;
-pub fn build_router_from_k8s(
-    gateway: &K8sGatewayGatewayData,
-) -> Result<
-    switchboard_http_router::serde::RouterSerde<RouteKey>,
-    switchboard_http_router::error::BuildError,
-> {
-    // gateway.gateway.spec.listeners.as_ref();
-    // build router
-    let mut router = switchboard_http_router::serde::RouterSerde::<RouteKey>::default();
-    for (route_name, route) in &gateway.http_routes {
-        let mut path_tree =
-            switchboard_http_router::serde::path::PathTreeSerdeMapStyle::<RouteKey>::default();
-        let route_target = Arc::<str>::from(route_name.as_str());
-        #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-        pub enum BucketKey {
-            Matchit(String),
-            Regex(String),
+pub struct HttpGatewayBuilder {
+    pub config: services::http::Config,
+}
+
+impl HttpGatewayBuilder {
+    pub fn new() -> Self {
+        Self {
+            config: services::http::Config::default(),
         }
-        pub struct BucketItem {
-            rule: Option<RuleMatchSerde>,
-            target: RouteKey,
-        }
-        let mut buckets = HashMap::<BucketKey, Vec<RuleMatchSerde>>::new();
-        if let Some(rules_list) = &route.spec.rules {
-            for rules in rules_list {
-                if let Some(matches) = &rules.matches {
-                    for k8s_match in matches {
-                        let path = k8s_match.path.as_ref().cloned().unwrap_or_default();
-                        let match_type = path
-                            .r#type
-                            .unwrap_or(HTTPRouteRulesMatchesPathType::PathPrefix);
-                        let route_path = path.value.as_deref().unwrap_or("/");
-                        // build rule
-                        let rule = {
-                            let headers = k8s_match
-                                .headers
-                                .as_ref()
-                                .map(|hs| {
-                                    hs.iter()
-                                        .map(k8s_header_match_to_http_header_match)
-                                        .collect()
-                                })
-                                .unwrap_or_default();
-                            let queries = k8s_match
-                                .query_params
-                                .as_ref()
-                                .map(|qs| {
-                                    qs.iter().map(k8s_query_match_to_http_query_match).collect()
-                                })
-                                .unwrap_or_default();
-                            let rule = RuleMatchSerde {
-                                method: k8s_match.method.as_ref().map(k8s_method_to_http_method),
-                                headers,
-                                queries,
+    }
+    pub fn build_router_from_k8s(
+        &mut self,
+        gateway: &K8sGatewayGatewayData,
+    ) -> Result<
+        switchboard_http_router::serde::RouterSerde<NodePort>,
+        switchboard_http_router::error::BuildError,
+    > {
+        // gateway.gateway.spec.listeners.as_ref();
+        // build router
+        let mut router = switchboard_http_router::serde::RouterSerde::<NodePort>::default();
+        for (route_name, route) in &gateway.http_routes {
+            let mut path_tree =
+                switchboard_http_router::serde::path::PathTreeSerdeMapStyle::<NodePort>::default();
+            #[derive(Debug, Clone, Hash, PartialEq, Eq)]
+            pub enum BucketKey {
+                Matchit(String),
+                Regex(String),
+            }
+
+            if let Some(rules_list) = &route.spec.rules {
+                for (rule_set_index, rules) in rules_list.iter().enumerate() {
+                    let mut buckets = HashMap::<BucketKey, Vec<RuleMatchSerde>>::new();
+                    let rule_name = rules
+                        .name
+                        .as_deref()
+                        .map(Cow::Borrowed)
+                        .unwrap_or(Cow::Owned(format!("rule-{}", rule_set_index)));
+                    let target_name = format!("{}-{}", route_name, rule_name);
+                    let route_target = NodePort::from(target_name.as_str());
+                    if let Some(filters) = &rules.filters {
+                        for (index, filter) in filters.iter().enumerate() {
+                            let filter_name = filter::filter_id(route_name, &rule_name, index);
+                            let filter_instance =
+                                filter::build_filter_instance_from_k8s_filter(&filter);
+                            self.config
+                                .flow
+                                .instances
+                                .insert(filter_name.clone(), filter_instance);
+                        }
+                    }
+
+                    if let Some(matches) = &rules.matches {
+                        for k8s_match in matches {
+                            let path = k8s_match.path.as_ref().cloned().unwrap_or_default();
+                            let match_type = path
+                                .r#type
+                                .unwrap_or(HTTPRouteRulesMatchesPathType::PathPrefix);
+                            let route_path = path.value.as_deref().unwrap_or("/");
+                            // build rule
+                            let rule = {
+                                let headers = k8s_match
+                                    .headers
+                                    .as_ref()
+                                    .map(|hs| {
+                                        hs.iter()
+                                            .map(k8s_header_match_to_http_header_match)
+                                            .collect()
+                                    })
+                                    .unwrap_or_default();
+                                let queries = k8s_match
+                                    .query_params
+                                    .as_ref()
+                                    .map(|qs| {
+                                        qs.iter().map(k8s_query_match_to_http_query_match).collect()
+                                    })
+                                    .unwrap_or_default();
+                                let rule = RuleMatchSerde {
+                                    method: k8s_match
+                                        .method
+                                        .as_ref()
+                                        .map(k8s_method_to_http_method),
+                                    headers,
+                                    queries,
+                                };
+                                rule
                             };
-                            rule
-                        };
-                        let tree_key = match match_type {
-                            HTTPRouteRulesMatchesPathType::Exact => {
-                                BucketKey::Matchit(route_path.to_string())
+                            let tree_key = match match_type {
+                                HTTPRouteRulesMatchesPathType::Exact => {
+                                    BucketKey::Matchit(route_path.to_string())
+                                }
+                                HTTPRouteRulesMatchesPathType::PathPrefix => BucketKey::Matchit(
+                                    format!("{}{{*rest}}", route_path.trim_end_matches('/')),
+                                ),
+                                HTTPRouteRulesMatchesPathType::RegularExpression => {
+                                    BucketKey::Regex(route_path.to_string())
+                                }
+                            };
+                            buckets.entry(tree_key).or_default().push(rule);
+                        }
+                    }
+                    for (key, bucket) in buckets {
+                        let mut rule_bucket =
+                            RuleBucketSerde::<NodePort>::new(route_target.clone());
+                        rule_bucket.rules = bucket;
+                        rule_bucket.sort();
+                        match key {
+                            BucketKey::Matchit(route_path) => {
+                                path_tree.insert(route_path, rule_bucket.into());
                             }
-                            HTTPRouteRulesMatchesPathType::PathPrefix => BucketKey::Matchit(
-                                format!("{}{{*rest}}", route_path.trim_end_matches('/')),
-                            ),
-                            HTTPRouteRulesMatchesPathType::RegularExpression => {
-                                BucketKey::Regex(route_path.to_string())
+                            BucketKey::Regex(regex_str) => {
+                                path_tree.insert(regex_str, rule_bucket.into());
                             }
-                        };
-                        buckets.entry(tree_key).or_default().push(rule);
+                        }
                     }
                 }
             }
-        }
-        for (key, bucket) in buckets {
-            let mut rule_bucket = RuleBucketSerde::<RouteKey>::new(route_target.clone());
-            rule_bucket.rules = bucket;
-            rule_bucket.sort();
-            match key {
-                BucketKey::Matchit(route_path) => {
-                    path_tree.insert(route_path, rule_bucket.into());
+            if let Some(hostnames) = &route.spec.hostnames {
+                for hostname in hostnames {
+                    router.hostname.insert(hostname.clone(), path_tree.clone());
                 }
-                BucketKey::Regex(regex_str) => {
-                    path_tree.insert(regex_str, rule_bucket.into());
-                }
+            } else {
+                router.hostname.insert("*".to_string(), path_tree);
             }
         }
-        if let Some(hostnames) = &route.spec.hostnames {
-            for hostname in hostnames {
-                router.hostname.insert(hostname.clone(), path_tree.clone());
-            }
-        } else {
-            router.hostname.insert("*".to_string(), path_tree);
-        }
+        Ok(router)
     }
-    Ok(router)
+
+    pub fn build(self) -> services::http::Config {
+        self.config
+    }
 }
 
 impl K8sGatewayGatewayData {
