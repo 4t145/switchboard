@@ -5,12 +5,12 @@ use crate::{
 use bytes::Bytes;
 use http::{HeaderName, HeaderValue, StatusCode};
 use http_body_util::{BodyExt, Full};
-use switchboard_model::services::http::ClassId;
+use switchboard_model::services::http::{ClassId, consts::STATIC_RESPONSE_CLASS_ID};
 
 use crate::{DynRequest, DynResponse, box_error};
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode)]
-pub struct DirectResponseServiceConfig {
+pub struct StaticResponseServiceConfig {
     #[serde(default)]
     pub headers: Vec<(String, String)>,
     #[serde(default = "default_status_code", alias = "code")]
@@ -24,7 +24,7 @@ fn default_status_code() -> u16 {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum DirectResponseServiceConfigError {
+pub enum StaticResponseServiceConfigError {
     #[error("Invalid header value: {0}")]
     InvalidHeaderValue(#[source] http::header::InvalidHeaderValue),
     #[error("Invalid header name: {0}")]
@@ -33,13 +33,13 @@ pub enum DirectResponseServiceConfigError {
     InvalidStatusCode(#[source] http::status::InvalidStatusCode),
 }
 #[derive(Debug, Clone)]
-pub struct DirectResponseService {
+pub struct StaticResponseService {
     pub headers: Vec<(HeaderName, HeaderValue)>,
     pub status_code: StatusCode,
     pub body: Option<Bytes>,
 }
 
-impl DirectResponseService {
+impl StaticResponseService {
     pub fn make_response(&self) -> DynResponse {
         let body = match &self.body {
             Some(b) => b.clone(),
@@ -55,7 +55,7 @@ impl DirectResponseService {
     }
 }
 
-impl super::Service for DirectResponseService {
+impl super::Service for StaticResponseService {
     fn call<'c>(
         &self,
         _: DynRequest,
@@ -65,26 +65,26 @@ impl super::Service for DirectResponseService {
     }
 }
 
-pub struct DirectResponseServiceClass;
+pub struct StaticResponseServiceClass;
 
-impl NodeClass for DirectResponseServiceClass {
-    type Config = DirectResponseServiceConfig;
-    type Error = DirectResponseServiceConfigError;
-    type Node = ServiceNode<DirectResponseService>;
+impl NodeClass for StaticResponseServiceClass {
+    type Config = StaticResponseServiceConfig;
+    type Error = StaticResponseServiceConfigError;
+    type Node = ServiceNode<StaticResponseService>;
 
     fn construct(&self, config: Self::Config) -> Result<Self::Node, Self::Error> {
         let mut headers = Vec::new();
         for (name, value) in config.headers {
             let header_name = HeaderName::from_bytes(name.as_bytes())
-                .map_err(DirectResponseServiceConfigError::InvalidHeaderName)?;
+                .map_err(StaticResponseServiceConfigError::InvalidHeaderName)?;
             let header_value = HeaderValue::from_str(&value)
-                .map_err(DirectResponseServiceConfigError::InvalidHeaderValue)?;
+                .map_err(StaticResponseServiceConfigError::InvalidHeaderValue)?;
             headers.push((header_name, header_value));
         }
         let status_code = StatusCode::from_u16(config.status_code)
-            .map_err(DirectResponseServiceConfigError::InvalidStatusCode)?;
+            .map_err(StaticResponseServiceConfigError::InvalidStatusCode)?;
         let body = config.body.map(Bytes::from);
-        Ok(ServiceNode::new(DirectResponseService {
+        Ok(ServiceNode::new(StaticResponseService {
             headers,
             status_code,
             body,
@@ -92,6 +92,6 @@ impl NodeClass for DirectResponseServiceClass {
     }
 
     fn id(&self) -> ClassId {
-        ClassId::std("direct-response")
+        ClassId::std(STATIC_RESPONSE_CLASS_ID)
     }
 }

@@ -315,6 +315,15 @@ impl From<String> for NodeTarget {
     }
 }
 
+impl From<NodeId> for NodeTarget {
+    fn from(id: NodeId) -> Self {
+        Self {
+            id,
+            port: NodePort::Default,
+        }
+    }
+}
+
 impl Serialize for NodeTarget {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -368,6 +377,12 @@ pub type FilterId = InstanceId;
 pub struct FilterReference {
     pub id: FilterId,
     // pub call: Arc<FilterFn>,
+}
+
+impl From<InstanceId> for FilterReference {
+    fn from(id: InstanceId) -> Self {
+        Self { id }
+    }
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, bincode::Encode, bincode::Decode)]
@@ -478,7 +493,7 @@ pub struct ClassData {
 
 #[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(rename_all = "camelCase")]
-pub struct WithRoutes<C> {
+pub struct WithOutputs<C> {
     #[serde(flatten)]
     pub config: C,
     pub output: BTreeMap<NodePort, NodeOutput>,

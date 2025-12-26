@@ -1,4 +1,5 @@
 use std::{collections::HashMap, convert::Infallible, net::SocketAddr, sync::Arc};
+pub mod balancer;
 pub mod build;
 pub mod filter;
 pub mod node;
@@ -13,8 +14,8 @@ use serde::{Deserialize, Serialize};
 use switchboard_model::services::http::{FilterId, NodeId, NodePort, NodeTarget};
 
 use crate::{
-    BoxedError, DynBody, DynRequest, DynResponse, ERR_FLOW, FORKED_MARKER_HEADER, IntoDynResponse,
-    box_error, clone_body,
+    BoxedError, DynBody, DynRequest, DynResponse, IntoDynResponse, box_error, clone_body,
+    consts::{ERR_FLOW, FORKED_MARKER_HEADER},
     flow::{filter::Filter, node::Node},
     utils::error_response,
 };

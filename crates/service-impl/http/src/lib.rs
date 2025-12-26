@@ -1,12 +1,12 @@
 pub mod config;
-mod consts;
+pub mod consts;
 mod dynamic;
 pub mod extension;
 pub mod flow;
 pub mod instance;
 pub mod response;
 pub mod utils;
-pub use consts::*;
+// pub use consts::*;
 pub use dynamic::*;
 
 use hyper::server::conn::{http1, http2};

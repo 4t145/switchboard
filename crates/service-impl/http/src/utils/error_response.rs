@@ -5,7 +5,7 @@ use http::{
 };
 use http_body_util::BodyExt;
 
-use crate::{DynResponse, SERVER_NAME, box_error};
+use crate::{DynResponse, box_error, consts::SERVER_NAME};
 pub const HEADER_X_SBH_ERROR: &str = "X-Switchboard-Error";
 pub fn error_response(
     code: StatusCode,

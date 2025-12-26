@@ -1,7 +1,11 @@
 use std::sync::Arc;
 
 use crate::{
-    ERR_REVERSE_PROXY, SERVER_NAME,
+    consts::{
+        ERR_REVERSE_PROXY, SERVER_NAME, X_FORWARDED_FOR, X_FORWARDED_HOST, X_FORWARDED_PROTO,
+        X_REAL_IP,
+    },
+    extension::marker::ClientConnectionFailedMarker,
     flow::{FlowContext, node::NodeClass, service::ServiceNode},
     utils::{
         HyperHttpsClient, build_client_with_options,
@@ -14,15 +18,10 @@ use http::{
     uri::{Authority, Scheme},
 };
 use http_body_util::BodyExt;
-use switchboard_model::services::http::ClassId;
+use switchboard_model::services::http::{ClassId, consts::REVERSE_PROXY_CLASS_ID};
 
 use crate::{DynRequest, DynResponse, box_error};
 use http::header::{HOST, VIA};
-pub const X_FORWARDED_FOR: &str = "x-forwarded-for";
-pub const X_FORWARDED_HEADERS: &str = "x-forwarded-headers";
-pub const X_FORWARDED_HOST: &str = "x-forwarded-host";
-pub const X_FORWARDED_PROTO: &str = "x-forwarded-proto";
-pub const X_REAL_IP: &str = "x-real-ip";
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode)]
 #[serde(default)]
@@ -221,6 +220,17 @@ impl super::Service for ReverseProxyService {
                     ),
                     ERR_REVERSE_PROXY,
                 ),
+                Err(ReverseProxyError::HttpClientError(e)) => {
+                    let is_connection_error = e.is_connect();
+                    let mut response =
+                        error_response(StatusCode::BAD_GATEWAY, e, ERR_REVERSE_PROXY);
+                    if is_connection_error {
+                        response
+                            .extensions_mut()
+                            .insert(ClientConnectionFailedMarker);
+                    }
+                    response
+                }
                 Err(e) => error_response(StatusCode::BAD_GATEWAY, e, ERR_REVERSE_PROXY),
             }
         }
@@ -259,6 +269,6 @@ impl NodeClass for ReverseProxyServiceClass {
     }
 
     fn id(&self) -> ClassId {
-        ClassId::std("reverse-proxy")
+        ClassId::std(REVERSE_PROXY_CLASS_ID)
     }
 }

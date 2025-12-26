@@ -1,5 +1,5 @@
-pub mod client;
-pub mod direct_response;
+pub mod http_client;
+pub mod static_response;
 pub mod reverse_proxy;
 use switchboard_model::services::http::NodeInterface;
 

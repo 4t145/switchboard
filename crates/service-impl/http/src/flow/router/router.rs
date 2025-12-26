@@ -1,7 +1,7 @@
 use http::request::Parts;
 
 use switchboard_http_router::{Router as TreeRouterInner, serde::RouterSerde};
-use switchboard_model::services::http::{ClassId, WithRoutes};
+use switchboard_model::services::http::{ClassId, WithOutputs};
 
 use crate::flow::{node::NodeClass, router::RouterNode};
 pub type TreeRouterMatched = switchboard_http_router::RouterMatched<NodePort>;
@@ -77,7 +77,7 @@ pub enum RouterRouterConstructError {
 }
 
 impl NodeClass for RouterRouterClass {
-    type Config = WithRoutes<RouterRouterConfig>;
+    type Config = WithOutputs<RouterRouterConfig>;
     type Error = RouterRouterConstructError;
     type Node = RouterNode<RouterRouter>;
     fn construct(&self, config: Self::Config) -> Result<Self::Node, Self::Error> {

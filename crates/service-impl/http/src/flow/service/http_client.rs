@@ -1,21 +1,21 @@
 
 use http::StatusCode;
 use http_body_util::BodyExt;
-use switchboard_model::services::http::ClassId;
+use switchboard_model::services::http::{ClassId, consts::HTTP_CLIENT_CLASS_ID};
 
 use crate::{
-    ERR_HTTP_CLIENT,
+    consts::ERR_HTTP_CLIENT,
     flow::{FlowContext, node::NodeClass, service::ServiceNode},
     utils::{HyperHttpsClient, build_client, error_response},
 };
 
 use crate::{DynRequest, DynResponse, box_error};
 
-pub struct ClientService {
+pub struct HttpClientService {
     pub client: HyperHttpsClient,
 }
 
-impl super::Service for ClientService {
+impl super::Service for HttpClientService {
     fn call<'c>(
         &self,
         req: DynRequest,
@@ -31,20 +31,20 @@ impl super::Service for ClientService {
     }
 }
 
-pub struct Client;
+pub struct HttpClientClass;
 
-impl NodeClass for Client {
+impl NodeClass for HttpClientClass {
     type Config = ();
     type Error = std::io::Error;
-    type Node = ServiceNode<ClientService>;
+    type Node = ServiceNode<HttpClientService>;
 
     fn construct(&self, _: Self::Config) -> Result<Self::Node, Self::Error> {
-        Ok(ServiceNode::new(ClientService {
+        Ok(ServiceNode::new(HttpClientService {
             client: build_client()?,
         }))
     }
 
     fn id(&self) -> ClassId {
-        ClassId::std("client")
+        ClassId::std(HTTP_CLIENT_CLASS_ID)
     }
 }

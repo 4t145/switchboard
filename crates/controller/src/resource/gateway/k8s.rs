@@ -22,12 +22,19 @@ use switchboard_http_router::{
         HeaderMatchSerde, QueryMatchSerde, RegexOrExactSerde, RuleBucketSerde, RuleMatchSerde,
     },
 };
-use switchboard_model::services::{
-    self,
-    http::{NodePort, NodeTarget},
+use switchboard_model::{
+    Config, TcpServiceConfig,
+    services::{
+        self,
+        http::{
+            InstanceData, InstanceId, NodeOutput, NodePort, NodeTarget, WithOutputs,
+            consts::ROUTER_CLASS_ID,
+        },
+    },
 };
-mod filter;
 
+mod backend;
+mod filter;
 fn target_name(name: &str, namespace: Option<&str>, port: Option<u16>) -> String {
     match (namespace, port) {
         (Some(ns), Some(p)) => format!("{}.{}.port{}", name, ns, p),
@@ -105,26 +112,69 @@ pub fn k8s_query_match_to_http_query_match(
     }
 }
 
+pub struct ServiceBuilder {
+    pub config: switchboard_model::Config,
+}
+#[derive(thiserror::Error, Debug)]
+pub enum ServiceBuilderError {
+    #[error("HTTP Router build error: {0}")]
+    HttpRouterBuildError(#[from] switchboard_http_router::error::BuildError),
+    #[error("Serde value error: {0}")]
+    SerdeValueError(#[from] switchboard_serde_value::Error),
+}
+impl ServiceBuilder {
+    pub fn new() -> Self {
+        Self {
+            config: switchboard_model::Config::default(),
+        }
+    }
+    pub fn build_http_service(
+        &mut self,
+        gateway: &K8sGatewayGatewayData,
+    ) -> Result<String, ServiceBuilderError> {
+        let mut http_gateway_builder = HttpGatewayBuilder::new().build_router_from_k8s(gateway)?;
+        let value = switchboard_serde_value::SerdeValue::serialize_from(&http_gateway_builder)?;
+        let service_id = format!("http-gateway-{}", gateway.gateway.name_any());
+        let service_instance = TcpServiceConfig {
+            provider: "http".to_string(),
+            name: service_id.clone(),
+            config: Some(value),
+            description: Some(format!(
+                "HTTP Gateway for K8s Gateway {}",
+                gateway.gateway.name_any()
+            )),
+        };
+        for listener in &gateway.gateway.spec.listeners {
+            let port = listener.port as u16;
+            if let Some(tls) = &listener.tls {
+                let mode = tls.certificate_refs.as_ref();
+                
+            }
+        }
+        todo!()
+    }
+}
+
 pub struct HttpGatewayBuilder {
     pub config: services::http::Config,
+    pub internal_error_500_page_instance_id: InstanceId,
 }
 
 impl HttpGatewayBuilder {
     pub fn new() -> Self {
         Self {
             config: services::http::Config::default(),
+            internal_error_500_page_instance_id: InstanceId::new("internal-error-500-page"),
         }
     }
+
     pub fn build_router_from_k8s(
-        &mut self,
+        mut self,
         gateway: &K8sGatewayGatewayData,
-    ) -> Result<
-        switchboard_http_router::serde::RouterSerde<NodePort>,
-        switchboard_http_router::error::BuildError,
-    > {
-        // gateway.gateway.spec.listeners.as_ref();
-        // build router
+    ) -> Result<services::http::Config, switchboard_http_router::error::BuildError> {
+        let mut outputs = <BTreeMap<NodePort, NodeOutput>>::new();
         let mut router = switchboard_http_router::serde::RouterSerde::<NodePort>::default();
+        // let listener = gateway.gateway.spec.listeners;
         for (route_name, route) in &gateway.http_routes {
             let mut path_tree =
                 switchboard_http_router::serde::path::PathTreeSerdeMapStyle::<NodePort>::default();
@@ -143,19 +193,36 @@ impl HttpGatewayBuilder {
                         .map(Cow::Borrowed)
                         .unwrap_or(Cow::Owned(format!("rule-{}", rule_set_index)));
                     let target_name = format!("{}-{}", route_name, rule_name);
-                    let route_target = NodePort::from(target_name.as_str());
+                    let route_out_port = NodePort::from(target_name.as_str());
+
+                    // build output target
+                    let output_target = if let Some(k8s_backend_refs) = rules.backend_refs.as_ref()
+                    {
+                        self.build_backend_instance_from_k8s_backend_ref(
+                            &target_name,
+                            k8s_backend_refs,
+                        )
+                    } else {
+                        self.internal_error_500_page_instance_id.clone().into()
+                    };
+                    let mut node_output = NodeOutput {
+                        filters: vec![],
+                        target: output_target,
+                    };
                     if let Some(filters) = &rules.filters {
                         for (index, filter) in filters.iter().enumerate() {
                             let filter_name = filter::filter_id(route_name, &rule_name, index);
                             let filter_instance =
-                                filter::build_filter_instance_from_k8s_filter(&filter);
+                                filter::build_filter_instance_from_k8s_router_filter(&filter);
                             self.config
                                 .flow
                                 .instances
                                 .insert(filter_name.clone(), filter_instance);
+                            node_output.filters.push(filter_name.into());
                         }
                     }
 
+                    // setup router rules
                     if let Some(matches) = &rules.matches {
                         for k8s_match in matches {
                             let path = k8s_match.path.as_ref().cloned().unwrap_or_default();
@@ -207,7 +274,7 @@ impl HttpGatewayBuilder {
                     }
                     for (key, bucket) in buckets {
                         let mut rule_bucket =
-                            RuleBucketSerde::<NodePort>::new(route_target.clone());
+                            RuleBucketSerde::<NodePort>::new(route_out_port.clone());
                         rule_bucket.rules = bucket;
                         rule_bucket.sort();
                         match key {
@@ -219,6 +286,7 @@ impl HttpGatewayBuilder {
                             }
                         }
                     }
+                    outputs.insert(route_out_port, node_output);
                 }
             }
             if let Some(hostnames) = &route.spec.hostnames {
@@ -229,7 +297,22 @@ impl HttpGatewayBuilder {
                 router.hostname.insert("*".to_string(), path_tree);
             }
         }
-        Ok(router)
+        let config = value!({
+            "outputs": outputs,
+            "hostname": router.hostname,
+        });
+        let router_instance = InstanceData {
+            class: services::http::ClassId::std(ROUTER_CLASS_ID),
+            name: None,
+            r#type: services::http::InstanceType::Node,
+            config,
+        };
+        let instance_id = InstanceId::new(gateway.gateway.name_any());
+        self.config
+            .flow
+            .instances
+            .insert(instance_id, router_instance);
+        Ok(self.config)
     }
 
     pub fn build(self) -> services::http::Config {

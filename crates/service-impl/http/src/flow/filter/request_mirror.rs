@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use switchboard_model::services::http::{ClassId, NodeTarget};
 
 use crate::{
-    BoxedError, DynRequest, DynResponse, ERR_FILTER_REQUEST_MIRROR,
+    BoxedError, DynRequest, DynResponse, consts::ERR_FILTER_REQUEST_MIRROR,
     flow::filter::{FilterClass, FilterLike},
     utils::error_response,
 };
