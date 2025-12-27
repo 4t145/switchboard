@@ -1,4 +1,8 @@
-use std::{collections::BTreeMap, fmt::Debug};
+use std::{
+    collections::BTreeMap,
+    fmt::{Debug, Display},
+    str::FromStr,
+};
 
 use serde::{Deserialize, Serialize};
 use switchboard_custom_config::{LinkOrValue, LinkResolver};
@@ -21,6 +25,12 @@ pub struct Tls<TlsResolver = self::TlsResolver> {
 pub enum TlsResolver {
     Single(TlsCertParams),
     Sni(BTreeMap<String, TlsCertParams>),
+}
+
+impl From<TlsCertParams> for TlsResolver {
+    fn from(params: TlsCertParams) -> Self {
+        TlsResolver::Single(params)
+    }
 }
 
 #[derive(
@@ -139,6 +149,30 @@ impl Default for TlsOptions {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PemFile(pub pem::Pem);
 
+impl PemFile {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, pem::PemError> {
+        let pem = pem::parse(bytes)?;
+        Ok(PemFile(pem))
+    }
+}
+
+impl FromStr for PemFile {
+    type Err = pem::PemError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let pem = pem::parse(s)?;
+        Ok(PemFile(pem))
+    }
+}
+
+impl Display for PemFile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = pem::encode(&self.0);
+        write!(f, "{}", s)
+    }
+}
+
+
 impl bincode::Encode for PemFile {
     fn encode<E: bincode::enc::Encoder>(
         &self,
@@ -194,6 +228,29 @@ impl<'de> Deserialize<'de> for PemFile {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PemsFile(pub Vec<pem::Pem>);
+
+impl PemsFile {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, pem::PemError> {
+        let pems = pem::parse_many(bytes)?;
+        Ok(PemsFile(pems))
+    }
+}
+
+impl FromStr for PemsFile {
+    type Err = pem::PemError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let pems = pem::parse_many(s)?;
+        Ok(PemsFile(pems))
+    }
+}
+
+impl Display for PemsFile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = pem::encode_many(&self.0);
+        write!(f, "{}", s)
+    }
+}
 
 impl bincode::Encode for PemsFile {
     fn encode<E: bincode::enc::Encoder>(

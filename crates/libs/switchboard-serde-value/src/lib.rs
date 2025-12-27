@@ -31,7 +31,7 @@ macro_rules! for_primitives {
     };
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
+#[derive(Clone, PartialEq, PartialOrd, Default)]
 #[cfg_attr(feature = "bincode", derive(bincode::Encode, bincode::Decode))]
 #[repr(u8)]
 pub enum SerdeValue {
@@ -43,6 +43,20 @@ pub enum SerdeValue {
     Map(collection::SerdeMap) = 4,
     Sequence(collection::SerdeSequence) = 5,
     Option(option::SerdeOption) = 6,
+}
+
+impl std::fmt::Debug for SerdeValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SerdeValue::Unit => write!(f, "()"),
+            SerdeValue::Primitive(p) => write!(f, "{:?}", p),
+            SerdeValue::String(s) => write!(f, "\"{}\"", s),
+            SerdeValue::Bytes(b) => write!(f, "Bytes({})", b.len()),
+            SerdeValue::Map(m) => write!(f, "{:?}", m),
+            SerdeValue::Sequence(c) => write!(f, "{:?}", c),
+            SerdeValue::Option(o) => write!(f, "{:?}", o),
+        }
+    }
 }
 
 impl From<Vec<u8>> for SerdeValue {

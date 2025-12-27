@@ -1,0 +1,29 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: switchboard-gateway
+  namespace: default
+  labels:
+    app: switchboard-gateway
+spec:
+  gatewayClassName: switchboard
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 30080
+    hostname: "echo.localtest.me"
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: https
+    protocol: HTTPS
+    port: 30443
+    hostname: "echo.localtest.me"
+    tls:
+      certificateRefs:
+      - group: ""
+        kind: Secret
+        name: gateway-tls
+    allowedRoutes:
+      namespaces:
+        from: Same

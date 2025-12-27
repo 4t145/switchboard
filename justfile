@@ -24,3 +24,6 @@ build-container:
         --network host \
         -f publish/container/sbk.containerfile \
         -t switchboard/sbk:{{label}} .
+
+test-start-kind:
+    bash tests/k8s/setup-kind.sh

@@ -11,3 +11,6 @@ dir = "./tmp/run/kernel/"
 
 [resolve.fs]
 path = "./examples/config/config.toml"
+
+[resource.gateway.k8s]
+gateway_namespace = "default"

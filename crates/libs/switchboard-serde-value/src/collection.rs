@@ -7,9 +7,15 @@ use serde::{
 
 use crate::SerdeValue;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
+#[derive(Clone, PartialEq, PartialOrd, Default)]
 #[cfg_attr(feature = "bincode", derive(bincode::Encode, bincode::Decode))]
 pub struct SerdeSequence(pub Vec<crate::SerdeValue>);
+
+impl std::fmt::Debug for SerdeSequence {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.0.iter()).finish()
+    }
+}
 
 impl<T> From<Vec<T>> for SerdeSequence
 where
@@ -165,7 +171,7 @@ impl<'de> Deserialize<'de> for SerdeSequence {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Clone, PartialEq, PartialOrd, Default)]
 #[cfg_attr(feature = "bincode", derive(bincode::Encode, bincode::Decode))]
 pub struct SerdeMap(pub Vec<(crate::SerdeValue, crate::SerdeValue)>);
 
@@ -175,6 +181,14 @@ impl SerdeMap {
     }
     pub fn add_entry(&mut self, key: crate::SerdeValue, value: crate::SerdeValue) {
         self.0.push((key, value));
+    }
+}
+
+impl std::fmt::Debug for SerdeMap {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_map()
+            .entries(self.0.iter().map(|(k, v)| (k, v)))
+            .finish()
     }
 }
 

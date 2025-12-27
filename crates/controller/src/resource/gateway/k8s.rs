@@ -1,6 +1,7 @@
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
+    net::{Ipv4Addr, SocketAddr},
     sync::Arc,
 };
 
@@ -13,7 +14,7 @@ use http::HeaderName;
 use kube::{ResourceExt, api::ListParams};
 use serde::{Deserialize, Serialize};
 use switchboard_custom_config::{
-    ConfigWithFormat,
+    ConfigWithFormat, K8sResource, Link, SerdeValue,
     switchboard_serde_value::{self, value},
 };
 use switchboard_http_router::{
@@ -23,7 +24,7 @@ use switchboard_http_router::{
     },
 };
 use switchboard_model::{
-    Config, TcpServiceConfig,
+    Config, Listener, TcpServiceConfig, Tls,
     services::{
         self,
         http::{
@@ -31,7 +32,10 @@ use switchboard_model::{
             consts::ROUTER_CLASS_ID,
         },
     },
+    tcp_route::TcpRoute,
 };
+
+use crate::{ControllerContext, resolve::k8s::K8sResolver};
 
 mod backend;
 mod filter;
@@ -57,12 +61,11 @@ impl Default for K8sGatewayResourceConfig {
 }
 #[derive(Debug, Clone, Default)]
 pub struct K8sGatewayGatheredResource {
-    pub gateway_classes: BTreeMap<String, K8sGatewayGatewayClassesData>,
+    pub gateway_classes: BTreeMap<String, K8sGateways>,
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct K8sGatewayGatewayClassesData {
-    pub gateway_class: gateway_api::gatewayclasses::GatewayClass,
+pub struct K8sGateways {
     pub gateways: BTreeMap<String, K8sGatewayGatewayData>,
 }
 
@@ -113,7 +116,8 @@ pub fn k8s_query_match_to_http_query_match(
 }
 
 pub struct ServiceBuilder {
-    pub config: switchboard_model::Config,
+    pub config: switchboard_model::Config<SerdeValue, K8sResource>,
+    pub context: ControllerContext,
 }
 #[derive(thiserror::Error, Debug)]
 pub enum ServiceBuilderError {
@@ -121,37 +125,108 @@ pub enum ServiceBuilderError {
     HttpRouterBuildError(#[from] switchboard_http_router::error::BuildError),
     #[error("Serde value error: {0}")]
     SerdeValueError(#[from] switchboard_serde_value::Error),
+    #[error("K8s resolve error: {0}")]
+    K8sResolveError(#[from] crate::resolve::k8s::K8sResolveError),
 }
 impl ServiceBuilder {
-    pub fn new() -> Self {
+    pub fn new(context: ControllerContext) -> Self {
         Self {
-            config: switchboard_model::Config::default(),
+            config: switchboard_model::Config::<SerdeValue, K8sResource>::default(),
+            context,
         }
+    }
+    pub async fn resolve(self) -> Result<switchboard_model::Config, ServiceBuilderError> {
+        let switchboard_model::Config::<SerdeValue, K8sResource> {
+            tcp_services,
+            tcp_listeners,
+            tcp_routes,
+            tls,
+        } = self.config;
+        let mut resolved_tls = BTreeMap::new();
+        let resolver = K8sResolver::new(self.context);
+        for (name, tls_link) in tls {
+            let Tls {
+                resolver: resource,
+                options,
+            } = tls_link;
+            let tls_param = resolver.fetch_tls_cert_params(&resource).await?;
+            let resolved_tls_resolver = tls_param.into();
+            resolved_tls.insert(
+                name,
+                Tls {
+                    resolver: resolved_tls_resolver,
+                    options,
+                },
+            );
+        }
+        let resolved_config = switchboard_model::Config {
+            tcp_services,
+            tcp_listeners,
+            tcp_routes,
+            tls: resolved_tls,
+        };
+        Ok(resolved_config)
     }
     pub fn build_http_service(
         &mut self,
         gateway: &K8sGatewayGatewayData,
     ) -> Result<String, ServiceBuilderError> {
-        let mut http_gateway_builder = HttpGatewayBuilder::new().build_router_from_k8s(gateway)?;
-        let value = switchboard_serde_value::SerdeValue::serialize_from(&http_gateway_builder)?;
-        let service_id = format!("http-gateway-{}", gateway.gateway.name_any());
+        let gateway_name = gateway.gateway.name_any();
+        let http_gateway_config = HttpGatewayBuilder::new().build_router_from_k8s(gateway)?;
+        let value = switchboard_serde_value::SerdeValue::serialize_from(&http_gateway_config)?;
+        tracing::debug!(
+            "Built HTTP Gateway service for K8s Gateway {}: {:?}",
+            gateway_name,
+            value
+        );
+        let service_name = format!("http-gateway-{}", gateway.gateway.name_any());
         let service_instance = TcpServiceConfig {
             provider: "http".to_string(),
-            name: service_id.clone(),
+            name: service_name.clone(),
             config: Some(value),
             description: Some(format!(
                 "HTTP Gateway for K8s Gateway {}",
                 gateway.gateway.name_any()
             )),
         };
-        for listener in &gateway.gateway.spec.listeners {
-            let port = listener.port as u16;
-            if let Some(tls) = &listener.tls {
-                let mode = tls.certificate_refs.as_ref();
-                
+        for k8s_listener in &gateway.gateway.spec.listeners {
+            let port = k8s_listener.port as u16;
+            let bind = SocketAddr::from((Ipv4Addr::UNSPECIFIED, port));
+            let listener = Listener {
+                bind,
+                description: Some(format!("listener on {port} for {gateway_name}")),
+            };
+            let mut route = TcpRoute {
+                bind,
+                service: service_name.clone(),
+                tls: None,
+            };
+            if let Some(tls) = &k8s_listener.tls
+                && let Some(listener_certificate_refs) = tls.certificate_refs.as_ref()
+            {
+                for listener_certificate_ref in listener_certificate_refs {
+                    let tls_resource = K8sResource::new(
+                        listener_certificate_ref.namespace.clone(),
+                        listener_certificate_ref.name.clone(),
+                    );
+                    let tls_name = format!("k8s-gateway-{}-listener-{}-tls", gateway_name, port);
+                    self.config.tls.insert(
+                        tls_name.clone(),
+                        Tls {
+                            resolver: tls_resource,
+                            options: Default::default(),
+                        },
+                    );
+                    route.tls = Some(tls_name)
+                }
             }
+            self.config.tcp_listeners.insert(bind, listener);
+            self.config.tcp_routes.insert(bind, route);
         }
-        todo!()
+        self.config
+            .tcp_services
+            .insert(service_name.clone(), service_instance);
+        Ok(service_name)
     }
 }
 
@@ -320,31 +395,6 @@ impl HttpGatewayBuilder {
     }
 }
 
-impl K8sGatewayGatewayData {
-    pub fn build_http_config(&self) -> switchboard_model::services::http::Config {
-        use switchboard_model::services::http::*;
-        let default_router_id = InstanceId::new(self.gateway.name_any());
-        // let router_instances;
-        for (router_name, router) in &self.http_routes {
-            if let Some(rules) = &router.spec.rules {
-                for rule in rules {}
-            }
-        }
-        let mut flow_config = FlowConfig::<ConfigWithFormat> {
-            entrypoint: NodeTarget {
-                id: default_router_id.clone(),
-                port: NodePort::Default,
-            },
-            instances: Default::default(),
-            nodes: Default::default(),
-            filters: Default::default(),
-            options: FlowOptions::default(),
-        };
-
-        todo!()
-    }
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct K8sGatewayGatewayData {
     pub gateway: gateway_api::gateways::Gateway,
@@ -361,71 +411,105 @@ pub enum K8sGatewayResourceError {
     NoK8sClient,
     #[error("Kubernetes client error: {0}")]
     KubeError(#[from] kube::Error),
+    #[error("Service build error: {0}")]
+    ServiceBuilderError(#[from] ServiceBuilderError),
 }
 
 pub const GATEWAY_CONTROLLER_NAME: &str = "switchboard.io/gateway-controller";
 impl crate::ControllerContext {
-    pub async fn gather_k8s_gateway_config(
+    pub async fn build_config_from_k8s(
         &self,
-    ) -> Result<K8sGatewayGatheredResource, K8sGatewayResourceError> {
-        let mut gathered_resource = K8sGatewayGatheredResource::default();
+    ) -> Result<switchboard_model::Config, K8sGatewayResourceError> {
+        let gateways = self.gather_k8s_gateway_config().await?;
+        let mut builder = ServiceBuilder::new(self.clone());
+        for (_gateway_name, gateway_data) in gateways.gateways {
+            builder.build_http_service(&gateway_data)?;
+        }
+        let config = builder.resolve().await?;
+        Ok(config)
+    }
+    pub(crate) async fn gather_k8s_gateway_config(
+        &self,
+    ) -> Result<K8sGateways, K8sGatewayResourceError> {
+        let mut gathered_gateways = K8sGateways::default();
         let Some(k8s_gateway_resource_config) = self.controller_config.resource.gateway.k8s.clone()
         else {
-            return Ok(gathered_resource);
+            tracing::debug!("No K8s Gateway resource config found, skipping K8s Gateway gathering");
+            return Ok(gathered_gateways);
         };
         let Some(client) = self.k8s_client.clone() else {
             return Err(K8sGatewayResourceError::NoK8sClient);
         };
         let gateway_class_api =
             kube::Api::<gateway_api::gatewayclasses::GatewayClass>::all(client.clone());
-
+        tracing::debug!("Fetching K8s GatewayClasses");
         let gateway_list = gateway_class_api
             .list(&ListParams {
-                field_selector: Some(format!("spec.controllerName={}", GATEWAY_CONTROLLER_NAME)),
                 ..Default::default()
             })
             .await?;
-        let gateway_class_list = gateway_list.items;
+        // filter out only switchboard managed gateway classes
+        let gateway_classes = gateway_list
+            .items
+            .into_iter()
+            .filter(|gc| gc.spec.controller_name == GATEWAY_CONTROLLER_NAME)
+            .map(|gc| (gc.name_any(), gc))
+            .collect::<HashMap<_, _>>();
 
+        tracing::debug!("Found {} GatewayClasses", gateway_classes.len());
         // scan all gateway
         let gateway_api = kube::Api::<gateway_api::gateways::Gateway>::all(client.clone());
-        for gateway_class in gateway_class_list {
-            let gateway_class_name = gateway_class.name_any();
-            let gateway_class_data = K8sGatewayGatewayClassesData {
-                gateway_class,
-                gateways: BTreeMap::new(),
-            };
-            let gateway_list = gateway_api
-                .list(&ListParams {
-                    field_selector: Some(format!("spec.gatewayClassName={}", gateway_class_name)),
-                    ..Default::default()
-                })
-                .await?;
-            for gateway in gateway_list.items {
-                let gateway_name = gateway.name_any();
-                let mut gateway_data = K8sGatewayGatewayData {
-                    gateway: gateway.clone(),
-                    http_routes: BTreeMap::new(),
-                };
-                let route_api = kube::Api::<gateway_api::httproutes::HTTPRoute>::namespaced(
-                    client.clone(),
-                    &k8s_gateway_resource_config.gateway_namespace,
-                );
-                let route_list = route_api
-                    .list(&ListParams {
-                        field_selector: Some(format!("spec.parentRefs.name={}", gateway_name)),
-                        ..Default::default()
-                    })
-                    .await?;
-                for route in route_list.items {
-                    let route_name = route.name_any();
-                    gateway_data.http_routes.insert(route_name, route.clone());
-                }
+        let gateways = gateway_api
+            .list(&ListParams {
+                ..Default::default()
+            })
+            .await?;
+        // filter out only switchboard managed gateways
+        let gateways = gateways
+            .items
+            .into_iter()
+            .filter(|gw| gateway_classes.contains_key(&gw.spec.gateway_class_name))
+            .map(|gw| (gw.name_any(), gw))
+            .collect::<HashMap<_, _>>();
+        tracing::debug!("Found {} Gateways", gateways.len());
+        let route_api = kube::Api::<gateway_api::httproutes::HTTPRoute>::namespaced(
+            client.clone(),
+            &k8s_gateway_resource_config.gateway_namespace,
+        );
+        let route_list = route_api.list(&ListParams::default()).await?;
+        let mut gateway_router_map =
+            HashMap::<String, Vec<gateway_api::httproutes::HTTPRoute>>::new();
+        for route in route_list.items.into_iter() {
+            for pr in route
+                .spec
+                .parent_refs
+                .clone()
+                .unwrap_or_default()
+                .into_iter()
+            {
+                let parent_name = pr.name;
+                gateway_router_map
+                    .entry(parent_name)
+                    .or_default()
+                    .push(route.clone());
             }
-            gathered_resource
-                .gateway_classes
-                .insert(gateway_class_name, gateway_class_data);
         }
-        Ok(gathered_resource)
+        for (gateway_name, gateway) in gateways {
+            tracing::debug!("Processing Gateway: {}", gateway_name);
+            let gateway_name = gateway.name_any();
+            let mut gateway_data = K8sGatewayGatewayData {
+                gateway: gateway.clone(),
+                http_routes: BTreeMap::new(),
+            };
+
+            for route in gateway_router_map.remove(&gateway_name).unwrap_or_default() {
+                let route_name = route.name_any();
+                gateway_data.http_routes.insert(route_name, route);
+            }
+            gathered_gateways
+                .gateways
+                .insert(gateway_name, gateway_data);
+        }
+        Ok(gathered_gateways)
     }
 }

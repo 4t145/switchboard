@@ -7,6 +7,12 @@ pub struct K8sResource {
     pub name: String,
 }
 
+impl K8sResource {
+    pub fn new(namespace: Option<String>, name: String) -> Self {
+        Self { namespace, name }
+    }
+}
+
 impl serde::Serialize for K8sResource {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

@@ -2,11 +2,11 @@ use crate::kernel::KernelDiscoveryError;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 pub mod config;
+pub mod dir;
 pub mod interface;
 pub mod kernel;
-pub mod resource;
-pub mod dir;
 pub mod resolve;
+pub mod resource;
 pub const DEFAULT_NAMESPACE: &str = "switchboard";
 #[derive(Clone)]
 pub struct ControllerContext {
@@ -25,7 +25,7 @@ impl ControllerContext {
             k8s_client: None,
         }
     }
-    pub async fn try_init_k8s_client(&mut self) -> Result<(), > {
+    pub async fn try_init_k8s_client(&mut self) -> Result<()> {
         let client = kube::Client::try_default().await?;
         self.k8s_client = Some(client);
         Ok(())

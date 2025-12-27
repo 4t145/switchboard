@@ -8,8 +8,8 @@ pub use fs::FsLinkResolver;
 mod k8s;
 pub use k8s::{K8sResource, K8sResourceParseError};
 mod env;
-pub use env::EnvLinkResolver;
 use crate::{ConfigWithFormat, formats::TransferObject};
+pub use env::EnvLinkResolver;
 
 #[derive(Debug, thiserror::Error)]
 pub enum LinkParseError {
@@ -140,6 +140,25 @@ impl Link {
             Link::Env(var_name) => Some(var_name),
             _ => None,
         }
+    }
+    pub fn file_path(path: impl AsRef<Path>) -> Self {
+        Link::Fs {
+            path: path.as_ref().to_path_buf(),
+        }
+    }
+    pub fn http_url(url: impl AsRef<str>) -> Self {
+        Link::Http {
+            url: url.as_ref().to_string(),
+        }
+    }
+    pub fn k8s_resource(name: impl Into<String>, namespace: Option<impl Into<String>>) -> Self {
+        Link::K8s(K8sResource {
+            name: name.into(),
+            namespace: namespace.map(|s| s.into()),
+        })
+    }
+    pub fn env_variable(var_name: impl Into<String>) -> Self {
+        Link::Env(var_name.into())
     }
 }
 
