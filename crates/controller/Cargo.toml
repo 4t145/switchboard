@@ -28,7 +28,6 @@ http = { workspace = true }
 axum = { version  = "0.8" }
 # grpc
 tonic = { workspace = true, features = ["transport"] }
-
 ## mcp
 # rmcp = { version = "0.10" }
 base64 = { workspace = true }
@@ -40,3 +39,10 @@ gateway-api = "0.19.0"
 switchboard-http-router = { workspace = true }
 switchboard-custom-config = { workspace = true }
 regex = { version = "1"}
+bytes = { version = "1"}
+chrono = { version = "0.4", features = ["serde"] }
+
+surrealdb = { version = "2", features = ["kv-rocksdb"]}
+sha2 = { version = "0.10" }
+hex = { version = "0.4" }
+uuid = { version = "1", features = ["v7"] }

@@ -7,6 +7,8 @@ pub mod interface;
 pub mod kernel;
 pub mod resolve;
 pub mod resource;
+pub mod storage;
+
 pub const DEFAULT_NAMESPACE: &str = "switchboard";
 #[derive(Clone)]
 pub struct ControllerContext {

@@ -10,6 +10,7 @@ pub struct Cursor {
 }
 
 
+
 #[derive(Debug, Clone)]
 pub struct CursorQuery {
     pub cursor: Cursor,
