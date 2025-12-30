@@ -15,17 +15,20 @@ pub struct ControllerContext {
     pub controller_config: Arc<config::ControllerConfig>,
     pub kernel_manager: Arc<RwLock<kernel::KernelManager>>,
     pub interface_manager: Arc<RwLock<interface::InterfaceManager>>,
+    pub storage: storage::SharedStorage,
     pub k8s_client: Option<kube::Client>,
 }
 
 impl ControllerContext {
-    pub fn new(controller_config: config::ControllerConfig) -> Self {
-        Self {
-            controller_config: controller_config.into(),
+    pub async fn new(controller_config: config::ControllerConfig) -> Result<Self> {
+        let this = Self {
+            storage: storage::create_storage(&controller_config.storage).await?,
             kernel_manager: Arc::new(RwLock::new(kernel::KernelManager::new())),
             interface_manager: Arc::new(RwLock::new(interface::InterfaceManager::default())),
-            k8s_client: None,
-        }
+            k8s_client: Some(kube::Client::try_default().await?),
+            controller_config: controller_config.into(),
+        };
+        Ok(this)
     }
     pub async fn try_init_k8s_client(&mut self) -> Result<()> {
         let client = kube::Client::try_default().await?;
@@ -62,4 +65,7 @@ pub enum Error {
 
     #[error("Kubernetes client error: {0}")]
     KubernetesClientError(#[from] kube::Error),
+
+    #[error("Storage error: {0}")]
+    StorageError(#[from] crate::storage::StorageError),
 }

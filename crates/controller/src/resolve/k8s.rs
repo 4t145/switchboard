@@ -5,12 +5,10 @@ use kube::Api;
 use switchboard_custom_config::K8sResource;
 use switchboard_model::TlsCertParams;
 
+use crate::{resolve::ServiceConfigResolver, resource::gateway::k8s::K8sGatewayResourceError};
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Hash, PartialEq, Eq, Default)]
-pub struct K8sResolveConfig {
-
-}
-
-
+pub struct K8sResolveConfig {}
 
 pub struct K8sResolver {
     context: crate::ControllerContext,
@@ -19,6 +17,11 @@ pub struct K8sResolver {
 impl K8sResolver {
     pub fn new(context: crate::ControllerContext) -> Self {
         Self { context }
+    }
+    pub async fn resolve_service_config_from_k8s(
+        &self,
+    ) -> Result<switchboard_model::Config, K8sGatewayResourceError> {
+        self.context.build_config_from_k8s().await
     }
 }
 
@@ -56,6 +59,21 @@ impl K8sResolver {
     }
 }
 
+impl ServiceConfigResolver for K8sResolver {
+    fn resolve(
+        &self,
+        _config: switchboard_custom_config::SerdeValue,
+    ) -> futures::future::BoxFuture<
+        '_,
+        Result<switchboard_model::Config, Box<dyn std::error::Error + Send + Sync>>,
+    > {
+        Box::pin(async move {
+            let svc_config = self.resolve_service_config_from_k8s().await?;
+            Ok(svc_config)
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -65,8 +83,9 @@ mod tests {
             name: "gateway-tls".to_string(),
             namespace: Some("default".to_string()),
         };
-        let mut context = crate::ControllerContext::new(Default::default());
-        context.try_init_k8s_client().await.unwrap();
+        let context = crate::ControllerContext::new(Default::default())
+            .await
+            .unwrap();
         let tls_params = K8sResolver::new(context)
             .fetch_tls_cert_params(&resource)
             .await

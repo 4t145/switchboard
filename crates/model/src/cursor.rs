@@ -4,11 +4,33 @@ pub struct Indexed<T> {
     pub data: T,
 }
 
+impl<T> Indexed<T> {
+    pub fn new(id: String, data: T) -> Self {
+        Self { id, data }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Cursor {
     pub next: Option<String>,
 }
 
+impl Cursor {
+    pub fn is_empty(&self) -> bool {
+        self.next.is_none()
+    }
+    pub fn empty() -> Self {
+        Self { next: None }
+    }
+    pub fn from_next(next: String) -> Self {
+        Self {
+            next: Some(next),
+        }
+    }
+    pub fn new(next: Option<String>) -> Self {
+        Self { next }
+    }
+}
 
 
 #[derive(Debug, Clone)]

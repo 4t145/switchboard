@@ -5,7 +5,7 @@ use switchboard_model::{
     bytes::Base64Bytes, controller::ControllerInfo, protocol::DEFAULT_STATE_REPORT_INTERVAL_SECS,
 };
 
-use crate::{interface::InterfaceConfig, resolve::ResolveConfig, resource::ResourceConfig};
+use crate::{interface::InterfaceConfig, resolve::ResolveConfig, resource::ResourceConfig, storage::StorageProvider};
 
 /// Controller Configuration
 /// # Example
@@ -32,6 +32,8 @@ pub struct ControllerConfig {
     /// how to resolve configs
     #[serde(default)]
     pub resolve: ResolveConfig,
+    #[serde(default)]
+    pub storage: StorageProvider,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Hash, PartialEq, Eq)]
