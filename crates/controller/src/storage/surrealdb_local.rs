@@ -6,31 +6,32 @@ use surrealdb::{
     engine::local::{Db, RocksDb},
     opt::{CreateResource, IntoResource},
 };
-use switchboard_model::{Cursor, CursorQuery, Indexed};
+use switchboard_custom_config::SerdeValue;
+use switchboard_model::{Cursor, Indexed, PageQuery};
 
 use crate::storage::{
-    Storage, StorageConfig, StorageConfigDescriptor, StorageConfigWithoutData, StorageError,
-    StorageMeta, decode_config,
+    FlattenedListObjectQuery, ListObjectQuery, Storage, StorageError, StorageMeta, StorageObject,
+    StorageObjectDescriptor, StorageObjectWithoutData, decode_object,
 };
 pub struct SurrealRocksDbStorage {
     pub client: Surreal<Db>,
 }
-const CONFIG_TABLE: &str = "config";
+const OBJECT_TABLE: &str = "storage_object";
 const PROVIDER: &str = "SurrealDB";
 
-impl StorageConfigDescriptor {
+impl StorageObjectDescriptor {
     fn surreal_db_record_id(&self) -> RecordId {
-        RecordId::from_table_key(CONFIG_TABLE, self.id())
+        RecordId::from_table_key(OBJECT_TABLE, self.id())
     }
     fn id(&self) -> String {
-        format!("{}:{}", self.name, self.revision)
+        format!("{}:{}", self.id, self.revision)
     }
     fn from_surreal_db_record_id(record_id: &RecordIdKey) -> Result<Self, StorageError> {
         record_id
             .to_string()
             .split_once(':')
-            .map(|(name, revision)| StorageConfigDescriptor {
-                name: name.to_string(),
+            .map(|(name, revision)| StorageObjectDescriptor {
+                id: name.to_string(),
                 revision: revision.to_string(),
             })
             .ok_or_else(|| StorageError::StorageError {
@@ -42,19 +43,30 @@ impl StorageConfigDescriptor {
 
 impl SurrealRocksDbStorage {
     pub async fn new(db_dir: &Path) -> Result<Self, StorageError> {
-        let client = Surreal::new::<RocksDb>(db_dir).await.map_err(storage_error)?;
-        Ok(Self { client })
+        let client = Surreal::new::<RocksDb>(db_dir)
+            .await
+            .map_err(storage_error)?;
+        let this = Self { client };
+        this.ensure_initialized().await?;
+        Ok(this)
+    }
+    pub async fn ensure_initialized(&self) -> Result<(), StorageError> {
+        self.client
+            .query(format!("CREATE TABLE IF NOT EXISTS {};", OBJECT_TABLE))
+            .await
+            .map_err(storage_error)?;
+        Ok(())
     }
 }
 
-impl<D> IntoResource<D> for &StorageConfigDescriptor {
+impl<D> IntoResource<D> for &StorageObjectDescriptor {
     fn into_resource(self) -> surrealdb::Result<surrealdb::opt::Resource> {
         let resource = surrealdb::opt::Resource::RecordId(self.surreal_db_record_id());
         Ok(resource)
     }
 }
 
-impl CreateResource<Option<RecordId>> for &StorageConfigDescriptor {
+impl CreateResource<Option<RecordId>> for &StorageObjectDescriptor {
     fn into_resource(self) -> surrealdb::Result<surrealdb::opt::Resource> {
         let resource = surrealdb::opt::Resource::RecordId(self.surreal_db_record_id());
         Ok(resource)
@@ -69,33 +81,37 @@ fn storage_error(e: surrealdb::Error) -> StorageError {
 }
 
 impl Storage for SurrealRocksDbStorage {
-    async fn get_config(
+    async fn get_object(
         &self,
-        descriptor: &StorageConfigDescriptor,
-    ) -> Result<switchboard_model::Config, StorageError> {
-        let result: Option<StorageConfig> = self
+        descriptor: &StorageObjectDescriptor,
+    ) -> Result<SerdeValue, StorageError> {
+        let result: Option<StorageObject> = self
             .client
-            .select::<Option<StorageConfig>>(descriptor)
+            .select::<Option<StorageObject>>(descriptor)
             .await
             .map_err(storage_error)?;
-        let model = result.ok_or(StorageError::ConfigNotFound {
+        let model = result.ok_or(StorageError::ObjectNotFound {
             descriptor: descriptor.clone(),
         })?;
-        decode_config(&model.data, &model.descriptor.revision)
+        decode_object(&model.data, &model.descriptor.revision)
     }
-    async fn save_config(
+    async fn save_object(
         &self,
         name: &str,
-        config: switchboard_model::Config,
-    ) -> Result<StorageConfigDescriptor, StorageError> {
-        let (revision, data) = super::encode_config(&config)?;
+        data_type: &str,
+        object: SerdeValue,
+    ) -> Result<StorageObjectDescriptor, StorageError> {
+        let (revision, data) = super::encode_object(object)?;
         let now = Utc::now();
-        let model = StorageConfig {
-            descriptor: StorageConfigDescriptor {
-                name: name.to_string(),
+        let model = StorageObject {
+            descriptor: StorageObjectDescriptor {
+                id: name.to_string(),
                 revision,
             },
-            meta: StorageMeta { created_at: now },
+            meta: StorageMeta {
+                created_at: now,
+                data_type: data_type.to_string(),
+            },
             data,
         };
         let id = self
@@ -107,7 +123,7 @@ impl Storage for SurrealRocksDbStorage {
         match id {
             Some(record_id) => {
                 let descriptor =
-                    StorageConfigDescriptor::from_surreal_db_record_id(record_id.key())?;
+                    StorageObjectDescriptor::from_surreal_db_record_id(record_id.key())?;
                 Ok(descriptor)
             }
             None => Err(StorageError::StorageError {
@@ -116,97 +132,65 @@ impl Storage for SurrealRocksDbStorage {
             }),
         }
     }
-    async fn delete_config(
+    async fn delete_object(
         &self,
-        descriptor: &StorageConfigDescriptor,
+        descriptor: &StorageObjectDescriptor,
     ) -> Result<(), StorageError> {
         let deleted = self
             .client
-            .delete::<Option<StorageConfig>>(descriptor)
+            .delete::<Option<StorageObjectWithoutData>>(descriptor)
             .await
             .map_err(storage_error)?;
         if deleted.is_none() {
-            return Err(StorageError::ConfigNotFound {
+            return Err(StorageError::ObjectNotFound {
                 descriptor: descriptor.clone(),
             });
         }
         Ok(())
     }
-    async fn list_configs(
+    async fn list_objects(
         &self,
-        cursor_query: switchboard_model::CursorQuery,
-    ) -> Result<switchboard_model::PagedResult<StorageConfigWithoutData>, StorageError> {
-        let sql = if !cursor_query.cursor.is_empty() {
-            format!(
-                "SELECT * OMIT data FROM type::table($table) \
-                 WHERE id > type::thing($cursor) \
-                 ORDER BY id ASC \
-                 LIMIT $limit"
-            )
-        } else {
-            format!(
-                "SELECT * OMIT data FROM type::table($table) \
-                 ORDER BY id ASC \
-                 LIMIT $limit"
-            )
+        list_object_query: ListObjectQuery,
+    ) -> Result<switchboard_model::PagedResult<StorageObjectWithoutData>, StorageError> {
+        let ListObjectQuery { filter, page } = &list_object_query;
+        let mut where_clauses = vec![];
+        if page.cursor.next.is_some() {
+            where_clauses.push("id > $cursor");
         };
+        if filter.data_type.is_some() {
+            where_clauses.push("meta.data_type = $data_type");
+        }
+        if filter.id.is_some() {
+            where_clauses.push("descriptor.id = $id");
+        }
+        if filter.revision.is_some() {
+            where_clauses.push("descriptor.revision = $revision");
+        }
+        if filter.created_before.is_some() {
+            where_clauses.push("meta.created_at < $created_before");
+        }
+        if filter.created_after.is_some() {
+            where_clauses.push("meta.created_at > $created_after");
+        }
+        let where_clause = if where_clauses.is_empty() {
+            "".to_string()
+        } else {
+            format!("WHERE {}", where_clauses.join(" AND "))
+        };
+        let sql = format!(
+            "SELECT * FROM type::table($table) {} ORDER BY id LIMIT $limit",
+            where_clause
+        );
 
-        let mut query = self
+        let query = self
             .client
             .query(sql)
-            .bind(("table", CONFIG_TABLE))
-            .bind(("limit", cursor_query.limit));
-        if let Some(cursor) = cursor_query.cursor.next {
-            query = query.bind(("cursor", cursor));
-        }
+            .bind(FlattenedListObjectQuery::from_query(list_object_query))
+            .bind(("$table", OBJECT_TABLE));
         let items = query
             .await
             .map_err(storage_error)?
-            .take::<Vec<StorageConfigWithoutData>>(0)
-            .map_err(storage_error)?
-            .into_iter()
-            .map(|item| Indexed::new(item.descriptor.id(), item))
-            .collect::<Vec<_>>();
-        let next_cursor = items.last().map(|config| config.id.clone());
-        let next_cursor = Cursor::new(next_cursor);
-        Ok(switchboard_model::PagedResult {
-            items,
-            next_cursor: Some(next_cursor),
-        })
-    }
-    async fn list_configs_by_name(
-        &self,
-        name: &str,
-        cursor_query: CursorQuery,
-    ) -> Result<switchboard_model::PagedResult<StorageConfigWithoutData>, StorageError> {
-        let sql = if !cursor_query.cursor.is_empty() {
-            format!(
-                "SELECT * OMIT data FROM type::table($table) \
-                 WHERE descriptor.name = $name AND id > type::thing($cursor) \
-                 ORDER BY id ASC \
-                 LIMIT $limit"
-            )
-        } else {
-            format!(
-                "SELECT * OMIT data FROM type::table($table) \
-                 WHERE descriptor.name = $name \
-                 ORDER BY id ASC \
-                 LIMIT $limit"
-            )
-        };
-        let mut query = self
-            .client
-            .query(sql)
-            .bind(("table", CONFIG_TABLE))
-            .bind(("name", name.to_string()))
-            .bind(("limit", cursor_query.limit));
-        if let Some(cursor) = cursor_query.cursor.next {
-            query = query.bind(("cursor", cursor));
-        }
-        let items = query
-            .await
-            .map_err(storage_error)?
-            .take::<Vec<StorageConfigWithoutData>>(0)
+            .take::<Vec<StorageObjectWithoutData>>(0)
             .map_err(storage_error)?
             .into_iter()
             .map(|item| Indexed::new(item.descriptor.id(), item))
@@ -219,64 +203,20 @@ impl Storage for SurrealRocksDbStorage {
         })
     }
 
-    async fn list_latest_configs(
-        &self,
-        cursor_query: CursorQuery,
-    ) -> Result<switchboard_model::PagedResult<StorageConfigWithoutData>, StorageError> {
-        let sql = if !cursor_query.cursor.is_empty() {
-            format!(
-                "SELECT * OMIT data FROM type::table($table) \
-                 WHERE id IN (SELECT max(id) FROM type::table($table) GROUP BY descriptor.name) \
-                 AND id > type::thing($cursor) \
-                 ORDER BY id ASC \
-                 LIMIT $limit"
-            )
-        } else {
-            format!(
-                "SELECT * OMIT data FROM type::table($table) \
-                 WHERE id IN (SELECT max(id) FROM type::table($table) GROUP BY descriptor.name) \
-                 ORDER BY id ASC \
-                 LIMIT $limit"
-            )
-        };
-        let mut query = self
-            .client
-            .query(sql)
-            .bind(("table", CONFIG_TABLE))
-            .bind(("limit", cursor_query.limit));
-        if let Some(cursor) = cursor_query.cursor.next {
-            query = query.bind(("cursor", cursor));
-        }
-        let items = query
-            .await
-            .map_err(storage_error)?
-            .take::<Vec<StorageConfigWithoutData>>(0)
-            .map_err(storage_error)?
-            .into_iter()
-            .map(|item| Indexed::new(item.descriptor.id(), item))
-            .collect::<Vec<_>>();
-        let next_cursor = items.last().map(|config| config.id.clone());
-        let next_cursor = Cursor::new(next_cursor);
-        Ok(switchboard_model::PagedResult {
-            items,
-            next_cursor: Some(next_cursor),
-        })
-    }
-
-    async fn delete_all_config_by_name(&self, names: &str) -> Result<(), StorageError> {
+    async fn delete_all_objects_by_id(&self, names: &str) -> Result<(), StorageError> {
         let sql = "DELETE FROM type::table($table) WHERE descriptor.name = $name";
         self.client
             .query(sql)
-            .bind(("table", CONFIG_TABLE))
+            .bind(("table", OBJECT_TABLE))
             .bind(("name", names.to_string()))
             .await
             .map_err(storage_error)?;
         Ok(())
     }
 
-    async fn batch_delete_configs(
+    async fn batch_delete_objects(
         &self,
-        descriptors: Vec<StorageConfigDescriptor>,
+        descriptors: Vec<StorageObjectDescriptor>,
     ) -> Result<(), StorageError> {
         let ids: Vec<RecordId> = descriptors
             .iter()
@@ -285,7 +225,7 @@ impl Storage for SurrealRocksDbStorage {
         let sql = "DELETE FROM type::table($table) WHERE id IN $ids";
         self.client
             .query(sql)
-            .bind(("table", CONFIG_TABLE))
+            .bind(("table", OBJECT_TABLE))
             .bind(("ids", ids))
             .await
             .map_err(storage_error)?;

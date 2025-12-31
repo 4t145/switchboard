@@ -5,7 +5,7 @@ use switchboard_kernel_control::{kernel::{
     kernel_service_server::{KernelService, KernelServiceServer},
     *,
 }, tonic_health};
-use switchboard_model::Config;
+use switchboard_model::ServiceConfig;
 
 use crate::KernelContext;
 
@@ -114,7 +114,7 @@ impl KernelService for KernelServiceImpl {
         let controller_send_version = request.version;
         // parse config
         let decode_result = decode_bytes(&format, config_data.into());
-        let config: Config = match decode_result {
+        let config: ServiceConfig = match decode_result {
             Err(e) => {
                 let status = tonic::Status::invalid_argument(format!(
                     "Failed to decode config data in format {}: {}",

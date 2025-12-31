@@ -1,96 +1,48 @@
-use std::str::FromStr;
-
+use bincode::config;
 use k8s_openapi::api::core::v1::Secret;
 use kube::Api;
 use switchboard_custom_config::K8sResource;
 use switchboard_model::TlsCertParams;
-
-use crate::{resolve::ServiceConfigResolver, resource::gateway::k8s::K8sGatewayResourceError};
+mod service_config;
+use crate::resolve::{ResolveServiceConfigError, ServiceConfigResolver, k8s::service_config::K8sServiceBuildConfig};
+use service_config::K8sGatewayResourceError;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Hash, PartialEq, Eq, Default)]
 pub struct K8sResolveConfig {}
 
-pub struct K8sResolver {
-    context: crate::ControllerContext,
-}
+pub struct K8sServiceConfigResolver;
 
-impl K8sResolver {
-    pub fn new(context: crate::ControllerContext) -> Self {
-        Self { context }
-    }
+impl K8sServiceConfigResolver {
     pub async fn resolve_service_config_from_k8s(
         &self,
-    ) -> Result<switchboard_model::Config, K8sGatewayResourceError> {
-        self.context.build_config_from_k8s().await
+        context: crate::ControllerContext,
+        config: K8sServiceBuildConfig,
+    ) -> Result<switchboard_model::ServiceConfig, K8sGatewayResourceError> {
+        let client = context
+            .get_k8s_client()
+            .ok_or(K8sGatewayResourceError::NoK8sClient)?;
+        let builder = service_config::K8sServiceConfigBuilder::new(client, config);
+        let svc_config = builder.build_config_from_k8s().await?;
+        Ok(svc_config)
     }
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum K8sResolveError {
-    #[error("no k8s client")]
-    NoK8sClient,
-    #[error("k8s error {0}")]
-    K8sError(#[from] kube::Error),
-    #[error("tls cert params error {0}")]
-    TlsCertParamsError(#[from] switchboard_model::tls::TlsCertParamsError),
-}
-impl K8sResolver {
-    pub async fn fetch_tls_cert_params(
-        &self,
-        resource: &K8sResource,
-    ) -> Result<TlsCertParams, K8sResolveError> {
-        let client = match self.context.get_k8s_client() {
-            Some(c) => c,
-            None => return Err(K8sResolveError::NoK8sClient),
-        };
-        let secrets: Api<Secret> = if let Some(ns) = &resource.namespace {
-            Api::namespaced(client, ns)
-        } else {
-            Api::default_namespaced(client)
-        };
-        let secret = secrets.get(&resource.name).await?;
-        let data = secret.data.unwrap_or_default();
-        let cert_bytes = data.get("tls.crt").cloned().unwrap_or_default().0;
-        let key_bytes = data.get("tls.key").cloned().unwrap_or_default().0;
-        let tls_cert_params =
-            switchboard_model::tls::TlsCertParams::from_bytes(&cert_bytes, &key_bytes)?;
 
-        Ok(tls_cert_params)
-    }
-}
-
-impl ServiceConfigResolver for K8sResolver {
+impl ServiceConfigResolver for K8sServiceConfigResolver {
     fn resolve(
         &self,
-        _config: switchboard_custom_config::SerdeValue,
+        build_config: switchboard_custom_config::SerdeValue,
+        context: crate::ControllerContext,
     ) -> futures::future::BoxFuture<
         '_,
-        Result<switchboard_model::Config, Box<dyn std::error::Error + Send + Sync>>,
+        Result<switchboard_model::ServiceConfig, ResolveServiceConfigError>,
     > {
         Box::pin(async move {
-            let svc_config = self.resolve_service_config_from_k8s().await?;
+            let build_config = build_config.deserialize_into::<K8sServiceBuildConfig>()?;
+            let svc_config = self
+                .resolve_service_config_from_k8s(context, build_config)
+                .await.map_err(ResolveServiceConfigError::resolve_error)?;
             Ok(svc_config)
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[tokio::test]
-    async fn test_fetch_tls_cert_params_no_client() {
-        let resource = K8sResource {
-            name: "gateway-tls".to_string(),
-            namespace: Some("default".to_string()),
-        };
-        let context = crate::ControllerContext::new(Default::default())
-            .await
-            .unwrap();
-        let tls_params = K8sResolver::new(context)
-            .fetch_tls_cert_params(&resource)
-            .await
-            .unwrap();
-        println!("tls params key: {:?}", tls_params.key);
-        println!("tls params cert: {:?}", tls_params.certs);
     }
 }

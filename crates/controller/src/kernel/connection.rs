@@ -97,7 +97,7 @@ impl KernelGrpcConnection {
     }
     pub async fn update_config(
         &mut self,
-        new_config: &switchboard_model::Config,
+        new_config: &switchboard_model::ServiceConfig,
     ) -> Result<(), KernelGrpcConnectionError> {
         let version = new_config.digest_sha256_base64();
         const FORMAT: &str = "bincode";

@@ -1,10 +1,10 @@
 
 use sha2::Digest;
 
-use crate::Config;
+use crate::ServiceConfig;
 
 
-impl Config {
+impl ServiceConfig {
     pub fn digest_sha256_base64(&self) -> String {
         use base64::prelude::*;
         let digest = self.digest_sha256();

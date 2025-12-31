@@ -86,7 +86,7 @@ impl ControllerContext {
     }
     pub async fn update_config(
         &self,
-        new_config: switchboard_model::Config,
+        new_config: switchboard_model::ServiceConfig,
     ) -> Result<
         Vec<(
             KernelAddr,

@@ -159,7 +159,7 @@ impl KernelManager {
     }
     pub async fn update_config(
         &self,
-        new_config: switchboard_model::Config,
+        new_config: switchboard_model::ServiceConfig,
     ) -> Vec<(KernelAddr, Result<(), KernelGrpcConnectionError>)> {
         let mut task_set = tokio::task::JoinSet::new();
         let new_config = std::sync::Arc::new(new_config);

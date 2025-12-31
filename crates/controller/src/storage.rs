@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use futures::future::BoxFuture;
-use serde::{Deserialize, Serialize};
-use switchboard_model::{Config, CursorQuery, PagedResult};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use switchboard_custom_config::SerdeValue;
+use switchboard_model::{Cursor, PageQuery, PagedResult};
 
 use crate::ControllerContext;
 pub mod surrealdb_local;
@@ -23,39 +24,40 @@ impl Default for StorageProvider {
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq, Hash)]
-pub struct StorageConfigDescriptor {
-    pub name: String,
+pub struct StorageObjectDescriptor {
+    pub id: String,
     pub revision: String,
 }
 
-impl std::fmt::Display for StorageConfigDescriptor {
+impl std::fmt::Display for StorageObjectDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.name, self.revision)
+        write!(f, "{}:{}", self.id, self.revision)
     }
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 pub struct StorageMeta {
+    pub data_type: String,
     pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
-pub struct StorageConfig {
-    pub descriptor: StorageConfigDescriptor,
+pub struct StorageObject {
+    pub descriptor: StorageObjectDescriptor,
     pub meta: StorageMeta,
     pub data: Vec<u8>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
-pub struct StorageConfigWithoutData {
-    pub descriptor: StorageConfigDescriptor,
+pub struct StorageObjectWithoutData {
+    pub descriptor: StorageObjectDescriptor,
     pub meta: StorageMeta,
 }
 
 #[derive(thiserror::Error, Debug)]
 pub enum StorageError {
-    #[error("Configuration not found: {descriptor}")]
-    ConfigNotFound { descriptor: StorageConfigDescriptor },
+    #[error("Object not found: {descriptor}")]
+    ObjectNotFound { descriptor: StorageObjectDescriptor },
     #[error("Storage {provider} error: {source}")]
     StorageError {
         #[source]
@@ -66,14 +68,17 @@ pub enum StorageError {
     EncodeError(#[from] bincode::error::EncodeError),
     #[error("Decode error: {0}")]
     DecodeError(#[from] bincode::error::DecodeError),
+    #[error("Serialization error: {0}")]
+    SerializationError(#[source] switchboard_custom_config::SerdeValueError),
+    #[error("Deserialization error: {0}")]
+    DeserializationError(#[source] switchboard_custom_config::SerdeValueError),
     #[error("Digest mismatch: expected {expected}, found {found}")]
     DigestMismatch { expected: String, found: String },
 }
-
-pub fn encode_config(config: &Config) -> Result<(String, Vec<u8>), StorageError> {
+pub fn encode_object(object: SerdeValue) -> Result<(String, Vec<u8>), StorageError> {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
-    let bytes = bincode::encode_to_vec(config, bincode::config::standard())?;
+    let bytes = bincode::encode_to_vec(object, bincode::config::standard())?;
     hasher.update(bytes.len().to_be_bytes());
     hasher.update([0]);
     hasher.update(&bytes);
@@ -81,7 +86,7 @@ pub fn encode_config(config: &Config) -> Result<(String, Vec<u8>), StorageError>
     let revision_hex = hex::encode(revision);
     Ok((revision_hex, bytes))
 }
-pub fn decode_config(bytes: &[u8], digest: &str) -> Result<Config, StorageError> {
+pub fn decode_object(bytes: &[u8], digest: &str) -> Result<SerdeValue, StorageError> {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(bytes.len().to_be_bytes());
@@ -96,154 +101,209 @@ pub fn decode_config(bytes: &[u8], digest: &str) -> Result<Config, StorageError>
             found: recalculated_hex,
         });
     }
-    let (config, _): (Config, _) = bincode::decode_from_slice(bytes, bincode::config::standard())?;
-    Ok(config)
+    let (object, _): (SerdeValue, _) =
+        bincode::decode_from_slice(bytes, bincode::config::standard())?;
+    Ok(object)
 }
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct ObjectFilter {
+    pub data_type: Option<String>,
+    pub id: Option<String>,
+    pub revision: Option<String>,
+    pub latest_only: bool,
+    pub created_before: Option<DateTime<Utc>>,
+    pub created_after: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct ListObjectQuery {
+    pub filter: ObjectFilter,
+    pub page: PageQuery,
+}
+#[derive(Debug, serde::Serialize, Clone)]
+pub struct FlattenedListObjectQuery {
+    pub limit: usize,
+    pub cursor: Option<String>,
+    pub data_type: Option<String>,
+    pub id: Option<String>,
+    pub revision: Option<String>,
+    pub created_before: Option<chrono::DateTime<Utc>>,
+    pub created_after: Option<chrono::DateTime<Utc>>,
+}
+
+impl From<ListObjectQuery> for FlattenedListObjectQuery {
+    fn from(query: ListObjectQuery) -> Self {
+        Self::from_query(query)
+    }
+}
+
+impl From<FlattenedListObjectQuery> for ListObjectQuery {
+    fn from(query: FlattenedListObjectQuery) -> Self {
+        query.into_query()
+    }
+}
+
+impl FlattenedListObjectQuery {
+    pub fn from_query(query: ListObjectQuery) -> Self {
+        Self {
+            limit: query.page.limit,
+            cursor: query.page.cursor.next,
+            data_type: query.filter.data_type,
+            id: query.filter.id,
+            revision: query.filter.revision,
+            created_before: query.filter.created_before,
+            created_after: query.filter.created_after,
+        }
+    }
+    pub fn into_query(self) -> ListObjectQuery {
+        ListObjectQuery {
+            page: PageQuery {
+                limit: self.limit,
+                cursor: Cursor { next: self.cursor },
+            },
+            filter: crate::storage::ObjectFilter {
+                data_type: self.data_type,
+                id: self.id,
+                revision: self.revision,
+                latest_only: false,
+                created_before: self.created_before,
+                created_after: self.created_after,
+            },
+        }
+    }
+}
+
 pub trait Storage: Send + Sync + 'static {
-    fn save_config(
+    fn save_object(
         &self,
         name: &str,
-        config: Config,
-    ) -> impl Future<Output = Result<StorageConfigDescriptor, StorageError>> + Send;
+        data_type: &str,
+        object: SerdeValue,
+    ) -> impl Future<Output = Result<StorageObjectDescriptor, StorageError>> + Send;
 
-    fn list_configs(
+    fn get_object(
         &self,
-        query: CursorQuery,
-    ) -> impl Future<Output = Result<PagedResult<StorageConfigWithoutData>, StorageError>> + Send;
+        descriptor: &StorageObjectDescriptor,
+    ) -> impl Future<Output = Result<SerdeValue, StorageError>> + Send;
 
-    fn list_latest_configs(
+    fn list_objects(
         &self,
-        query: CursorQuery,
-    ) -> impl Future<Output = Result<PagedResult<StorageConfigWithoutData>, StorageError>> + Send;
+        query: ListObjectQuery,
+    ) -> impl Future<Output = Result<PagedResult<StorageObjectWithoutData>, StorageError>> + Send;
 
-    fn list_configs_by_name(
+    fn delete_object(
         &self,
-        name: &str,
-        query: CursorQuery,
-    ) -> impl Future<Output = Result<PagedResult<StorageConfigWithoutData>, StorageError>> + Send;
-
-    fn get_config(
-        &self,
-        descriptor: &StorageConfigDescriptor,
-    ) -> impl Future<Output = Result<Config, StorageError>> + Send;
-
-    fn delete_config(
-        &self,
-        descriptor: &StorageConfigDescriptor,
+        descriptor: &StorageObjectDescriptor,
     ) -> impl Future<Output = Result<(), StorageError>> + Send;
 
-    fn batch_delete_configs(
+    fn batch_delete_objects(
         &self,
-        descriptors: Vec<StorageConfigDescriptor>,
+        descriptors: Vec<StorageObjectDescriptor>,
     ) -> impl Future<Output = Result<(), StorageError>> + Send;
 
-    fn delete_all_config_by_name(
+    fn delete_all_objects_by_id(
         &self,
-        names: &str,
+        id: &str,
     ) -> impl Future<Output = Result<(), StorageError>> + Send;
 }
 
 pub trait DynamicStorage: Send + Sync + 'static {
-    fn save_config<'a>(
+    fn save_object<'a>(
         &'a self,
-        name: &'a str,
-        config: Config,
-    ) -> BoxFuture<'a, Result<StorageConfigDescriptor, StorageError>>;
-    fn list_configs(
+        id: &'a str,
+        data_type: &'a str,
+        config: SerdeValue,
+    ) -> BoxFuture<'a, Result<StorageObjectDescriptor, StorageError>>;
+    fn list_objects(
         &self,
-        query: CursorQuery,
-    ) -> BoxFuture<'_, Result<PagedResult<StorageConfigWithoutData>, StorageError>>;
-
-    fn list_latest_configs(
-        &self,
-        query: CursorQuery,
-    ) -> BoxFuture<'_, Result<PagedResult<StorageConfigWithoutData>, StorageError>>;
-
-    fn list_configs_by_name<'a>(
+        query: ListObjectQuery,
+    ) -> BoxFuture<'_, Result<PagedResult<StorageObjectWithoutData>, StorageError>>;
+    fn get_object<'a>(
         &'a self,
-        name: &'a str,
-        query: CursorQuery,
-    ) -> BoxFuture<'a, Result<PagedResult<StorageConfigWithoutData>, StorageError>>;
-    fn get_config<'a>(
+        descriptor: &'a StorageObjectDescriptor,
+    ) -> BoxFuture<'a, Result<SerdeValue, StorageError>>;
+    fn delete_object<'a>(
         &'a self,
-        descriptor: &'a StorageConfigDescriptor,
-    ) -> BoxFuture<'a, Result<Config, StorageError>>;
-    fn delete_config<'a>(
-        &'a self,
-        descriptor: &'a StorageConfigDescriptor,
+        descriptor: &'a StorageObjectDescriptor,
     ) -> BoxFuture<'a, Result<(), StorageError>>;
-    fn batch_delete_configs(
+    fn batch_delete_objects(
         &self,
-        descriptors: Vec<StorageConfigDescriptor>,
+        descriptors: Vec<StorageObjectDescriptor>,
     ) -> BoxFuture<'_, Result<(), StorageError>>;
 
-    fn delete_all_config_by_name<'a>(
+    fn delete_all_objects_by_id<'a>(
         &'a self,
-        names: &'a str,
+        id: &'a str,
     ) -> BoxFuture<'a, Result<(), StorageError>>;
 }
 
 impl<S: Storage> DynamicStorage for S {
-    fn save_config<'a>(
+    fn save_object<'a>(
         &'a self,
-        name: &'a str,
-        config: Config,
-    ) -> BoxFuture<'a, Result<StorageConfigDescriptor, StorageError>> {
-        Box::pin(self.save_config(name, config))
+        id: &'a str,
+        data_type: &'a str,
+        object: SerdeValue,
+    ) -> BoxFuture<'a, Result<StorageObjectDescriptor, StorageError>> {
+        Box::pin(self.save_object(id, data_type, object))
     }
 
-    fn list_configs(
+    fn list_objects(
         &self,
-        query: CursorQuery,
-    ) -> BoxFuture<'_, Result<PagedResult<StorageConfigWithoutData>, StorageError>> {
-        Box::pin(self.list_configs(query))
+        query: ListObjectQuery,
+    ) -> BoxFuture<'_, Result<PagedResult<StorageObjectWithoutData>, StorageError>> {
+        Box::pin(self.list_objects(query))
     }
 
-    fn list_latest_configs(
-        &self,
-        query: CursorQuery,
-    ) -> BoxFuture<'_, Result<PagedResult<StorageConfigWithoutData>, StorageError>> {
-        Box::pin(self.list_latest_configs(query))
-    }
-
-    fn list_configs_by_name<'a>(
+    fn get_object<'a>(
         &'a self,
-        name: &'a str,
-        query: CursorQuery,
-    ) -> BoxFuture<'a, Result<PagedResult<StorageConfigWithoutData>, StorageError>> {
-        Box::pin(self.list_configs_by_name(name, query))
+        descriptor: &'a StorageObjectDescriptor,
+    ) -> BoxFuture<'a, Result<SerdeValue, StorageError>> {
+        Box::pin(self.get_object(descriptor))
     }
 
-    fn get_config<'a>(
+    fn delete_object<'a>(
         &'a self,
-        descriptor: &'a StorageConfigDescriptor,
-    ) -> BoxFuture<'a, Result<Config, StorageError>> {
-        Box::pin(self.get_config(descriptor))
-    }
-
-    fn delete_config<'a>(
-        &'a self,
-        descriptor: &'a StorageConfigDescriptor,
+        descriptor: &'a StorageObjectDescriptor,
     ) -> BoxFuture<'a, Result<(), StorageError>> {
-        Box::pin(self.delete_config(descriptor))
+        Box::pin(self.delete_object(descriptor))
     }
 
-    fn batch_delete_configs(
+    fn batch_delete_objects(
         &self,
-        descriptors: Vec<StorageConfigDescriptor>,
+        descriptors: Vec<StorageObjectDescriptor>,
     ) -> BoxFuture<'_, Result<(), StorageError>> {
-        Box::pin(self.batch_delete_configs(descriptors))
+        Box::pin(self.batch_delete_objects(descriptors))
     }
 
-    fn delete_all_config_by_name<'a>(
+    fn delete_all_objects_by_id<'a>(
         &'a self,
-        names: &'a str,
+        id: &'a str,
     ) -> BoxFuture<'a, Result<(), StorageError>> {
-        Box::pin(self.delete_all_config_by_name(names))
+        Box::pin(self.delete_all_objects_by_id(id))
     }
 }
 
 pub type SharedStorage = Arc<dyn DynamicStorage>;
+
+pub trait KnownStorageObject: Serialize + DeserializeOwned + Send + Sync + 'static {
+    fn data_type() -> &'static str;
+}
+
+mod impl_static_storage_object {
+    use super::KnownStorageObject;
+    macro_rules! derive_local_type {
+        ($type: ty) => {
+            impl KnownStorageObject for $type {
+                fn data_type() -> &'static str {
+                    stringify!($type)
+                }
+            }
+        };
+    }
+    type ServiceConfig = switchboard_model::ServiceConfig;
+    derive_local_type!(ServiceConfig);
+}
 
 pub(crate) async fn create_storage(
     provider: &StorageProvider,
@@ -259,5 +319,16 @@ pub(crate) async fn create_storage(
 impl ControllerContext {
     pub async fn get_storage(&self) -> Result<SharedStorage, StorageError> {
         create_storage(&self.controller_config.storage).await
+    }
+    pub async fn save_known_object<T: KnownStorageObject>(
+        &self,
+        id: &str,
+        object: T,
+    ) -> Result<StorageObjectDescriptor, StorageError> {
+        let serde_value =
+            SerdeValue::serialize_from(&object).map_err(StorageError::SerializationError)?;
+        self.storage
+            .save_object(id, T::data_type(), serde_value)
+            .await
     }
 }

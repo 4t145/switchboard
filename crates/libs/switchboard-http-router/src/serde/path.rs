@@ -49,6 +49,9 @@ impl<T> Default for PathTreeSerdeMapStyle<T> {
 }
 
 impl<T: Clone> PathTreeSerdeMapStyle<T> {
+    pub fn merge(&mut self, other: PathTreeSerdeMapStyle<T>) {
+        self.route.extend(other.route);
+    }
     pub fn into_regular_style(self) -> PathTreeSerde<T> {
         let mut path_tree = PathTreeSerde::default();
         for (mut route, bucket) in self.route {

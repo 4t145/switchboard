@@ -377,11 +377,11 @@ impl FileStyleTlsResolver {
     }
 }
 
-impl<ServiceConfig> crate::Config<ServiceConfig, crate::tls::FileStyleTlsResolver> {
+impl<ServiceConfig> crate::ServiceConfig<ServiceConfig, crate::tls::FileStyleTlsResolver> {
     pub async fn resolve_tls_with_skip<R: LinkResolver>(
         self,
         resolver: &R,
-    ) -> crate::Config<ServiceConfig, crate::tls::TlsResolver> {
+    ) -> crate::ServiceConfig<ServiceConfig, crate::tls::TlsResolver> {
         let mut resolved_tls = BTreeMap::new();
         let mut task_set = tokio::task::JoinSet::<
             Result<(String, Tls<crate::tls::TlsResolver>), crate::tls::TlsResolverLoadError>,
@@ -410,7 +410,7 @@ impl<ServiceConfig> crate::Config<ServiceConfig, crate::tls::FileStyleTlsResolve
                 }
             }
         }
-        crate::Config {
+        crate::ServiceConfig {
             tcp_services: self.tcp_services,
             tcp_listeners: self.tcp_listeners,
             tcp_routes: self.tcp_routes,

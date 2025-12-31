@@ -36,19 +36,19 @@ pub enum ConfigEvent {
 }
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode)]
 #[serde(rename_all = "camelCase")]
-pub struct Config<
-    ServiceConfig = SerdeValue,
+pub struct ServiceConfig<
+    ConfigValue = SerdeValue,
     TlsResolver = crate::tls::TlsResolver,
 > {
-    pub tcp_services: BTreeMap<String, TcpServiceConfig<ServiceConfig>>,
+    pub tcp_services: BTreeMap<String, TcpServiceConfig<ConfigValue>>,
     pub tcp_listeners: BTreeMap<SocketAddr, Listener>,
     pub tcp_routes: BTreeMap<SocketAddr, TcpRoute>,
     pub tls: BTreeMap<String, Tls<TlsResolver>>,
 }
 
-impl<ServiceConfig, TlsResolver> Default for Config<ServiceConfig, TlsResolver> {
+impl<ConfigValue, TlsResolver> Default for ServiceConfig<ConfigValue, TlsResolver> {
     fn default() -> Self {
-        Config {
+        ServiceConfig {
             tcp_services: BTreeMap::new(),
             tcp_listeners: BTreeMap::new(),
             tcp_routes: BTreeMap::new(),
@@ -58,8 +58,8 @@ impl<ServiceConfig, TlsResolver> Default for Config<ServiceConfig, TlsResolver> 
 }
 
 
-impl<ServiceConfig, TlsResolver> Config<ServiceConfig, TlsResolver> {
-    pub fn get_tcp_service(&self, name: &str) -> Option<&TcpServiceConfig<ServiceConfig>> {
+impl<ConfigValue, TlsResolver> ServiceConfig<ConfigValue, TlsResolver> {
+    pub fn get_tcp_service(&self, name: &str) -> Option<&TcpServiceConfig<ConfigValue>> {
         self.tcp_services.get(name)
     }
 

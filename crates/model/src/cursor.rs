@@ -1,4 +1,6 @@
-#[derive(Debug, Clone)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Indexed<T> {
     pub id: String,
     pub data: T,
@@ -10,7 +12,7 @@ impl<T> Indexed<T> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Cursor {
     pub next: Option<String>,
 }
@@ -33,13 +35,13 @@ impl Cursor {
 }
 
 
-#[derive(Debug, Clone)]
-pub struct CursorQuery {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PageQuery {
     pub cursor: Cursor,
     pub limit: usize,
 }
 
-impl CursorQuery {
+impl PageQuery {
     pub fn first_page(limit: usize) -> Self {
         Self {
             cursor: Cursor { next: None },
@@ -53,6 +55,7 @@ impl CursorQuery {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PagedResult<T> {
     pub items: Vec<Indexed<T>>,
     pub next_cursor: Option<Cursor>,

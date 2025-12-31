@@ -15,7 +15,7 @@ pub async fn get_kernel_states(
 
 pub async fn update_config(
     State(state): State<HttpState>,
-    Json(new_config): Json<switchboard_model::Config>,
+    Json(new_config): Json<switchboard_model::ServiceConfig>,
 ) -> Json<Vec<(KernelAddr, ResultObject<()>)>> {
     let kernel_manager = state.controller_context.kernel_manager.read().await;
     let results = kernel_manager.update_config(new_config).await;

@@ -31,7 +31,7 @@ pub enum Error {
 pub struct KernelContext {
     pub(crate) registry: Registry,
     pub(crate) kernel_config: Arc<KernelConfig>,
-    pub(crate) current_config: Arc<RwLock<model::Config>>,
+    pub(crate) current_config: Arc<RwLock<model::ServiceConfig>>,
     pub(crate) tcp_switchboard: Arc<RwLock<TcpSwitchboard>>,
     // pub(crate) state: Arc<RwLock<KernelState>>,
     pub(crate) state: tokio::sync::watch::Sender<KernelState>,
@@ -47,7 +47,7 @@ impl KernelContext {
         Self {
             registry: Registry::new(),
             kernel_config: Arc::new(config),
-            current_config: Arc::new(RwLock::new(model::Config::default())),
+            current_config: Arc::new(RwLock::new(model::ServiceConfig::default())),
             // controller_handle: Arc::new(tokio::sync::RwLock::new(None)),
             controller_listener_handle: Arc::new(tokio::sync::RwLock::new(None)),
             tcp_switchboard: Arc::new(RwLock::new(TcpSwitchboard::new_halted())),
@@ -59,7 +59,7 @@ impl KernelContext {
         use std::ops::Deref;
         self.state.borrow().deref().clone()
     }
-    pub async fn fetch_config_locally(&self) -> Result<Option<model::Config>, Error> {
+    pub async fn fetch_config_locally(&self) -> Result<Option<model::ServiceConfig>, Error> {
         if let Some(config_path) = &self.kernel_config.config {
             if let Some(link) = config_path.as_link() {
                 tracing::info!("Loading service config from file: {}", link);
@@ -88,7 +88,7 @@ impl KernelContext {
         }
         Ok(())
     }
-    pub async fn load_config(&self, sb_config: model::Config) -> Result<(), Error> {
+    pub async fn load_config(&self, sb_config: model::ServiceConfig) -> Result<(), Error> {
         // lock it up, make sure inner state unchanged during loading process
         let mut wg = self.tcp_switchboard.write().await;
         let tcp_switchboard = wg.handle_mut()?;
@@ -184,7 +184,7 @@ impl KernelContext {
         }
     }
 
-    pub async fn update_config(&self, sb_config: model::Config) -> Result<(), Error> {
+    pub async fn update_config(&self, sb_config: model::ServiceConfig) -> Result<(), Error> {
         let original_config_version = self.current_config.read().await.digest_sha256_base64();
         let new_config_version = sb_config.digest_sha256_base64();
         let new_state = KernelState::new(KernelStateKind::Updating {

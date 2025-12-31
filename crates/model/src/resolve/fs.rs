@@ -155,7 +155,7 @@ pub enum ResolveConfigFileError {
 pub async fn fetch_config<R: LinkResolver>(
     service_config: LinkOrValue<FileStyleConfig>,
     resolver: &R,
-) -> Result<crate::Config, ResolveConfigFileError> {
+) -> Result<crate::ServiceConfig, ResolveConfigFileError> {
     let config: FileStyleConfig = service_config.resolve(resolver).await?;
     let mut resolved_tcp_services = std::collections::BTreeMap::new();
     let mut tcp_listeners = std::collections::BTreeMap::new();
@@ -208,7 +208,7 @@ pub async fn fetch_config<R: LinkResolver>(
         }
         resolved_tcp_services.insert(service_name, resolved_service);
     }
-    let config = Config {
+    let config = ServiceConfig {
         tcp_services: resolved_tcp_services,
         tcp_listeners,
         tcp_routes,

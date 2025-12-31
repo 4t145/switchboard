@@ -10,8 +10,8 @@ use switchboard_model::services::http::{
         FILTER_URL_REWRITE_CLASS_ID,
     },
 };
-pub fn filter_id(route: &str, rule: &str, index: usize) -> InstanceId {
-    InstanceId::new(format!("filter-{}-{}-{}", route, rule, index))
+pub fn filter_id(target: &str, index: usize) -> InstanceId {
+    InstanceId::new(format!("filter-{}-{}", target, index))
 }
 use std::borrow::Cow;
 
