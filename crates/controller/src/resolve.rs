@@ -3,8 +3,6 @@ use std::{collections::HashMap, sync::Arc};
 use futures::future::BoxFuture;
 use switchboard_custom_config::{SerdeValue, SerdeValueError};
 
-use crate::resolve;
-
 pub mod fs;
 pub mod k8s;
 
@@ -26,10 +24,7 @@ pub trait ServiceConfigResolver: Send + Sync + 'static {
         &self,
         resolve_config: SerdeValue,
         context: crate::ControllerContext,
-    ) -> BoxFuture<
-        '_,
-        Result<switchboard_model::ServiceConfig, ResolveServiceConfigError>,
-    >;
+    ) -> BoxFuture<'_, Result<switchboard_model::ServiceConfig, ResolveServiceConfigError>>;
 }
 
 pub type SharedServiceConfigResolver = Arc<dyn ServiceConfigResolver>;
@@ -39,11 +34,20 @@ pub struct ServiceConfigResolverItem {
     pub resolver: SharedServiceConfigResolver,
 }
 
+impl std::fmt::Debug for ServiceConfigResolverItem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ServiceConfigResolverItem")
+            .field("meta", &self.meta)
+            .finish()
+    }
+}
+
+#[derive(Debug)]
 pub struct ServiceConfigResolverMeta {
     pub name: String,
     pub description: Option<String>,
 }
-
+#[derive(Debug, Default)]
 pub struct ServiceConfigResolverRegistry {
     pub resolvers: HashMap<String, ServiceConfigResolverItem>,
 }
@@ -108,8 +112,8 @@ impl ServiceConfigResolverRegistry {
     }
     pub async fn resolve(
         &self,
-        config: SerdeValue,
         resolver: &str,
+        config: SerdeValue,
         context: crate::ControllerContext,
     ) -> Result<switchboard_model::ServiceConfig, ResolveServiceConfigError> {
         if let Some(item) = self.resolvers.get(resolver) {
@@ -119,5 +123,22 @@ impl ServiceConfigResolverRegistry {
                 resolver.to_string(),
             ))
         }
+    }
+}
+
+impl crate::ControllerContext {
+    pub async fn resolve_config(
+        &self,
+        resolver: &str,
+        config: SerdeValue,
+    ) -> Result<switchboard_model::ServiceConfig, crate::Error> {
+        let config = self.resolve.resolve(resolver, config, self.clone()).await?;
+        Ok(config)
+    }
+
+    pub async fn resolve_config_from_fs(
+        &self,
+    ) -> Result<switchboard_model::ServiceConfig, crate::Error> {
+        self.resolve_config("fs", SerdeValue::default()).await
     }
 }

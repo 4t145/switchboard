@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use switchboard_controller::config::ControllerConfig;
-use switchboard_model::custom_config::{LinkOrValue, FsLinkResolver};
+use switchboard_model::custom_config::{FsLinkResolver, LinkOrValue, SerdeValue};
 
 #[derive(clap::Parser)]
 pub struct CliArgs {
@@ -46,10 +46,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //     let path = &controller_config.resolve.fs.path;
     //     switchboard_controller::resolve::fs::fetch_config(LinkOrValue::Link(path.into()), &FsLinkResolver).await?
     // };
-    let mut context = switchboard_controller::ControllerContext::new(controller_config);
-    context.try_init_k8s_client().await?;
+    let context = switchboard_controller::ControllerContext::new(controller_config).await?;
     context.startup().await?;
-    let sb_config = context.build_config_from_k8s().await?;
+    let sb_config = context.resolve_config_from_fs().await?;
     tracing::debug!("Resolved switchboard config: {:?}", sb_config);
     context.update_config(sb_config).await?;
     tracing::info!("Controller started, press Ctrl+C to exit");

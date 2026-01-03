@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use switchboard_model::services::http::NodePort;
 
-use crate::resolve::k8s::service_config::{HttpBuildingRouter, HttpGatewayBuilder, route};
+use crate::resolve::k8s::service_config::{HttpBuildingRouter, HttpGatewayBuilder};
 
 impl HttpGatewayBuilder {
     pub fn build_route(

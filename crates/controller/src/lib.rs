@@ -16,7 +16,7 @@ pub struct ControllerContext {
     pub kernel_manager: Arc<RwLock<kernel::KernelManager>>,
     pub interface_manager: Arc<RwLock<interface::InterfaceManager>>,
     pub storage: storage::SharedStorage,
-    pub k8s_client: Option<kube::Client>,
+    pub resolve: Arc<resolve::ServiceConfigResolverRegistry>,
 }
 
 impl ControllerContext {
@@ -25,18 +25,10 @@ impl ControllerContext {
             storage: storage::create_storage(&controller_config.storage).await?,
             kernel_manager: Arc::new(RwLock::new(kernel::KernelManager::new())),
             interface_manager: Arc::new(RwLock::new(interface::InterfaceManager::default())),
-            k8s_client: Some(kube::Client::try_default().await?),
             controller_config: controller_config.into(),
+            resolve: resolve::ServiceConfigResolverRegistry::prelude().into(),
         };
         Ok(this)
-    }
-    pub async fn try_init_k8s_client(&mut self) -> Result<()> {
-        let client = kube::Client::try_default().await?;
-        self.k8s_client = Some(client);
-        Ok(())
-    }
-    pub fn get_k8s_client(&self) -> Option<kube::Client> {
-        self.k8s_client.as_ref().cloned()
     }
     pub async fn startup(&self) -> Result<()> {
         self.start_up_all_interfaces().await?;
@@ -68,4 +60,7 @@ pub enum Error {
 
     #[error("Storage error: {0}")]
     StorageError(#[from] crate::storage::StorageError),
+
+    #[error("Resolve config error: {0}")]
+    ResolveServiceConfigError(#[from] crate::resolve::ResolveServiceConfigError),
 }

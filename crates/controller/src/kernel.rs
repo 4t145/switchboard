@@ -2,7 +2,6 @@ mod discovery;
 use std::{
     collections::{BTreeMap, HashMap},
     fmt::Display,
-    net::SocketAddr,
     str::FromStr,
     sync::Arc,
 };
@@ -149,12 +148,6 @@ impl KernelManager {
                     drop(connected);
                 }
             }
-        }
-    }
-    // this is specially used when kernel requests disconnection, we can close the connection from the task side, so need to avoid close it from here
-    pub(crate) fn disconnect_kernel_without_close_connection(&mut self, addr: &KernelAddr) {
-        if let Some(handle) = self.kernels.get_mut(addr) {
-            let _ = std::mem::replace(&mut handle.state, KernelHandleState::Disconnected);
         }
     }
     pub async fn update_config(

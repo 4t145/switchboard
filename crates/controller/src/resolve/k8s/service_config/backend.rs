@@ -11,7 +11,7 @@ impl super::HttpGatewayBuilder {
         &mut self,
         // gateway: &K8sGatewayResource,
         target_name: &str,
-        backend_refs: &Vec<HTTPRouteRulesBackendRefs>,
+        backend_refs: &[HTTPRouteRulesBackendRefs],
     ) -> NodeTarget {
         const DEFAULT_BALANCER_STRATEGY: &str = "RoundRobin";
         // build hub balancer
@@ -99,11 +99,10 @@ impl super::HttpGatewayBuilder {
             // no backends was defined, let's return an 500 error response instance
             self.internal_error_500_page_instance_id.clone()
         };
-        let inbound = NodeTarget {
+
+        NodeTarget {
             id: balancer_instance,
             port: NodePort::Default,
-        };
-        inbound
+        }
     }
 }
-

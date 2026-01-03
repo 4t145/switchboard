@@ -117,9 +117,7 @@ impl KernelGrpcConnection {
                 error_stack,
             )) => {
                 let error_stack: ErrorStack = error_stack.into();
-                Err(KernelGrpcConnectionError::UpdateConfigError(
-                    error_stack.into(),
-                ))
+                Err(KernelGrpcConnectionError::UpdateConfigError(error_stack))
             }
             None => Err(KernelGrpcConnectionError::GrpcRequestError(
                 tonic::Status::internal("Kernel returned empty result on config update"),

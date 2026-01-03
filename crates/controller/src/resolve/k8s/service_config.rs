@@ -4,7 +4,7 @@ use std::{
 };
 
 use k8s_openapi::api::core::v1::Secret;
-use kube::{Api, ResourceExt, api::ListParams, client};
+use kube::{Api, ResourceExt, api::ListParams};
 use serde::{Deserialize, Serialize};
 use switchboard_custom_config::{
     K8sResource, SerdeValue,
@@ -22,12 +22,11 @@ use switchboard_model::{
     tcp_route::TcpRoute,
 };
 
-use crate::resolve::k8s::K8sServiceConfigResolver;
-
 mod backend;
 mod filter;
 mod route;
 mod rule_match;
+
 fn target_name(name: &str, namespace: Option<&str>, port: Option<u16>) -> String {
     match (namespace, port) {
         (Some(ns), Some(p)) => format!("{}.{}.port{}", name, ns, p),
@@ -48,10 +47,6 @@ impl Default for K8sServiceBuildConfig {
         }
     }
 }
-#[derive(Debug, Clone, Default)]
-struct K8sGatewayGatheredResource {
-    pub gateway_classes: BTreeMap<String, K8sGateways>,
-}
 
 #[derive(Debug, Clone, Default)]
 struct K8sGateways {
@@ -63,15 +58,15 @@ struct ServiceBuilder {
     pub client: kube::Client,
 }
 #[derive(thiserror::Error, Debug)]
-enum ServiceBuilderError {
+pub enum ServiceBuilderError {
     #[error("HTTP Router build error: {0}")]
-    HttpRouterBuildError(#[from] switchboard_http_router::error::BuildError),
+    HttpRouterBuild(#[from] switchboard_http_router::error::BuildError),
     #[error("Serde value error: {0}")]
-    SerdeValueError(#[from] switchboard_serde_value::Error),
+    SerdeValue(#[from] switchboard_serde_value::Error),
     #[error("k8s error {0}")]
-    K8sError(#[from] kube::Error),
+    K8s(#[from] kube::Error),
     #[error("tls cert params error {0}")]
-    TlsCertParamsError(#[from] switchboard_model::tls::TlsCertParamsError),
+    TlsCertParams(#[from] switchboard_model::tls::TlsCertParamsError),
 }
 impl ServiceBuilder {
     pub fn new(client: kube::Client) -> Self {
@@ -294,9 +289,7 @@ impl K8sServiceConfigBuilder {
         let config = builder.resolve().await?;
         Ok(config)
     }
-    pub(crate) async fn gather_k8s_gateway_config(
-        &self,
-    ) -> Result<K8sGateways, K8sGatewayResourceError> {
+    async fn gather_k8s_gateway_config(&self) -> Result<K8sGateways, K8sGatewayResourceError> {
         let mut gathered_gateways = K8sGateways::default();
         let client = self.client.clone();
         let gateway_class_api =

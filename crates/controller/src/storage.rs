@@ -91,11 +91,11 @@ pub fn decode_object(bytes: &[u8], digest: &str) -> Result<SerdeValue, StorageEr
     let mut hasher = Sha256::new();
     hasher.update(bytes.len().to_be_bytes());
     hasher.update([0]);
-    hasher.update(&bytes);
+    hasher.update(bytes);
     let recalculated_digest = hasher.finalize();
     let recalculated_hex = hex::encode(recalculated_digest);
     // check digest matches
-    if digest != &recalculated_hex {
+    if digest != recalculated_hex {
         return Err(StorageError::DigestMismatch {
             expected: digest.to_string(),
             found: recalculated_hex,

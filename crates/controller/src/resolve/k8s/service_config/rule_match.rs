@@ -1,7 +1,4 @@
-use std::{
-    borrow::Cow,
-    collections::{BTreeMap, HashMap},
-};
+use std::collections::HashMap;
 
 use gateway_api::httproutes::{
     HTTPRouteRulesMatchesHeaders, HTTPRouteRulesMatchesHeadersType, HTTPRouteRulesMatchesMethod,
@@ -10,10 +7,7 @@ use gateway_api::httproutes::{
 };
 use switchboard_http_router::serde::{
     path::PathTreeSerdeMapStyle,
-    rule::{
-        HeaderMatchSerde, QueryMatchSerde, RegexOrExactSerde, RuleBucketSerde,
-        RuleBucketSimplifiedSerde, RuleMatchSerde,
-    },
+    rule::{HeaderMatchSerde, QueryMatchSerde, RegexOrExactSerde, RuleBucketSerde, RuleMatchSerde},
 };
 use switchboard_model::services::http::{NodeOutput, NodePort};
 
@@ -78,7 +72,7 @@ impl super::HttpGatewayBuilder {
 
         // build output target
         let output_target = if let Some(k8s_backend_refs) = rules.backend_refs.as_ref() {
-            self.build_backend_instance_from_k8s_backend_ref(&target_name, k8s_backend_refs)
+            self.build_backend_instance_from_k8s_backend_ref(target_name, k8s_backend_refs)
         } else {
             self.internal_error_500_page_instance_id.clone().into()
         };
@@ -89,7 +83,7 @@ impl super::HttpGatewayBuilder {
         if let Some(filters) = &rules.filters {
             for (index, filter) in filters.iter().enumerate() {
                 let filter_name = filter::filter_id(target_name, index);
-                let filter_instance = filter::build_filter_instance_from_k8s_router_filter(&filter);
+                let filter_instance = filter::build_filter_instance_from_k8s_router_filter(filter);
                 self.config
                     .flow
                     .instances
@@ -122,12 +116,12 @@ impl super::HttpGatewayBuilder {
                         .as_ref()
                         .map(|qs| qs.iter().map(k8s_query_match_to_http_query_match).collect())
                         .unwrap_or_default();
-                    let rule = RuleMatchSerde {
+
+                    RuleMatchSerde {
                         method: k8s_match.method.as_ref().map(k8s_method_to_http_method),
                         headers,
                         queries,
-                    };
-                    rule
+                    }
                 };
                 let tree_key = match match_type {
                     HTTPRouteRulesMatchesPathType::Exact => route_path.to_string(),
