@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use futures::future::BoxFuture;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use switchboard_custom_config::SerdeValue;
-use switchboard_model::{Cursor, PageQuery, PagedResult};
+use switchboard_model::{Cursor, FlattenPageQueryWithFilter, PageQuery, PagedResult};
 
 use crate::ControllerContext;
 pub mod surrealdb_local;
@@ -111,7 +111,7 @@ pub struct ObjectFilter {
     pub data_type: Option<String>,
     pub id: Option<String>,
     pub revision: Option<String>,
-    pub latest_only: bool,
+    pub latest_only: Option<bool>,
     pub created_before: Option<DateTime<Utc>>,
     pub created_after: Option<DateTime<Utc>>,
 }
@@ -121,55 +121,13 @@ pub struct ListObjectQuery {
     pub filter: ObjectFilter,
     pub page: PageQuery,
 }
-#[derive(Debug, serde::Serialize, Clone)]
-pub struct FlattenedListObjectQuery {
-    pub limit: usize,
-    pub cursor: Option<String>,
-    pub data_type: Option<String>,
-    pub id: Option<String>,
-    pub revision: Option<String>,
-    pub created_before: Option<chrono::DateTime<Utc>>,
-    pub created_after: Option<chrono::DateTime<Utc>>,
-}
 
-impl From<ListObjectQuery> for FlattenedListObjectQuery {
-    fn from(query: ListObjectQuery) -> Self {
-        Self::from_query(query)
-    }
-}
-
-impl From<FlattenedListObjectQuery> for ListObjectQuery {
-    fn from(query: FlattenedListObjectQuery) -> Self {
-        query.into_query()
-    }
-}
-
-impl FlattenedListObjectQuery {
-    pub fn from_query(query: ListObjectQuery) -> Self {
-        Self {
-            limit: query.page.limit,
-            cursor: query.page.cursor.next,
-            data_type: query.filter.data_type,
-            id: query.filter.id,
-            revision: query.filter.revision,
-            created_before: query.filter.created_before,
-            created_after: query.filter.created_after,
-        }
-    }
-    pub fn into_query(self) -> ListObjectQuery {
-        ListObjectQuery {
-            page: PageQuery {
-                limit: self.limit,
-                cursor: Cursor { next: self.cursor },
-            },
-            filter: crate::storage::ObjectFilter {
-                data_type: self.data_type,
-                id: self.id,
-                revision: self.revision,
-                latest_only: false,
-                created_before: self.created_before,
-                created_after: self.created_after,
-            },
+impl ListObjectQuery {
+    pub fn into_binds(self) -> FlattenPageQueryWithFilter<ObjectFilter> {
+        FlattenPageQueryWithFilter {
+            next: self.page.cursor.next,
+            limit: self.page.limit,
+            filter: self.filter,
         }
     }
 }
@@ -317,8 +275,11 @@ pub(crate) async fn create_storage(
 }
 
 impl ControllerContext {
-    pub async fn get_storage(&self) -> Result<SharedStorage, StorageError> {
+    pub async fn create_storage(&self) -> Result<SharedStorage, StorageError> {
         create_storage(&self.controller_config.storage).await
+    }
+    pub fn storage(&self) -> &SharedStorage {
+        &self.storage
     }
     pub async fn save_known_object<T: KnownStorageObject>(
         &self,

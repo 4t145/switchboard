@@ -25,20 +25,50 @@ impl Cursor {
         Self { next: None }
     }
     pub fn from_next(next: String) -> Self {
-        Self {
-            next: Some(next),
-        }
+        Self { next: Some(next) }
     }
     pub fn new(next: Option<String>) -> Self {
         Self { next }
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PageQuery {
     pub cursor: Cursor,
     pub limit: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlattenPageQueryWithFilter<F> {
+    #[serde(default)]
+    pub next: Option<String>,
+    pub limit: usize,
+    #[serde(flatten)]
+    pub filter: F,
+}
+
+impl<F> FlattenPageQueryWithFilter<F> {
+    pub fn into_parts(self) -> (PageQuery, F) {
+        (
+            PageQuery {
+                cursor: Cursor { next: self.next },
+                limit: self.limit,
+            },
+            self.filter,
+        )
+    }
+}
+
+impl<F> Into<(PageQuery, F)> for FlattenPageQueryWithFilter<F> {
+    fn into(self) -> (PageQuery, F) {
+        (
+            PageQuery {
+                cursor: Cursor { next: self.next },
+                limit: self.limit,
+            },
+            self.filter,
+        )
+    }
 }
 
 impl PageQuery {

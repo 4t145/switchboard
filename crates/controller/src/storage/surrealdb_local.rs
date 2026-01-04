@@ -10,15 +10,15 @@ use switchboard_custom_config::SerdeValue;
 use switchboard_model::{Cursor, Indexed, PageQuery};
 
 use crate::storage::{
-    FlattenedListObjectQuery, ListObjectQuery, Storage, StorageError, StorageMeta, StorageObject,
-    StorageObjectDescriptor, StorageObjectWithoutData, decode_object,
+    ListObjectQuery, Storage, StorageError, StorageMeta, StorageObject, StorageObjectDescriptor,
+    StorageObjectWithoutData, decode_object,
 };
 pub struct SurrealRocksDbStorage {
     pub client: Surreal<Db>,
 }
 const OBJECT_TABLE: &str = "storage_object";
 const PROVIDER: &str = "SurrealDB";
-
+type FlattenedListObjectQuery = switchboard_model::FlattenPageQueryWithFilter<super::ObjectFilter>;
 impl StorageObjectDescriptor {
     fn surreal_db_record_id(&self) -> RecordId {
         RecordId::from_table_key(OBJECT_TABLE, self.id())
@@ -47,16 +47,16 @@ impl SurrealRocksDbStorage {
             .await
             .map_err(storage_error)?;
         let this = Self { client };
-        this.ensure_initialized().await?;
+        // this.ensure_initialized().await?;
         Ok(this)
     }
-    pub async fn ensure_initialized(&self) -> Result<(), StorageError> {
-        self.client
-            .query(format!("CREATE TABLE IF NOT EXISTS {};", OBJECT_TABLE))
-            .await
-            .map_err(storage_error)?;
-        Ok(())
-    }
+    // pub async fn ensure_initialized(&self) -> Result<(), StorageError> {
+    //     self.client
+    //         .query(format!("CREATE TABLE IF NOT EXISTS {};", OBJECT_TABLE))
+    //         .await
+    //         .map_err(storage_error)?;
+    //     Ok(())
+    // }
 }
 
 impl<D> IntoResource<D> for &StorageObjectDescriptor {
@@ -172,6 +172,11 @@ impl Storage for SurrealRocksDbStorage {
         if filter.created_after.is_some() {
             where_clauses.push("meta.created_at > $created_after");
         }
+        if let Some(true) = filter.latest_only {
+            where_clauses.push(
+                "descriptor.revision = (SELECT MAX(descriptor.revision) FROM type::table($table) WHERE descriptor.id = descriptor.id)",
+            );
+        }
         let where_clause = if where_clauses.is_empty() {
             "".to_string()
         } else {
@@ -185,7 +190,7 @@ impl Storage for SurrealRocksDbStorage {
         let query = self
             .client
             .query(sql)
-            .bind(FlattenedListObjectQuery::from_query(list_object_query))
+            .bind(list_object_query.into_binds())
             .bind(("$table", OBJECT_TABLE));
         let items = query
             .await

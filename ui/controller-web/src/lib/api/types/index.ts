@@ -1,21 +1,22 @@
-export * from "./bind";
-export * from "./bytes";
-export * from "./control";
-export * from "./controller";
-export * from "./descriptor";
-export * from "./error";
-export * from "./kernel";
-export * from "./named_service";
-export * from "./protocol";
-export * from "./tls";
+export * from './tcp_route';
+export * from './bytes';
+export * from './control';
+export * from './controller';
+export * from './descriptor';
+export * from './error';
+export * from './kernel';
+export * from './protocol';
+export * from './tls';
+export * from './listener';
+export * from './tcp_service';
+import type { Listener } from './listener';
+import type { TcpRoute } from './tcp_route';
+import type { TcpService } from './tcp_service';
+import type { Tls } from './tls';
 
-import type { Bind } from "./bind";
-import type { NamedService } from "./named_service";
-import type { Tls } from "./tls";
-
-export type Config = {
-    namedServices: Record<string, NamedService>;
-    binds: Record<string, Bind>;
-    enabled: string[];
-    tls: Record<string, Tls>;
+export type ServiceConfig = {
+	tcpServices: Record<string, TcpService>;
+	tcpListeners: Record<string, Listener>;
+	tls: Record<string, Tls>;
+	tcp_routes: Record<string, TcpRoute>;
 };

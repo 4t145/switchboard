@@ -8,3 +8,18 @@ export type ControllerInfo = {
     description: string | null;
     meta: ControllerMeta;
 };
+
+
+export type StorageObjectDescriptor = {
+    id: string;
+    revision: string;
+};
+
+export type StorageObjectWithoutData = {
+    descriptor: StorageObjectDescriptor;
+    meta: StorageObjectMeta;
+}
+export type StorageObjectMeta = {
+    created_at: Date;
+    date_type: string;
+}

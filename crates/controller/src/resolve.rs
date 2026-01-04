@@ -1,7 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, path::Path, sync::Arc};
 
 use futures::future::BoxFuture;
-use switchboard_custom_config::{SerdeValue, SerdeValueError};
+use switchboard_custom_config::{SerdeValue, SerdeValueError, switchboard_serde_value::value};
 
 pub mod fs;
 pub mod k8s;
@@ -138,7 +138,14 @@ impl crate::ControllerContext {
 
     pub async fn resolve_config_from_fs(
         &self,
+        path: &Path,
     ) -> Result<switchboard_model::ServiceConfig, crate::Error> {
-        self.resolve_config("fs", SerdeValue::default()).await
+        self.resolve_config(
+            "fs",
+            value!( {
+                "path": path
+            }),
+        )
+        .await
     }
 }

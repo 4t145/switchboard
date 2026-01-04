@@ -27,11 +27,11 @@ pub struct ControllerConfig {
     pub kernel: KernelConfig,
     #[serde(default)]
     pub interface: InterfaceConfig,
-    #[serde(default)]
-    pub resource: ResourceConfig,
+    // #[serde(default)]
+    // pub resource: ResourceConfig,
     /// how to resolve configs
-    #[serde(default)]
-    pub resolve: ResolveConfig,
+    // #[serde(default)]
+    // pub resolve: ResolveConfig,
     #[serde(default)]
     pub storage: StorageProvider,
 }
@@ -40,9 +40,9 @@ pub struct ControllerConfig {
 #[serde(default)]
 pub struct KernelConfig {
     pub discovery: KernelDiscoveryConfig,
-    pub connect: KernelConnectConfig,
-    /// default to be empty, meaning no authentication
-    pub psk: Base64Bytes,
+    // pub connect: KernelConnectConfig,
+    // default to be empty, meaning no authentication
+    // pub psk: Base64Bytes,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default, Hash, PartialEq, Eq)]
@@ -79,8 +79,8 @@ impl Default for KernelConfig {
     fn default() -> Self {
         KernelConfig {
             discovery: KernelDiscoveryConfig::default(),
-            connect: KernelConnectConfig::default(),
-            psk: Base64Bytes(Vec::new()),
+            // connect: KernelConnectConfig::default(),
+            // psk: Base64Bytes(Vec::new()),
         }
     }
 }

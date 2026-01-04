@@ -44,13 +44,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // let sb_config = {
     //     let path = &controller_config.resolve.fs.path;
-    //     switchboard_controller::resolve::fs::fetch_config(LinkOrValue::Link(path.into()), &FsLinkResolver).await?
     // };
     let context = switchboard_controller::ControllerContext::new(controller_config).await?;
     context.startup().await?;
-    let sb_config = context.resolve_config_from_fs().await?;
-    tracing::debug!("Resolved switchboard config: {:?}", sb_config);
-    context.update_config(sb_config).await?;
+    // let sb_config = context.resolve_config_from_fs().await?;
+    // tracing::debug!("Resolved switchboard config: {:?}", sb_config);
+    // context.update_config(sb_config).await?;
     tracing::info!("Controller started, press Ctrl+C to exit");
     tokio::signal::ctrl_c().await?;
     tracing::info!("Controller shutting down");

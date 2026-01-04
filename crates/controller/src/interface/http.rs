@@ -1,4 +1,6 @@
-pub mod kernel_manager;
+mod kernel_manager;
+mod resolve;
+mod storage;
 
 use std::net::SocketAddr;
 
@@ -42,7 +44,10 @@ impl ControllerContext {
         axum::Router::new()
             .nest(
                 "/api",
-                axum::Router::new().nest("/kernel_manager", kernel_manager::router()),
+                axum::Router::new()
+                    .nest("/kernel_manager", kernel_manager::router())
+                    .nest("/resolve", resolve::router())
+                    .nest("/storage", storage::router()),
             )
             .with_state(self.http_state())
     }

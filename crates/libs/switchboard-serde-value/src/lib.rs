@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Visitor};
 mod collection;
 mod variant;
@@ -113,7 +112,6 @@ impl From<option::SerdeOption> for SerdeValue {
     }
 }
 
-
 impl SerdeValue {
     pub fn serialize_from<T: Serialize>(value: &T) -> Result<Self, Error> {
         let serde_value = value.serialize(SerdeValueSerializer)?;
@@ -128,7 +126,12 @@ impl SerdeValue {
     pub fn replace_unit(self, value: crate::SerdeValue) -> Self {
         self.recursive_map(|x| matches!(x, SerdeValue::Unit), |_| value.clone())
     }
-
+    pub fn empty_map() -> Self {
+        SerdeValue::Map(collection::SerdeMap::default())
+    }
+    pub fn empty_sequence() -> Self {
+        SerdeValue::Sequence(collection::SerdeSequence::default())
+    }
     pub(crate) fn recursive_map<F, M>(self, filter: F, map: M) -> Self
     where
         F: Fn(&crate::SerdeValue) -> bool,

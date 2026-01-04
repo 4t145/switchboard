@@ -1,5 +1,5 @@
 import type { Bytes } from "./bytes";
-import type { Config } from "./index";
+import type { ServiceConfig } from "./index";
 import type { ControllerInfo } from "./controller";
 import type { KernelInfo, KernelState } from "./kernel";
 
@@ -21,11 +21,11 @@ export type KernelAuthResponse = {
 };
 
 export type UpdateConfig = {
-    config: Config;
+    config: ServiceConfig;
 };
 
 export type UpdateConfigBuilder = {
-    config: Config;
+    config: ServiceConfig;
 };
 
 export type ControlCommandData =
