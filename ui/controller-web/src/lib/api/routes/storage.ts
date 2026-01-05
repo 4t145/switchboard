@@ -29,14 +29,14 @@ export type ObjectFilter = {
 
 export const storageApi = {
 	get: (descriptor: StorageObjectDescriptor) =>
-		fetchQuery<unknown>('/storage/object', new URLSearchParams(descriptor)),
+		fetchQuery<unknown>('/api/storage/object', new URLSearchParams(descriptor)),
 	save: (request: SaveStorageObjectRequest) =>
-		fetchJson<StorageObjectDescriptor>('/storage/object', {
+		fetchJson<StorageObjectDescriptor>('/api/storage/object', {
 			method: 'POST',
 			body: JSON.stringify(request)
 		}),
 	delete: (descriptor: StorageObjectDescriptor) =>
-		fetchQuery<void>('/storage/object', new URLSearchParams(descriptor), {
+		fetchQuery<void>('/api/storage/object', new URLSearchParams(descriptor), {
 			method: 'DELETE'
 		}),
 	list(page: PageQuery, filter: ObjectFilter) {
@@ -50,10 +50,10 @@ export const storageApi = {
 			...(filter.created_before ? { created_before: filter.created_before.toISOString() } : {}),
 			...(filter.created_after ? { created_after: filter.created_after.toISOString() } : {})
 		});
-		return fetchQuery<PagedResult<StorageObjectWithoutData>>('/storage/objects', params);
+		return fetchQuery<PagedResult<StorageObjectWithoutData>>('/api/storage/objects', params);
 	},
 	batchDelete: (request: BatchDeleteStorageObjectRequest) =>
-		fetchJson<void>('/storage/objects', {
+		fetchJson<void>('/api/storage/objects', {
 			method: 'POST',
 			body: JSON.stringify(request)
 		})

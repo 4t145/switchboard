@@ -8,7 +8,7 @@ use surrealdb::{
 };
 use switchboard_custom_config::SerdeValue;
 use switchboard_model::{Cursor, Indexed, PageQuery};
-
+use surrealdb::sql::Thing;
 use crate::storage::{
     ListObjectQuery, Storage, StorageError, StorageMeta, StorageObject, StorageObjectDescriptor,
     StorageObjectWithoutData, decode_object,
@@ -17,6 +17,16 @@ pub struct SurrealRocksDbStorage {
     pub client: Surreal<Db>,
 }
 const OBJECT_TABLE: &str = "storage_object";
+const OBJECT_LATEST_INDEX_TABLE: &str = "storage_object_latest";
+
+// 新增：最新版本索引结构
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct LatestRevisionIndex {
+    id: String,          // 对象 ID
+    revision: String,    // 最新版本号
+    record_id: RecordId, // 指向实际记录的 ID
+}
+
 const PROVIDER: &str = "SurrealDB";
 type FlattenedListObjectQuery = switchboard_model::FlattenPageQueryWithFilter<super::ObjectFilter>;
 impl StorageObjectDescriptor {
@@ -26,9 +36,8 @@ impl StorageObjectDescriptor {
     fn id(&self) -> String {
         format!("{}:{}", self.id, self.revision)
     }
-    fn from_surreal_db_record_id(record_id: &RecordIdKey) -> Result<Self, StorageError> {
+    fn from_id(record_id: &str) -> Result<Self, StorageError> {
         record_id
-            .to_string()
             .split_once(':')
             .map(|(name, revision)| StorageObjectDescriptor {
                 id: name.to_string(),
@@ -47,16 +56,96 @@ impl SurrealRocksDbStorage {
             .await
             .map_err(storage_error)?;
         let this = Self { client };
-        // this.ensure_initialized().await?;
+        this.ensure_initialized().await?;
         Ok(this)
     }
-    // pub async fn ensure_initialized(&self) -> Result<(), StorageError> {
-    //     self.client
-    //         .query(format!("CREATE TABLE IF NOT EXISTS {};", OBJECT_TABLE))
-    //         .await
-    //         .map_err(storage_error)?;
-    //     Ok(())
-    // }
+    pub async fn ensure_initialized(&self) -> Result<(), StorageError> {
+        // 定义索引表
+        let sql = format!(
+            "DEFINE TABLE {OBJECT_LATEST_INDEX_TABLE} SCHEMAFULL;
+             DEFINE FIELD id ON {OBJECT_LATEST_INDEX_TABLE} TYPE string;
+             DEFINE FIELD revision ON {OBJECT_LATEST_INDEX_TABLE} TYPE string;
+             DEFINE FIELD record_id ON {OBJECT_LATEST_INDEX_TABLE} TYPE record;
+             DEFINE INDEX unique_id ON {OBJECT_LATEST_INDEX_TABLE} COLUMNS id UNIQUE;",
+        );
+        self.client
+            .use_ns("switchboard")
+            .use_db("storage")
+            .await
+            .map_err(storage_error)?;
+        self.client.query(sql).await.map_err(storage_error)?;
+        Ok(())
+    }
+
+    // 更新最新版本索引
+    async fn update_latest_index(
+        &self,
+        object_id: &str,
+        revision: &str,
+        record_id: RecordId,
+    ) -> Result<(), StorageError> {
+        let sql = format!(
+            "UPDATE type::table($table) 
+             CONTENT {{ id: $object_id, revision: $revision, record_id: $record_id }}
+             WHERE id = $object_id"
+        );
+
+        self.client
+            .query(sql)
+            .bind(("table", OBJECT_LATEST_INDEX_TABLE))
+            .bind(("object_id", object_id.to_string()))
+            .bind(("revision", revision.to_string()))
+            .bind(("record_id", record_id))
+            .await
+            .map_err(storage_error)?;
+
+        Ok(())
+    }
+
+    // 删除最新版本索引
+    async fn delete_latest_index(&self, object_id: &str) -> Result<(), StorageError> {
+        let sql = "DELETE FROM type::table($table) WHERE id = $object_id";
+        self.client
+            .query(sql)
+            .bind(("table", OBJECT_LATEST_INDEX_TABLE))
+            .bind(("object_id", object_id.to_string()))
+            .await
+            .map_err(storage_error)?;
+        Ok(())
+    }
+
+    // 重新计算并更新某个对象的最新版本索引
+    async fn recalculate_latest_index(&self, object_id: &str) -> Result<(), StorageError> {
+        // 查询该对象的最新版本
+        let sql = "
+            SELECT * FROM type::table($table) 
+            WHERE descriptor.id = $object_id 
+            ORDER BY descriptor.revision DESC 
+            LIMIT 1
+        ";
+
+        let mut result = self
+            .client
+            .query(sql)
+            .bind(("table", OBJECT_TABLE))
+            .bind(("object_id", object_id.to_string()))
+            .await
+            .map_err(storage_error)?;
+
+        let latest: Option<StorageObjectWithoutData> = result.take(0).map_err(storage_error)?;
+
+        if let Some(latest_obj) = latest {
+            // 找到了新的最新版本，更新索引
+            let record_id = latest_obj.descriptor.surreal_db_record_id();
+            self.update_latest_index(object_id, &latest_obj.descriptor.revision, record_id)
+                .await?;
+        } else {
+            // 没有找到任何版本，删除索引
+            self.delete_latest_index(object_id).await?;
+        }
+
+        Ok(())
+    }
 }
 
 impl<D> IntoResource<D> for &StorageObjectDescriptor {
@@ -114,16 +203,35 @@ impl Storage for SurrealRocksDbStorage {
             },
             data,
         };
-        let id = self
+
+        let sql = format!(
+            "
+            LET $record = upsert only type::table($table) CONTENT $content;\
+            UPDATE $latest_table: \
+            CONTENT {{ id: $id, revision: $revision, record_id: result::id }} \
+            WHERE id = $id;
+            "
+        );
+        let insert_result = self
             .client
-            .insert::<Option<RecordId>>(&model.descriptor)
+            .insert::<Option<Thing>>(&model.descriptor)
             .content(model)
-            .await
-            .map_err(storage_error)?;
-        match id {
-            Some(record_id) => {
+            .await;
+        let thing = match insert_result {
+            Ok(thing) => thing,
+            Err(surrealdb::Error::Db(surrealdb::error::Db::RecordExists { thing })) => {
+                Some(thing)
+            }
+            Err(e) => {
+                return Err(storage_error(e));   
+            }
+        };
+        match thing {
+            Some(thing) => {
                 let descriptor =
-                    StorageObjectDescriptor::from_surreal_db_record_id(record_id.key())?;
+                    StorageObjectDescriptor::from_id(&thing.id.to_raw())?;
+                self.update_latest_index(&descriptor.id, &descriptor.revision, thing)
+                    .await?;
                 Ok(descriptor)
             }
             None => Err(StorageError::StorageError {
@@ -154,6 +262,16 @@ impl Storage for SurrealRocksDbStorage {
     ) -> Result<switchboard_model::PagedResult<StorageObjectWithoutData>, StorageError> {
         let ListObjectQuery { filter, page } = &list_object_query;
         let mut where_clauses = vec![];
+
+        let base_table = if filter.latest_only == Some(true) {
+            format!(
+                "(SELECT obj.* FROM type::table($table) AS obj 
+                 INNER JOIN type::table($latest_table) AS latest 
+                 ON obj.id = latest.record_id)"
+            )
+        } else {
+            "type::table($table)".to_string()
+        };
         if page.cursor.next.is_some() {
             where_clauses.push("id > $cursor");
         };
@@ -182,16 +300,14 @@ impl Storage for SurrealRocksDbStorage {
         } else {
             format!("WHERE {}", where_clauses.join(" AND "))
         };
-        let sql = format!(
-            "SELECT * FROM type::table($table) {} ORDER BY id LIMIT $limit",
-            where_clause
-        );
+        let sql = format!("SELECT * FROM {base_table} {where_clause} ORDER BY id LIMIT $limit");
 
         let query = self
             .client
             .query(sql)
             .bind(list_object_query.into_binds())
-            .bind(("$table", OBJECT_TABLE));
+            .bind(("table", OBJECT_TABLE))
+            .bind(("latest_table", OBJECT_LATEST_INDEX_TABLE));
         let items = query
             .await
             .map_err(storage_error)?
@@ -208,12 +324,16 @@ impl Storage for SurrealRocksDbStorage {
         })
     }
 
-    async fn delete_all_objects_by_id(&self, names: &str) -> Result<(), StorageError> {
-        let sql = "DELETE FROM type::table($table) WHERE descriptor.name = $name";
+    async fn delete_all_objects_by_id(&self, id: &str) -> Result<(), StorageError> {
+        let sql = "
+        DELETE FROM type::table($table) WHERE descriptor.id = $id;
+        DELETE FROM type::table($latest_table) WHERE id = $id;
+        ";
         self.client
             .query(sql)
             .bind(("table", OBJECT_TABLE))
-            .bind(("name", names.to_string()))
+            .bind(("latest_table", OBJECT_LATEST_INDEX_TABLE))
+            .bind(("id", id.to_string()))
             .await
             .map_err(storage_error)?;
         Ok(())
@@ -223,17 +343,43 @@ impl Storage for SurrealRocksDbStorage {
         &self,
         descriptors: Vec<StorageObjectDescriptor>,
     ) -> Result<(), StorageError> {
+        use std::collections::HashSet;
+
+        // 收集所有受影响的对象 ID
+        let mut affected_object_ids = HashSet::new();
+        for desc in &descriptors {
+            affected_object_ids.insert(desc.id.clone());
+        }
+
+        // 执行删除操作
         let ids: Vec<RecordId> = descriptors
             .iter()
             .map(|desc| desc.surreal_db_record_id())
             .collect();
-        let sql = "DELETE FROM type::table($table) WHERE id IN $ids";
+        let sql = "
+        DELETE FROM type::table($table) WHERE id IN $ids;
+        FOR $affected_object_id in $affected_object_ids {
+            LET latest_index = (SELECT * FROM type::table($latest_table) WHERE id = $affected_object_id);
+            IF (latest_index != NONE) {
+                LET latest_record_id = latest_index[0].record_id;
+                IF (latest_record_id != NONE) {
+                    DELETE latest_record_id;
+                }
+            }
+        }
+        ";
         self.client
             .query(sql)
             .bind(("table", OBJECT_TABLE))
             .bind(("ids", ids))
             .await
             .map_err(storage_error)?;
+
+        // // 对每个受影响的对象 ID 重新计算最新版本
+        // for object_id in affected_object_ids {
+        //     self.recalculate_latest_index(&object_id).await?;
+        // }
+
         Ok(())
     }
 }

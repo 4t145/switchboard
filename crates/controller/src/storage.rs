@@ -106,7 +106,7 @@ pub fn decode_object(bytes: &[u8], digest: &str) -> Result<SerdeValue, StorageEr
     Ok(object)
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default)]
 pub struct ObjectFilter {
     pub data_type: Option<String>,
     pub id: Option<String>,
@@ -171,7 +171,7 @@ pub trait DynamicStorage: Send + Sync + 'static {
         &'a self,
         id: &'a str,
         data_type: &'a str,
-        config: SerdeValue,
+        object: SerdeValue,
     ) -> BoxFuture<'a, Result<StorageObjectDescriptor, StorageError>>;
     fn list_objects(
         &self,

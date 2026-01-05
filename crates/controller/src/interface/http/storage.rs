@@ -1,7 +1,9 @@
 use axum::{
     Json,
-    extract::{Query, State}, response::Response,
+    extract::{Query, State},
+    response::Response,
 };
+use chrono::{DateTime, Utc};
 use switchboard_custom_config::SerdeValue;
 use switchboard_model::{
     FlattenPageQueryWithFilter, PagedResult, ServiceConfig, error::ResultObject,
@@ -33,7 +35,7 @@ pub enum BatchDeleteStorageObjectRequest {
 pub async fn get(
     State(state): State<HttpState>,
     Query(params): Query<StorageObjectDescriptor>,
-) -> Response  {
+) -> Response {
     let process = async {
         let obj = state
             .controller_context
@@ -48,7 +50,7 @@ pub async fn get(
 pub async fn delete(
     State(state): State<HttpState>,
     Query(params): Query<StorageObjectDescriptor>,
-) -> Response  {
+) -> Response {
     let process = async {
         state
             .controller_context
@@ -63,7 +65,7 @@ pub async fn delete(
 pub async fn batch_delete(
     State(state): State<HttpState>,
     Json(request): Json<BatchDeleteStorageObjectRequest>,
-) -> Response  {
+) -> Response {
     let process = async {
         match request {
             BatchDeleteStorageObjectRequest::ByDescriptors { descriptors } => {
@@ -101,11 +103,45 @@ pub async fn save(
     super::result_to_json_response(process.await)
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct ObjectFilterQuery {
+    pub data_type: Option<String>,
+    pub id: Option<String>,
+    pub revision: Option<String>,
+    pub latest_only: Option<BooleanLit>,
+    pub created_before: Option<DateTime<Utc>>,
+    pub created_after: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum BooleanLit {
+    True,
+    False,
+}
+
+impl From<BooleanLit> for bool {
+    fn from(value: BooleanLit) -> Self {
+        match value {
+            BooleanLit::True => true,
+            BooleanLit::False => false,
+        }
+    }
+}
+
 pub async fn list(
     State(state): State<HttpState>,
-    Query(params): Query<FlattenPageQueryWithFilter<ObjectFilter>>,
-) -> Response  {
+    Query(params): Query<FlattenPageQueryWithFilter<ObjectFilterQuery>>,
+) -> Response {
     let (page, filter) = params.into_parts();
+    let filter: ObjectFilter = ObjectFilter {
+        data_type: filter.data_type,
+        id: filter.id,
+        revision: filter.revision,
+        latest_only: filter.latest_only.map(|v| v.into()),
+        created_before: filter.created_before,
+        created_after: filter.created_after,
+    };
     let process = async {
         let list = state
             .controller_context

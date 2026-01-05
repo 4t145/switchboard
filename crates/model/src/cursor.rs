@@ -38,6 +38,15 @@ pub struct PageQuery {
     pub limit: usize,
 }
 
+impl PageQuery {
+    pub fn with_limit(limit: usize) -> Self {
+        Self {
+            cursor: Cursor::empty(),
+            limit,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlattenPageQueryWithFilter<F> {
     #[serde(default)]

@@ -14,7 +14,7 @@ import { fetchJson } from './index';
 
 export const resolveApi = {
 	service_config: (request: ResolveServiceConfigRequest) =>
-		fetchJson<ResolveServiceConfigResponse>('/resolve/service_config', {
+		fetchJson<ResolveServiceConfigResponse>('/api/resolve/service_config', {
 			method: 'POST',
 			body: JSON.stringify(request)
 		})

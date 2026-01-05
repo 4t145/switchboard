@@ -69,7 +69,7 @@
 			]
 		},
 		{ label: 'Users', icon: 'users', href: '/admin/users' },
-		{ label: 'Database', icon: 'database', href: '/admin/database' },
+		{ label: 'Database', icon: 'database', href: '/admin/storage' },
 		{ label: 'Settings', icon: 'settings', href: '/admin/settings' }
 	];
 

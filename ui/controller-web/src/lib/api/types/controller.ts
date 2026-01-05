@@ -21,5 +21,5 @@ export type StorageObjectWithoutData = {
 }
 export type StorageObjectMeta = {
     created_at: Date;
-    date_type: string;
+    data_type: string;
 }
