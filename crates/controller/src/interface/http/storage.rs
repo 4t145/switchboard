@@ -6,7 +6,7 @@ use axum::{
 use chrono::{DateTime, Utc};
 use switchboard_custom_config::SerdeValue;
 use switchboard_model::{
-    FlattenPageQueryWithFilter, PagedResult, ServiceConfig, error::ResultObject,
+    FlattenPageQueryWithFilter, PagedList, ServiceConfig, error::ResultObject,
 };
 
 use crate::{

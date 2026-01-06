@@ -81,21 +81,14 @@ impl<F> Into<(PageQuery, F)> for FlattenPageQueryWithFilter<F> {
 }
 
 impl PageQuery {
-    pub fn first_page(limit: usize) -> Self {
-        Self {
-            cursor: Cursor { next: None },
-            limit,
-        }
-    }
-    pub fn next_page(mut self, next_cursor: Option<Cursor>) -> Option<Self> {
-        let next_cursor = next_cursor?;
-        self.cursor.next = next_cursor.next;
-        Some(self)
+    pub fn with_cursor(mut self, cursor: Cursor) -> Self {
+        self.cursor = cursor;
+        self
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PagedResult<T> {
+pub struct PagedList<T> {
     pub items: Vec<Indexed<T>>,
     pub next_cursor: Option<Cursor>,
 }

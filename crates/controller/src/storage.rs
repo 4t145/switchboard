@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use futures::future::BoxFuture;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use switchboard_custom_config::SerdeValue;
-use switchboard_model::{Cursor, FlattenPageQueryWithFilter, PageQuery, PagedResult};
+use switchboard_model::{Cursor, FlattenPageQueryWithFilter, PageQuery, PagedList};
 
 use crate::ControllerContext;
 pub mod surrealdb_local;
@@ -148,12 +148,12 @@ pub trait Storage: Send + Sync + 'static {
     fn list_objects(
         &self,
         query: ListObjectQuery,
-    ) -> impl Future<Output = Result<PagedResult<StorageObjectWithoutData>, StorageError>> + Send;
+    ) -> impl Future<Output = Result<PagedList<StorageObjectWithoutData>, StorageError>> + Send;
 
     fn delete_object(
         &self,
         descriptor: &StorageObjectDescriptor,
-    ) -> impl Future<Output = Result<(), StorageError>> + Send;
+    ) -> impl Future<Output = Result<Option<StorageObjectDescriptor>, StorageError>> + Send;
 
     fn batch_delete_objects(
         &self,
@@ -176,7 +176,7 @@ pub trait DynamicStorage: Send + Sync + 'static {
     fn list_objects(
         &self,
         query: ListObjectQuery,
-    ) -> BoxFuture<'_, Result<PagedResult<StorageObjectWithoutData>, StorageError>>;
+    ) -> BoxFuture<'_, Result<PagedList<StorageObjectWithoutData>, StorageError>>;
     fn get_object<'a>(
         &'a self,
         descriptor: &'a StorageObjectDescriptor,
@@ -184,7 +184,7 @@ pub trait DynamicStorage: Send + Sync + 'static {
     fn delete_object<'a>(
         &'a self,
         descriptor: &'a StorageObjectDescriptor,
-    ) -> BoxFuture<'a, Result<(), StorageError>>;
+    ) -> BoxFuture<'a, Result<Option<StorageObjectDescriptor>, StorageError>>;
     fn batch_delete_objects(
         &self,
         descriptors: Vec<StorageObjectDescriptor>,
@@ -209,7 +209,7 @@ impl<S: Storage> DynamicStorage for S {
     fn list_objects(
         &self,
         query: ListObjectQuery,
-    ) -> BoxFuture<'_, Result<PagedResult<StorageObjectWithoutData>, StorageError>> {
+    ) -> BoxFuture<'_, Result<PagedList<StorageObjectWithoutData>, StorageError>> {
         Box::pin(self.list_objects(query))
     }
 
@@ -223,7 +223,7 @@ impl<S: Storage> DynamicStorage for S {
     fn delete_object<'a>(
         &'a self,
         descriptor: &'a StorageObjectDescriptor,
-    ) -> BoxFuture<'a, Result<(), StorageError>> {
+    ) -> BoxFuture<'a, Result<Option<StorageObjectDescriptor>, StorageError>> {
         Box::pin(self.delete_object(descriptor))
     }
 

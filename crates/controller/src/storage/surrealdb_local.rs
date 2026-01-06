@@ -1,6 +1,11 @@
 use std::path::Path;
 
+use crate::storage::{
+    ListObjectQuery, Storage, StorageError, StorageMeta, StorageObject, StorageObjectDescriptor,
+    StorageObjectWithoutData, decode_object,
+};
 use chrono::Utc;
+use surrealdb::sql::Thing;
 use surrealdb::{
     RecordId, RecordIdKey, Surreal,
     engine::local::{Db, RocksDb},
@@ -8,11 +13,6 @@ use surrealdb::{
 };
 use switchboard_custom_config::SerdeValue;
 use switchboard_model::{Cursor, Indexed, PageQuery};
-use surrealdb::sql::Thing;
-use crate::storage::{
-    ListObjectQuery, Storage, StorageError, StorageMeta, StorageObject, StorageObjectDescriptor,
-    StorageObjectWithoutData, decode_object,
-};
 pub struct SurrealRocksDbStorage {
     pub client: Surreal<Db>,
 }
@@ -61,13 +61,7 @@ impl SurrealRocksDbStorage {
     }
     pub async fn ensure_initialized(&self) -> Result<(), StorageError> {
         // 定义索引表
-        let sql = format!(
-            "DEFINE TABLE {OBJECT_LATEST_INDEX_TABLE} SCHEMAFULL;
-             DEFINE FIELD id ON {OBJECT_LATEST_INDEX_TABLE} TYPE string;
-             DEFINE FIELD revision ON {OBJECT_LATEST_INDEX_TABLE} TYPE string;
-             DEFINE FIELD record_id ON {OBJECT_LATEST_INDEX_TABLE} TYPE record;
-             DEFINE INDEX unique_id ON {OBJECT_LATEST_INDEX_TABLE} COLUMNS id UNIQUE;",
-        );
+        let sql = include_str!("surrealdb_local/define.surrealql");
         self.client
             .use_ns("switchboard")
             .use_db("storage")
@@ -169,14 +163,49 @@ fn storage_error(e: surrealdb::Error) -> StorageError {
     }
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct StorageObjectDb {
+    pub descriptor: StorageObjectDescriptor,
+    pub meta: StorageMetaDb,
+    pub data: surrealdb::sql::Bytes,
+}
+
+impl StorageObjectDb {
+    pub fn from_storage_object(object: StorageObject) -> StorageObjectDb {
+        StorageObjectDb {
+            descriptor: object.descriptor,
+            meta: StorageMetaDb {
+                data_type: object.meta.data_type,
+                created_at: object.meta.created_at.into(),
+            },
+            data: object.data.into(),
+        }
+    }
+    pub fn into_storage_object(self) -> StorageObject {
+        StorageObject {
+            descriptor: self.descriptor,
+            meta: StorageMeta {
+                data_type: self.meta.data_type,
+                created_at: self.meta.created_at.into(),
+            },
+            data: self.data.into(),
+        }
+    }
+}
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct StorageMetaDb {
+    pub data_type: String,
+    pub created_at: surrealdb::sql::Datetime,
+}
+
 impl Storage for SurrealRocksDbStorage {
     async fn get_object(
         &self,
         descriptor: &StorageObjectDescriptor,
     ) -> Result<SerdeValue, StorageError> {
-        let result: Option<StorageObject> = self
+        let result: Option<StorageObjectDb> = self
             .client
-            .select::<Option<StorageObject>>(descriptor)
+            .select::<Option<StorageObjectDb>>(descriptor)
             .await
             .map_err(storage_error)?;
         let model = result.ok_or(StorageError::ObjectNotFound {
@@ -192,48 +221,28 @@ impl Storage for SurrealRocksDbStorage {
     ) -> Result<StorageObjectDescriptor, StorageError> {
         let (revision, data) = super::encode_object(object)?;
         let now = Utc::now();
-        let model = StorageObject {
+        let model = StorageObjectDb {
             descriptor: StorageObjectDescriptor {
                 id: name.to_string(),
                 revision,
             },
-            meta: StorageMeta {
-                created_at: now,
+            meta: StorageMetaDb {
+                created_at: now.into(),
                 data_type: data_type.to_string(),
             },
-            data,
+            data: data.into(),
         };
 
-        let sql = format!(
-            "
-            LET $record = upsert only type::table($table) CONTENT $content;\
-            UPDATE $latest_table: \
-            CONTENT {{ id: $id, revision: $revision, record_id: result::id }} \
-            WHERE id = $id;
-            "
-        );
         let insert_result = self
             .client
-            .insert::<Option<Thing>>(&model.descriptor)
-            .content(model)
-            .await;
-        let thing = match insert_result {
-            Ok(thing) => thing,
-            Err(surrealdb::Error::Db(surrealdb::error::Db::RecordExists { thing })) => {
-                Some(thing)
-            }
-            Err(e) => {
-                return Err(storage_error(e));   
-            }
-        };
-        match thing {
-            Some(thing) => {
-                let descriptor =
-                    StorageObjectDescriptor::from_id(&thing.id.to_raw())?;
-                self.update_latest_index(&descriptor.id, &descriptor.revision, thing)
-                    .await?;
-                Ok(descriptor)
-            }
+            .query("fn::storage_object::save($content)")
+            .bind(("content", model))
+            .await
+            .map_err(storage_error)?
+            .take(0)
+            .map_err(storage_error)?;
+        match insert_result {
+            Some(descriptor) => Ok(descriptor),
             None => Err(StorageError::StorageError {
                 source: "Failed to retrieve inserted config ID".into(),
                 provider: PROVIDER,
@@ -243,82 +252,87 @@ impl Storage for SurrealRocksDbStorage {
     async fn delete_object(
         &self,
         descriptor: &StorageObjectDescriptor,
-    ) -> Result<(), StorageError> {
-        let deleted = self
+    ) -> Result<Option<StorageObjectDescriptor>, StorageError> {
+        let deleted: Option<StorageObjectDescriptor> = self
             .client
-            .delete::<Option<StorageObjectWithoutData>>(descriptor)
+            .query("fn::storage_object::delete($descriptor)")
+            .bind(("descriptor", descriptor.clone()))
             .await
+            .map_err(storage_error)?
+            .take(0)
             .map_err(storage_error)?;
         if deleted.is_none() {
             return Err(StorageError::ObjectNotFound {
                 descriptor: descriptor.clone(),
             });
         }
-        Ok(())
+        Ok(deleted)
     }
     async fn list_objects(
         &self,
         list_object_query: ListObjectQuery,
-    ) -> Result<switchboard_model::PagedResult<StorageObjectWithoutData>, StorageError> {
+    ) -> Result<switchboard_model::PagedList<StorageObjectWithoutData>, StorageError> {
+        #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+        pub struct ObjectFilterDb {
+            pub data_type: Option<String>,
+            pub id: Option<String>,
+            pub revision: Option<String>,
+            pub latest_only: Option<bool>,
+            pub created_before: Option<surrealdb::sql::Datetime>,
+            pub created_after: Option<surrealdb::sql::Datetime>,
+        }
+
+        impl ObjectFilterDb {
+            fn from_model(filter: super::ObjectFilter) -> Self {
+                Self {
+                    data_type: filter.data_type,
+                    id: filter.id,
+                    revision: filter.revision,
+                    latest_only: filter.latest_only,
+                    created_before: filter
+                        .created_before
+                        .map(|dt| surrealdb::sql::Datetime::from(dt)),
+                    created_after: filter
+                        .created_after
+                        .map(|dt| surrealdb::sql::Datetime::from(dt)),
+                }
+            }
+        }
         let ListObjectQuery { filter, page } = &list_object_query;
-        let mut where_clauses = vec![];
-
-        let base_table = if filter.latest_only == Some(true) {
-            format!(
-                "(SELECT obj.* FROM type::table($table) AS obj 
-                 INNER JOIN type::table($latest_table) AS latest 
-                 ON obj.id = latest.record_id)"
-            )
-        } else {
-            "type::table($table)".to_string()
-        };
-        if page.cursor.next.is_some() {
-            where_clauses.push("id > $cursor");
-        };
-        if filter.data_type.is_some() {
-            where_clauses.push("meta.data_type = $data_type");
+        #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+        struct ResponseItem {
+            descriptor: StorageObjectDescriptor,
+            meta: StorageMetaDb,
+            id: Thing,
         }
-        if filter.id.is_some() {
-            where_clauses.push("descriptor.id = $id");
-        }
-        if filter.revision.is_some() {
-            where_clauses.push("descriptor.revision = $revision");
-        }
-        if filter.created_before.is_some() {
-            where_clauses.push("meta.created_at < $created_before");
-        }
-        if filter.created_after.is_some() {
-            where_clauses.push("meta.created_at > $created_after");
-        }
-        if let Some(true) = filter.latest_only {
-            where_clauses.push(
-                "descriptor.revision = (SELECT MAX(descriptor.revision) FROM type::table($table) WHERE descriptor.id = descriptor.id)",
-            );
-        }
-        let where_clause = if where_clauses.is_empty() {
-            "".to_string()
-        } else {
-            format!("WHERE {}", where_clauses.join(" AND "))
-        };
-        let sql = format!("SELECT * FROM {base_table} {where_clause} ORDER BY id LIMIT $limit");
-
         let query = self
             .client
-            .query(sql)
-            .bind(list_object_query.into_binds())
-            .bind(("table", OBJECT_TABLE))
-            .bind(("latest_table", OBJECT_LATEST_INDEX_TABLE));
+            .query("fn::storage_object::list($filter, $limit, $cursor)")
+            .bind(("filter", ObjectFilterDb::from_model(filter.clone())))
+            .bind(("limit", page.limit))
+            .bind(("cursor", page.cursor.next.clone()));
         let items = query
             .await
             .map_err(storage_error)?
-            .take::<Vec<StorageObjectWithoutData>>(0)
+            .take::<Vec<ResponseItem>>(0)
             .map_err(storage_error)?
             .into_iter()
-            .map(|item| Indexed::new(item.descriptor.id(), item))
+            .map(|item| {
+                Indexed::new(
+                    item.id.id.to_raw(),
+                    StorageObjectWithoutData {
+                        descriptor: item.descriptor,
+                        meta: StorageMeta {
+                            data_type: item.meta.data_type,
+                            created_at: item.meta.created_at.into(),
+                        },
+                    },
+                )
+            })
             .collect::<Vec<_>>();
         let next_cursor = items.last().map(|config| config.id.clone());
         let next_cursor = Cursor::new(next_cursor);
-        Ok(switchboard_model::PagedResult {
+        Ok(switchboard_model::PagedList {
             items,
             next_cursor: Some(next_cursor),
         })
