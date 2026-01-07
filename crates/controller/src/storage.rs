@@ -143,7 +143,7 @@ pub trait Storage: Send + Sync + 'static {
     fn get_object(
         &self,
         descriptor: &StorageObjectDescriptor,
-    ) -> impl Future<Output = Result<SerdeValue, StorageError>> + Send;
+    ) -> impl Future<Output = Result<Option<SerdeValue>, StorageError>> + Send;
 
     fn list_objects(
         &self,
@@ -180,7 +180,7 @@ pub trait DynamicStorage: Send + Sync + 'static {
     fn get_object<'a>(
         &'a self,
         descriptor: &'a StorageObjectDescriptor,
-    ) -> BoxFuture<'a, Result<SerdeValue, StorageError>>;
+    ) -> BoxFuture<'a, Result<Option<SerdeValue>, StorageError>>;
     fn delete_object<'a>(
         &'a self,
         descriptor: &'a StorageObjectDescriptor,
@@ -216,7 +216,7 @@ impl<S: Storage> DynamicStorage for S {
     fn get_object<'a>(
         &'a self,
         descriptor: &'a StorageObjectDescriptor,
-    ) -> BoxFuture<'a, Result<SerdeValue, StorageError>> {
+    ) -> BoxFuture<'a, Result<Option<SerdeValue>, StorageError>> {
         Box::pin(self.get_object(descriptor))
     }
 

@@ -1,3 +1,5 @@
+use std::ops::Index;
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Visitor};
 mod collection;
 mod variant;

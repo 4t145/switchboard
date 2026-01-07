@@ -24,12 +24,20 @@ DEFINE INDEX IF NOT EXISTS unique_id ON storage_object_latest COLUMNS id UNIQUE;
 
 -- save object and update latest index
 DEFINE FUNCTION IF NOT EXISTS fn::storage_object::save($content: object) -> object {
-    $id = $content.descriptor.id + "#" + $content.descriptor.revision;
+    $id = rand::ulid();
     LET $record = UPSERT ONLY type::thing("storage_object", $id) CONTENT $content;
     UPSERT storage_object_latest CONTENT { id: $record.descriptor.id, revision: $record.descriptor.revision, object: $record.id };
     RETURN $record.descriptor;
 };
 
+DEFINE FUNCTION IF NOT EXISTS fn::storage_object::get($descriptor: object) -> option<object> {
+    LET $record = SELECT * FROM ONLY storage_object WHERE descriptor.id = $descriptor.id AND descriptor.revision = $descriptor.revision;
+    RETURN IF ($record IS NONE) {
+        NONE;
+    } ELSE {
+        $record;
+    };
+};
 
 DEFINE FUNCTION IF NOT EXISTS fn::storage_object::delete($descriptor: object) -> object {
     LET $record = SELECT * FROM ONLY storage_object WHERE descriptor.id = $descriptor.id AND descriptor.revision = $descriptor.revision;
@@ -53,7 +61,7 @@ DEFINE FUNCTION IF NOT EXISTS fn::storage_object::list($filter: object, $limit: 
                 AND ($filter.revision IS NONE OR object.descriptor.revision == $filter.revision)
                 AND ($filter.created_after IS NONE OR object.meta.created_at >= $filter.created_after)
                 AND ($filter.created_before IS NONE OR object.meta.created_at <= $filter.created_before)
-                AND ($cursor IS NONE OR object.id > type::thing("storage_object", $cursor))
+                AND ($cursor IS NONE OR object.id < type::thing("storage_object", $cursor))
             ORDER BY object.id ASC
             LIMIT $limit)
     } ELSE {
@@ -64,11 +72,31 @@ DEFINE FUNCTION IF NOT EXISTS fn::storage_object::list($filter: object, $limit: 
                 AND ($filter.revision IS NONE OR descriptor.revision == $filter.revision)
                 AND ($filter.created_after IS NONE OR meta.created_at >= $filter.created_after)
                 AND ($filter.created_before IS NONE OR meta.created_at <= $filter.created_before)
-                AND ($cursor IS NONE OR id > type::thing("storage_object", $cursor))
+                AND ($cursor IS NONE OR id < type::thing("storage_object", $cursor))
             ORDER BY id ASC
             LIMIT $limit)
     };
 };
 
 
+DEFINE FUNCTION IF NOT EXISTS fn::storage_object::delete_by_id($object_id: string) {
+    LET $latest = SELECT * FROM ONLY storage_object_latest WHERE id = $object_id;
+    IF ($latest IS NOT NONE) {
+        DELETE storage_object_latest WHERE id = $object_id;
+    };
+    DELETE storage_object WHERE descriptor.id = $object_id;
+};
 
+DEFINE FUNCTION IF NOT EXISTS fn::storage_object::batch_delete($descriptors: array<object>) {
+    DELETE FROM storage_object WHERE descriptor IN $descriptors;
+    LET $affected_ids = array::distinct(array::map($descriptors, | $deleted | $deleted.id));
+    FOR $affected_id IN $affected_ids {
+        LET $latest = SELECT * FROM ONLY storage_object_latest WHERE id = $affected_id;
+        LET $current_latest = SELECT descriptor, id FROM ONLY storage_object WHERE descriptor.id = $affected_id ORDER BY id DESC LIMIT 1;
+        IF ($current_latest IS NONE) {
+            DELETE storage_object_latest WHERE id = $affected_id;
+        } ELSE IF ($latest.revision != $current_latest.descriptor.revision) {
+            UPSERT storage_object_latest CONTENT { id: $affected_id, revision: $current_latest.descriptor.revision, object: type::thing("storage_object", $current_latest.id) };
+        };
+    };
+};

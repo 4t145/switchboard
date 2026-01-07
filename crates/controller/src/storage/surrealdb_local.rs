@@ -29,26 +29,6 @@ struct LatestRevisionIndex {
 
 const PROVIDER: &str = "SurrealDB";
 type FlattenedListObjectQuery = switchboard_model::FlattenPageQueryWithFilter<super::ObjectFilter>;
-impl StorageObjectDescriptor {
-    fn surreal_db_record_id(&self) -> RecordId {
-        RecordId::from_table_key(OBJECT_TABLE, self.id())
-    }
-    fn id(&self) -> String {
-        format!("{}:{}", self.id, self.revision)
-    }
-    fn from_id(record_id: &str) -> Result<Self, StorageError> {
-        record_id
-            .split_once(':')
-            .map(|(name, revision)| StorageObjectDescriptor {
-                id: name.to_string(),
-                revision: revision.to_string(),
-            })
-            .ok_or_else(|| StorageError::StorageError {
-                source: "Invalid config RecordId format".into(),
-                provider: PROVIDER,
-            })
-    }
-}
 
 impl SurrealRocksDbStorage {
     pub async fn new(db_dir: &Path) -> Result<Self, StorageError> {
@@ -69,90 +49,6 @@ impl SurrealRocksDbStorage {
             .map_err(storage_error)?;
         self.client.query(sql).await.map_err(storage_error)?;
         Ok(())
-    }
-
-    // 更新最新版本索引
-    async fn update_latest_index(
-        &self,
-        object_id: &str,
-        revision: &str,
-        record_id: RecordId,
-    ) -> Result<(), StorageError> {
-        let sql = format!(
-            "UPDATE type::table($table) 
-             CONTENT {{ id: $object_id, revision: $revision, record_id: $record_id }}
-             WHERE id = $object_id"
-        );
-
-        self.client
-            .query(sql)
-            .bind(("table", OBJECT_LATEST_INDEX_TABLE))
-            .bind(("object_id", object_id.to_string()))
-            .bind(("revision", revision.to_string()))
-            .bind(("record_id", record_id))
-            .await
-            .map_err(storage_error)?;
-
-        Ok(())
-    }
-
-    // 删除最新版本索引
-    async fn delete_latest_index(&self, object_id: &str) -> Result<(), StorageError> {
-        let sql = "DELETE FROM type::table($table) WHERE id = $object_id";
-        self.client
-            .query(sql)
-            .bind(("table", OBJECT_LATEST_INDEX_TABLE))
-            .bind(("object_id", object_id.to_string()))
-            .await
-            .map_err(storage_error)?;
-        Ok(())
-    }
-
-    // 重新计算并更新某个对象的最新版本索引
-    async fn recalculate_latest_index(&self, object_id: &str) -> Result<(), StorageError> {
-        // 查询该对象的最新版本
-        let sql = "
-            SELECT * FROM type::table($table) 
-            WHERE descriptor.id = $object_id 
-            ORDER BY descriptor.revision DESC 
-            LIMIT 1
-        ";
-
-        let mut result = self
-            .client
-            .query(sql)
-            .bind(("table", OBJECT_TABLE))
-            .bind(("object_id", object_id.to_string()))
-            .await
-            .map_err(storage_error)?;
-
-        let latest: Option<StorageObjectWithoutData> = result.take(0).map_err(storage_error)?;
-
-        if let Some(latest_obj) = latest {
-            // 找到了新的最新版本，更新索引
-            let record_id = latest_obj.descriptor.surreal_db_record_id();
-            self.update_latest_index(object_id, &latest_obj.descriptor.revision, record_id)
-                .await?;
-        } else {
-            // 没有找到任何版本，删除索引
-            self.delete_latest_index(object_id).await?;
-        }
-
-        Ok(())
-    }
-}
-
-impl<D> IntoResource<D> for &StorageObjectDescriptor {
-    fn into_resource(self) -> surrealdb::Result<surrealdb::opt::Resource> {
-        let resource = surrealdb::opt::Resource::RecordId(self.surreal_db_record_id());
-        Ok(resource)
-    }
-}
-
-impl CreateResource<Option<RecordId>> for &StorageObjectDescriptor {
-    fn into_resource(self) -> surrealdb::Result<surrealdb::opt::Resource> {
-        let resource = surrealdb::opt::Resource::RecordId(self.surreal_db_record_id());
-        Ok(resource)
     }
 }
 
@@ -202,16 +98,18 @@ impl Storage for SurrealRocksDbStorage {
     async fn get_object(
         &self,
         descriptor: &StorageObjectDescriptor,
-    ) -> Result<SerdeValue, StorageError> {
+    ) -> Result<Option<SerdeValue>, StorageError> {
         let result: Option<StorageObjectDb> = self
             .client
-            .select::<Option<StorageObjectDb>>(descriptor)
+            .query("fn::storage_object::get($descriptor)")
+            .bind(("descriptor", descriptor.clone()))
             .await
+            .map_err(storage_error)?
+            .take(0)
             .map_err(storage_error)?;
-        let model = result.ok_or(StorageError::ObjectNotFound {
-            descriptor: descriptor.clone(),
-        })?;
-        decode_object(&model.data, &model.descriptor.revision)
+        result
+            .map(|model| decode_object(&model.data, &model.descriptor.revision))
+            .transpose()
     }
     async fn save_object(
         &self,
@@ -289,12 +187,8 @@ impl Storage for SurrealRocksDbStorage {
                     id: filter.id,
                     revision: filter.revision,
                     latest_only: filter.latest_only,
-                    created_before: filter
-                        .created_before
-                        .map(|dt| surrealdb::sql::Datetime::from(dt)),
-                    created_after: filter
-                        .created_after
-                        .map(|dt| surrealdb::sql::Datetime::from(dt)),
+                    created_before: filter.created_before.map(surrealdb::sql::Datetime::from),
+                    created_after: filter.created_after.map(surrealdb::sql::Datetime::from),
                 }
             }
         }
@@ -339,15 +233,9 @@ impl Storage for SurrealRocksDbStorage {
     }
 
     async fn delete_all_objects_by_id(&self, id: &str) -> Result<(), StorageError> {
-        let sql = "
-        DELETE FROM type::table($table) WHERE descriptor.id = $id;
-        DELETE FROM type::table($latest_table) WHERE id = $id;
-        ";
         self.client
-            .query(sql)
-            .bind(("table", OBJECT_TABLE))
-            .bind(("latest_table", OBJECT_LATEST_INDEX_TABLE))
-            .bind(("id", id.to_string()))
+            .query("fn::storage_object::delete_by_id($object_id)")
+            .bind(("object_id", id.to_string()))
             .await
             .map_err(storage_error)?;
         Ok(())
@@ -357,43 +245,11 @@ impl Storage for SurrealRocksDbStorage {
         &self,
         descriptors: Vec<StorageObjectDescriptor>,
     ) -> Result<(), StorageError> {
-        use std::collections::HashSet;
-
-        // 收集所有受影响的对象 ID
-        let mut affected_object_ids = HashSet::new();
-        for desc in &descriptors {
-            affected_object_ids.insert(desc.id.clone());
-        }
-
-        // 执行删除操作
-        let ids: Vec<RecordId> = descriptors
-            .iter()
-            .map(|desc| desc.surreal_db_record_id())
-            .collect();
-        let sql = "
-        DELETE FROM type::table($table) WHERE id IN $ids;
-        FOR $affected_object_id in $affected_object_ids {
-            LET latest_index = (SELECT * FROM type::table($latest_table) WHERE id = $affected_object_id);
-            IF (latest_index != NONE) {
-                LET latest_record_id = latest_index[0].record_id;
-                IF (latest_record_id != NONE) {
-                    DELETE latest_record_id;
-                }
-            }
-        }
-        ";
         self.client
-            .query(sql)
-            .bind(("table", OBJECT_TABLE))
-            .bind(("ids", ids))
+            .query("fn::storage_object::batch_delete($descriptors)")
+            .bind(("descriptors", descriptors))
             .await
             .map_err(storage_error)?;
-
-        // // 对每个受影响的对象 ID 重新计算最新版本
-        // for object_id in affected_object_ids {
-        //     self.recalculate_latest_index(&object_id).await?;
-        // }
-
         Ok(())
     }
 }

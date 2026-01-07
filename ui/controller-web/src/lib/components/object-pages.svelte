@@ -21,6 +21,7 @@
     let loading = $state(false);
     let error = $state<Error | null>(null);
     let hasMore = $state(true);
+    let filterKey = $state<string | null>(null);
     async function loadNextPage() {
         if (loading || !hasMore || error) return;
         
@@ -36,7 +37,11 @@
             }, filter);
             items = [...items, ...response.items.map(item => item.data)];
             cursor = response.next_cursor?.next ?? null;
-            hasMore = cursor !== null;
+            if (response.items.length === 0 || cursor === null) {
+                hasMore = false;
+            } else {
+                hasMore = true;
+            }
         } catch (e) {
             error = e instanceof Error ? e : new Error(String(e));
             console.error("Failed to load storage objects", e);
@@ -51,11 +56,11 @@
         loadNextPage();
     }
     $effect(() => {
-        // 访问 filter 以建立依赖
-        filter;
+        const nextKey = JSON.stringify(filter);
+        if (nextKey === filterKey) return;
+        filterKey = nextKey;
         reload();
     });
-    
     // 初始加载
     $effect(() => {
         if (items.length === 0 && !loading && hasMore) {
