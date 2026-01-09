@@ -2,7 +2,6 @@
     import type { StorageObjectWithoutData, ServiceDescriptor, StorageObjectMeta, StorageObjectDescriptor } from '$lib/api/types';
     import type { ObjectFilter } from '$lib/api/routes/storage';
 
-    import  {Button} from 'bits-ui';
     import KernelStateLabel from './kernel-state-label.svelte';
     import { Info } from 'lucide-svelte';
     interface Props {
@@ -70,7 +69,7 @@
 </script>
 
 
-<div class="flex flex-col gap-4">
+<div class="card flexflex-col gap-4">
     <!-- 数据展示 -->
     <div class="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         {#each items as item (item.descriptor.id + item.descriptor.revision)}
@@ -92,20 +91,24 @@
         <div class="flex items-center gap-2 p-4 bg-red-50 rounded border border-red-200 text-red-700">
             <Info size={16} />
             <span class="flex-1">Error: {error.message}</span>
-            <Button.Root onclick={reload} class="ml-auto">重试</Button.Root>
+            <button onclick={reload} class="btn">重试</button>
         </div>
     {/if}
 
     <!-- 加载更多按钮 -->
     {#if hasMore}
         <div class="text-center p-4">
-            <Button.Root 
-                onclick={loadNextPage} 
-                disabled={loading}
-                class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-                {loading ? '加载中...' : '加载更多'}
-            </Button.Root>
+            {#if loading}
+                <div class="text-gray-500">加载中...</div>
+            {:else}
+                <button
+                    onclick={loadNextPage} 
+                    disabled={loading}
+                    class="button"
+                >
+                    加载更多
+                </button>
+            {/if}
         </div>
     {:else if items.length > 0}
         <div class="text-center p-4 text-gray-500">没有更多数据了</div>

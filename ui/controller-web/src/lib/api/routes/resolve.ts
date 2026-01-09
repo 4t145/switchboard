@@ -8,6 +8,7 @@ export type ResolveServiceConfigResponse = {
 export type ResolveServiceConfigRequest = {
 	resolver: string;
 	config: unknown;
+	save_as?: string;
 };
 
 import { fetchJson } from './index';

@@ -5,6 +5,7 @@
     import CaretUpDown from "phosphor-svelte/lib/CaretUpDown";
     import CaretDoubleUp from "phosphor-svelte/lib/CaretDoubleUp";
     import CaretDoubleDown from "phosphor-svelte/lib/CaretDoubleDown";
+    import { Collapsible } from '@skeletonlabs/skeleton-svelte';
     interface Props {
         dataType?: string;
         id?: string;
@@ -12,11 +13,14 @@
         latestOnly?: boolean;
         createdBefore?: Date;
         createdAfter?: Date;
+        onSubmit?: (filter: ObjectFilter) => void;
     } 
 
 </script>
 <script lang="ts">
 	import  { api } from "$lib/api/routes";
+	import type { ObjectFilter } from "$lib/api/routes/storage";
+	import { ArrowDownIcon, ArrowUpDownIcon, BrushCleaningIcon, SearchIcon } from "lucide-svelte";
     const dataTypeOptions = [
         { label: "Service Config", value: "service_config" },
         { label: "Pem", value: "pem" },
@@ -27,66 +31,93 @@
         revision = $bindable(),
         latestOnly = $bindable(),
         createdAfter = $bindable(),
-        createdBefore = $bindable()
+        createdBefore = $bindable(),
+        onSubmit = (filter: ObjectFilter) => {}
     }: Props = $props();
     const selectedDataTypeLabel = $derived(
         dataType
         ? dataTypeOptions.find((option) => option.value === dataType)?.label
         : "Select a data type"
     );
+    let advancedOpen = $state(false);
+    function submit() {
+        onSubmit({
+            ...(dataType ? { data_type: dataType } : {}),
+            ...(id ? { id } : {}),
+            ...(revision ? { revision } : {}),
+            ...(latestOnly ? { latest_only: latestOnly } : {}),
+            ...(createdAfter ? { created_after: createdAfter } : {}),
+            ...(createdBefore ? { created_before: createdBefore } : {}),
+        });
+    }
+    function resetFilters() {
+        dataType = '';
+        id = '';
+        revision = '';
+        latestOnly = false;
+        createdAfter = undefined;
+        createdBefore = undefined;
+    }
 </script>
 
-<form>
-    <label for="id">ID</label>
-    <input bind:value={id} type="text" name="id" id="id"/> 
-    <label for="revision">Revision</label>
-    <input bind:value={revision} type="text" name="revision" id="revision"/>
-    <label for="latestOnly">Latest Only</label>
-    <input bind:checked={latestOnly} type="checkbox" id="latestOnly"/>
-    <Select.Root
-        type="single"
-        bind:value={dataType}
-        items={dataTypeOptions}
-        allowDeselect={true}
-    >
-        <Select.Trigger
-        class="h-input rounded-9px border-border-input bg-background data-placeholder:text-foreground-alt/50 inline-flex w-[296px] touch-none select-none items-center border px-[11px] text-sm transition-colors"
-        aria-label="Select a data type"
-        >
-        {selectedDataTypeLabel}
-        <CaretUpDown class="text-muted-foreground ml-auto size-6" />
-        </Select.Trigger>
-        <Select.Portal>
-        <Select.Content
-            class="focus-override border-muted bg-background shadow-popover data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 outline-hidden z-50 h-96 max-h-[var(--bits-select-content-available-height)] w-[var(--bits-select-anchor-width)] min-w-[var(--bits-select-anchor-width)] select-none rounded-xl border px-1 py-3 data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1"
-            sideOffset={10}
-        >
-            <Select.ScrollUpButton class="flex w-full items-center justify-center">
-            <CaretDoubleUp class="size-3" />
-            </Select.ScrollUpButton>
-            <Select.Viewport class="p-1">
-            {#each dataTypeOptions as option, i (i + option.value)}
-                <Select.Item
-                class="rounded-button data-highlighted:bg-muted outline-hidden data-disabled:opacity-50 flex h-10 w-full select-none items-center py-3 pl-5 pr-1.5 text-sm capitalize"
-                value={option.value}
-                label={option.label}
-                >
-                {#snippet children({ selected })}
-                    {option.label}
-                    {#if selected}
-                    <div class="ml-auto">
-                        <Check aria-label="check" />
-                    </div>
-                    {/if}
-                {/snippet}
-                </Select.Item>
-            {/each}
-            </Select.Viewport>
-            <Select.ScrollDownButton class="flex w-full items-center justify-center">
-            <CaretDoubleDown class="size-3" />
-            </Select.ScrollDownButton>
-        </Select.Content>
-        </Select.Portal>
-    </Select.Root>
+<form class="w-full space-y-4 p-4">
+    <fieldset class="grid gap-4 md:grid-cols-3">
+        <legend>Basic Filters</legend>
+        <label for="id" class="label">
+            <span class="label-text">ID</span>
+            <input bind:value={id} type="text" name="id" id="id" class="input w-full"/>
+        </label>
+        <label for="revision" class="label">
+            <span class="label-text">Revision</span>
+            <input bind:value={revision} type="text" name="revision" id="revision" class="input w-full"/>
+        </label>
+        <label for="date-type" class="label">
+            <span class="label-text">Data Type</span>
+            <select class="select w-full" bind:value={dataType} id="date-type">
+                <option value="">All</option>
+                {#each dataTypeOptions as option}
+                    <option value={option.value}>{option.label}</option>
+                {/each}
+            </select>
+        </label>
+    </fieldset>
+    <fieldset class="grid gap-4 md:grid-cols-2">
+        <legend>
+            Advanced Filters
+            <button class = "btn-icon hover:preset-tonal">
+                {#if advancedOpen}
+                    <CaretDoubleUp size={16} onclick={() => (advancedOpen = false)} />
+                {:else}
+                    <CaretDoubleDown size={16} onclick={() => (advancedOpen = true)} />
+                {/if}
 
+            </button>
+        </legend>
+        <label for="latestOnly" class={`label ${advancedOpen ? '' : 'hidden'}`}>
+            <span class="label-text">Latest Only</span>
+            <input bind:checked={latestOnly} type="checkbox" id="latestOnly" class="checkbox"/>
+        </label>
+    </fieldset>
+    <fieldset class="flex flex-wrap gap-3 justify-end mt-4">
+        <button
+                onclick={submit}
+                type="button"
+                class="btn preset-outlined-primary"
+            >
+            <SearchIcon size={18} />
+            <span>
+                搜索
+            </span>
+        </button>
+        <button 
+            onclick={resetFilters}
+            type="button"
+            class="btn preset-outlined"
+        >
+            <BrushCleaningIcon size={18} />
+            <span>
+                重置
+            </span>
+        </button>
+    </fieldset>
 </form>
