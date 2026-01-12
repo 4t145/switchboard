@@ -13,6 +13,8 @@
         latestOnly?: boolean;
         createdBefore?: Date;
         createdAfter?: Date;
+        lockedFields?: string[];
+        compact?: boolean;
         onSubmit?: (filter: ObjectFilter) => void;
     } 
 
@@ -32,6 +34,8 @@
         latestOnly = $bindable(),
         createdAfter = $bindable(),
         createdBefore = $bindable(),
+        lockedFields = [],
+        compact = false,
         onSubmit = (filter: ObjectFilter) => {}
     }: Props = $props();
     const selectedDataTypeLabel = $derived(
@@ -51,73 +55,122 @@
         });
     }
     function resetFilters() {
-        dataType = '';
-        id = '';
-        revision = '';
+        if (!lockedFields.includes('dataType')) dataType = '';
+        if (!lockedFields.includes('id')) id = '';
+        if (!lockedFields.includes('revision')) revision = '';
         latestOnly = false;
         createdAfter = undefined;
         createdBefore = undefined;
     }
 </script>
 
-<form class="w-full space-y-4 p-4">
-    <fieldset class="grid gap-4 md:grid-cols-3">
-        <legend>Basic Filters</legend>
-        <label for="id" class="label">
-            <span class="label-text">ID</span>
-            <input bind:value={id} type="text" name="id" id="id" class="input w-full"/>
-        </label>
-        <label for="revision" class="label">
-            <span class="label-text">Revision</span>
-            <input bind:value={revision} type="text" name="revision" id="revision" class="input w-full"/>
-        </label>
-        <label for="date-type" class="label">
-            <span class="label-text">Data Type</span>
-            <select class="select w-full" bind:value={dataType} id="date-type">
+<form class={compact ? "flex flex-wrap gap-3 items-end p-2" : "w-full space-y-4 p-4"}>
+    {#if !compact}
+        <fieldset class="grid gap-4 md:grid-cols-3">
+            <legend>Basic Filters</legend>
+            {#if !lockedFields.includes('id')}
+            <label for="id" class="label">
+                <span class="label-text">ID</span>
+                <input bind:value={id} type="text" name="id" id="id" class="input w-full"/>
+            </label>
+            {/if}
+            {#if !lockedFields.includes('revision')}
+            <label for="revision" class="label">
+                <span class="label-text">Revision</span>
+                <input bind:value={revision} type="text" name="revision" id="revision" class="input w-full"/>
+            </label>
+            {/if}
+            {#if !lockedFields.includes('dataType')}
+            <label for="date-type" class="label">
+                <span class="label-text">Data Type</span>
+                <select class="select w-full" bind:value={dataType} id="date-type">
+                    <option value="">All</option>
+                    {#each dataTypeOptions as option}
+                        <option value={option.value}>{option.label}</option>
+                    {/each}
+                </select>
+            </label>
+            {/if}
+        </fieldset>
+        <fieldset class="grid gap-4 md:grid-cols-2">
+            <legend>
+                Advanced Filters
+                <button class = "btn-icon hover:preset-tonal" type="button">
+                    {#if advancedOpen}
+                        <CaretDoubleUp size={16} onclick={() => (advancedOpen = false)} />
+                    {:else}
+                        <CaretDoubleDown size={16} onclick={() => (advancedOpen = true)} />
+                    {/if}
+    
+                </button>
+            </legend>
+            <label for="latestOnly" class={`label ${advancedOpen ? '' : 'hidden'}`}>
+                <span class="label-text">Latest Only</span>
+                <input bind:checked={latestOnly} type="checkbox" id="latestOnly" class="checkbox"/>
+            </label>
+        </fieldset>
+        <fieldset class="flex flex-wrap gap-3 justify-end mt-4">
+            <button
+                    onclick={submit}
+                    type="button"
+                    class="btn preset-outlined-primary"
+                >
+                <SearchIcon size={18} />
+                <span>
+                    搜索
+                </span>
+            </button>
+            <button 
+                onclick={resetFilters}
+                type="button"
+                class="btn preset-outlined"
+            >
+                <BrushCleaningIcon size={18} />
+                <span>
+                    重置
+                </span>
+            </button>
+        </fieldset>
+    {:else}
+        <!-- Compact View -->
+        {#if !lockedFields.includes('id')}
+        <div class="flex flex-col gap-1">
+            <span class="text-xs opacity-70">ID</span>
+            <input bind:value={id} type="text" placeholder="ID" class="input input-sm w-32"/>
+        </div>
+        {/if}
+        
+        {#if !lockedFields.includes('revision')}
+        <div class="flex flex-col gap-1">
+            <span class="text-xs opacity-70">Revision</span>
+            <input bind:value={revision} type="text" placeholder="Revision" class="input input-sm w-24"/>
+        </div>
+        {/if}
+
+        {#if !lockedFields.includes('dataType')}
+        <div class="flex flex-col gap-1">
+             <span class="text-xs opacity-70">Type</span>
+             <select class="select select-sm w-32" bind:value={dataType}>
                 <option value="">All</option>
                 {#each dataTypeOptions as option}
                     <option value={option.value}>{option.label}</option>
                 {/each}
             </select>
-        </label>
-    </fieldset>
-    <fieldset class="grid gap-4 md:grid-cols-2">
-        <legend>
-            Advanced Filters
-            <button class = "btn-icon hover:preset-tonal">
-                {#if advancedOpen}
-                    <CaretDoubleUp size={16} onclick={() => (advancedOpen = false)} />
-                {:else}
-                    <CaretDoubleDown size={16} onclick={() => (advancedOpen = true)} />
-                {/if}
+        </div>
+        {/if}
 
-            </button>
-        </legend>
-        <label for="latestOnly" class={`label ${advancedOpen ? '' : 'hidden'}`}>
-            <span class="label-text">Latest Only</span>
-            <input bind:checked={latestOnly} type="checkbox" id="latestOnly" class="checkbox"/>
+        <label class="flex items-center gap-2 pb-1 cursor-pointer">
+            <input bind:checked={latestOnly} type="checkbox" class="checkbox checkbox-sm"/>
+            <span class="text-sm">Latest Only</span>
         </label>
-    </fieldset>
-    <fieldset class="flex flex-wrap gap-3 justify-end mt-4">
-        <button
-                onclick={submit}
-                type="button"
-                class="btn preset-outlined-primary"
-            >
-            <SearchIcon size={18} />
-            <span>
-                搜索
-            </span>
-        </button>
-        <button 
-            onclick={resetFilters}
-            type="button"
-            class="btn preset-outlined"
-        >
-            <BrushCleaningIcon size={18} />
-            <span>
-                重置
-            </span>
-        </button>
-    </fieldset>
+
+        <div class="flex gap-2 ml-auto">
+             <button onclick={submit} type="button" class="btn btn-sm preset-filled-primary" title="Search">
+                <SearchIcon size={14} />
+            </button>
+            <button onclick={resetFilters} type="button" class="btn btn-sm preset-outlined" title="Reset">
+                <BrushCleaningIcon size={14} />
+            </button>
+        </div>
+    {/if}
 </form>

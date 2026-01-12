@@ -4,7 +4,10 @@
 
     interface Props {
         pageSize: number;
-        filter: ObjectFilter;
+        filter: ObjectFilter & {
+            lockedFields?: string[];
+            compact?: boolean;
+        };
         onSelect?: (item: StorageObjectWithoutData) => void;
         selectedId?: string | null;
         selectionMode?: 'none' | 'single';
@@ -138,6 +141,8 @@
                 latestOnly={currentFilter.latest_only}
                 createdAfter={currentFilter.created_after}
                 createdBefore={currentFilter.created_before}
+                lockedFields={initialFilter.lockedFields}
+                compact={initialFilter.compact}
                 onSubmit={handleFilterSubmit}
             />
         </div>
