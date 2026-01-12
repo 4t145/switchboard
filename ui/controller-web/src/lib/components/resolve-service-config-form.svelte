@@ -16,7 +16,7 @@
 	import { ArrowDownIcon, ArrowUpDownIcon, BrushCleaningIcon, FolderTreeIcon, NetworkIcon, SearchIcon, WrenchIcon } from "lucide-svelte";
 	import type { ResolveServiceConfigRequest } from "$lib/api/routes/resolve";
     const dataTypeOptions = [
-        { label: "Service Config", value: "service_config" },
+        { label: "Service Config", value: "ServiceConfig" },
         { label: "Pem", value: "pem" },
     ];
     let {

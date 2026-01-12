@@ -7,7 +7,7 @@ use crate::{hostname::HostnameTree, path::PathTree};
 #[derive(
     Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode,
 )]
-#[serde(rename_all = "camelCase")]
+
 pub struct RouterSerde<T> {
     #[serde(default = "BTreeMap::new")]
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]

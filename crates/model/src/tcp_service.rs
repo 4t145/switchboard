@@ -13,7 +13,7 @@ use switchboard_custom_config::SerdeValue;
     Eq,
     bon::Builder,
 )]
-#[serde(rename_all = "camelCase")]
+
 #[builder(on(String, into))]
 pub struct TcpServiceConfig<Cfg = SerdeValue> {
     pub provider: String,

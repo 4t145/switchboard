@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use switchboard_custom_config::SerdeValue;
 pub mod consts;
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-#[serde(rename_all = "camelCase")]
+
 pub struct Config<Cfg = SerdeValue> {
     pub flow: FlowConfig<Cfg>,
     #[serde(default)]
@@ -20,7 +20,7 @@ impl<Cfg> Default for Config<Cfg> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-#[serde(rename_all = "camelCase")]
+
 #[serde(default)]
 pub struct ServerConfig {
     pub version: HttpVersion,
@@ -45,7 +45,7 @@ pub enum HttpVersion {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-#[serde(rename_all = "camelCase")]
+
 pub struct FlowConfig<Cfg = SerdeValue> {
     pub entrypoint: NodeTarget,
     #[serde(alias = "instance")]
@@ -76,7 +76,7 @@ impl<Cfg> FlowConfig<Cfg> {
 pub type FlowConfigWithLink = FlowConfig<switchboard_custom_config::Link>;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, bincode::Encode, bincode::Decode)]
-#[serde(rename_all = "camelCase")]
+
 pub struct FlowOptions {
     pub max_loop: Option<u32>,
 }
@@ -84,7 +84,7 @@ pub struct FlowOptions {
 use std::{collections::BTreeMap, convert::Infallible, fmt::Display, str::FromStr, sync::Arc};
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode, Default)]
-#[serde(rename_all = "camelCase")]
+
 pub enum InstanceType {
     #[default]
     Node,
@@ -453,7 +453,7 @@ impl std::fmt::Display for ClassId {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
+
 #[derive(bincode::Encode, bincode::Decode)]
 pub struct ClassMeta {
     pub version: String,
@@ -482,7 +482,7 @@ impl ClassMeta {
     }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+
 // #[derive(bincode::Encode, bincode::Decode)]
 pub struct ClassData {
     pub id: ClassId,
@@ -492,7 +492,7 @@ pub struct ClassData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-#[serde(rename_all = "camelCase")]
+
 pub struct WithOutputs<C> {
     #[serde(flatten)]
     pub config: C,

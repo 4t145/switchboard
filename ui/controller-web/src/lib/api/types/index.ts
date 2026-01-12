@@ -15,8 +15,9 @@ import type { TcpService } from './tcp_service';
 import type { Tls } from './tls';
 
 export type ServiceConfig = {
-	tcpServices: Record<string, TcpService>;
-	tcpListeners: Record<string, Listener>;
+	tcp_services: Record<string, TcpService>;
+	tcp_listeners: Record<string, Listener>;
 	tls: Record<string, Tls>;
 	tcp_routes: Record<string, TcpRoute>;
 };
+

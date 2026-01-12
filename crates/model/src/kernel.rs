@@ -8,7 +8,7 @@ pub const UDS_DEFAULT_DIR: &str = "/var/run/switchboard/kernel/";
 pub const HTTP_DEFAULT_PORT: u16 = 8056;
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+
 #[serde(default)]
 pub struct KernelInfo {
     pub name: String,
@@ -32,7 +32,7 @@ impl Default for KernelInfo {
 
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+
 #[serde(default)]
 pub struct KernelMeta {
     pub version: String,
@@ -49,7 +49,7 @@ impl Default for KernelMeta {
 }
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+
 #[serde(tag = "kind", content = "data")]
 pub enum KernelStateKind {
     WaitingConfig,
@@ -65,7 +65,7 @@ pub enum KernelStateKind {
 }
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+
 pub struct KernelState {
     #[serde(flatten)]
     pub kind: KernelStateKind,
@@ -89,14 +89,14 @@ impl KernelState {
 }
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+
 pub struct KernelInfoAndState {
     pub info: KernelInfo,
     pub state: KernelState,
 }
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+
 #[serde(tag = "connection", content = "state")]
 pub enum KernelConnectionAndState {
     Connected(KernelInfoAndState),

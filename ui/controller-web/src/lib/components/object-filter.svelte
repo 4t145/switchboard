@@ -22,7 +22,7 @@
 	import type { ObjectFilter } from "$lib/api/routes/storage";
 	import { ArrowDownIcon, ArrowUpDownIcon, BrushCleaningIcon, SearchIcon } from "lucide-svelte";
     const dataTypeOptions = [
-        { label: "Service Config", value: "service_config" },
+        { label: "Service Config", value: "ServiceConfig" },
         { label: "Pem", value: "pem" },
     ];
     let {

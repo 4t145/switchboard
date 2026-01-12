@@ -1,8 +1,7 @@
 use std::path::Path;
 
 use crate::storage::{
-    ListObjectQuery, Storage, StorageError, StorageMeta, StorageObject, StorageObjectDescriptor,
-    StorageObjectWithoutData, decode_object,
+    ListObjectQuery, Storage, StorageError, StorageMeta, StorageObject, StorageObjectDescriptor, StorageObjectValueStyle, StorageObjectWithoutData, decode_object
 };
 use chrono::Utc;
 use surrealdb::sql::Thing;
@@ -98,7 +97,7 @@ impl Storage for SurrealRocksDbStorage {
     async fn get_object(
         &self,
         descriptor: &StorageObjectDescriptor,
-    ) -> Result<Option<SerdeValue>, StorageError> {
+    ) -> Result<Option<StorageObjectValueStyle>, StorageError> {
         let result: Option<StorageObjectDb> = self
             .client
             .query("fn::storage_object::get($descriptor)")
@@ -107,9 +106,19 @@ impl Storage for SurrealRocksDbStorage {
             .map_err(storage_error)?
             .take(0)
             .map_err(storage_error)?;
-        result
-            .map(|model| decode_object(&model.data, &model.descriptor.revision))
-            .transpose()
+        let Some(result) = result else {
+            return Ok(None);
+        };
+        let value = decode_object(&result.data, &result.descriptor.revision)?;
+        Ok(Some(StorageObjectValueStyle {
+            descriptor: result.descriptor,
+            meta: StorageMeta {
+                data_type: result.meta.data_type,
+                created_at: result.meta.created_at.into(),
+            },
+            data: value,
+        }))
+
     }
     async fn save_object(
         &self,

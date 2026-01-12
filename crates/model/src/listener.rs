@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
     PartialEq,
     Eq,
 )]
-#[serde(rename_all = "camelCase")]
+
 #[builder(on(String, into))]
 pub struct Listener {
     pub bind: SocketAddr,

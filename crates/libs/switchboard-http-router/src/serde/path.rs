@@ -7,7 +7,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]
-#[serde(rename_all = "camelCase")]
+
 pub struct PathTreeSerde<T> {
     #[serde(default = "BTreeMap::new")]
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
@@ -126,7 +126,7 @@ impl<T: Clone> TryInto<PathTree<T>> for PathTreeSerdeMapStyle<T> {
 #[derive(
     Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode,
 )]
-#[serde(rename_all = "camelCase")]
+
 pub struct PathTreeRegexMatchSerde<T> {
     pub regex: String,
     pub target: RuleBucketSimplifiedSerde<T>,

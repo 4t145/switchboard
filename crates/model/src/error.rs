@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+
 pub struct ErrorStack {
     pub frames: Vec<ErrorStackFrame>,
 }
@@ -19,7 +19,7 @@ impl std::fmt::Display for ErrorStack {
 impl std::error::Error for ErrorStack {}
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+
 pub struct ErrorStackFrame {
     pub error: String,
     pub type_name: String,
@@ -41,7 +41,7 @@ impl ErrorStack {
 }
 
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+
 pub enum ResultObject<T> {
     Data(T),
     Error(ErrorStack),

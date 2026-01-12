@@ -84,6 +84,7 @@ fn result_to_json_response<T: Serialize, E: std::error::Error + 'static>(
     match result {
         Ok(data) => axum::Json(data).into_response(),
         Err(e) => {
+            tracing::warn!("Internal server error: {}", e);
             let error_response = switchboard_model::error::ErrorStack::from_std(e);
             let mut response = axum::Json(error_response).into_response();
             *response.status_mut() = axum::http::StatusCode::INTERNAL_SERVER_ERROR;

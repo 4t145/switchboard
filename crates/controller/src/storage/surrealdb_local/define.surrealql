@@ -9,8 +9,9 @@ DEFINE FIELD IF NOT EXISTS descriptor.revision ON storage_object TYPE string;
 DEFINE FIELD IF NOT EXISTS meta.created_at ON storage_object TYPE datetime;
 DEFINE FIELD IF NOT EXISTS meta.data_type ON storage_object TYPE string;
 
-DEFINE INDEX IF NOT EXISTS unique_descriptor_id ON storage_object FIELDS descriptor.id;
+DEFINE INDEX IF NOT EXISTS index_descriptor_id ON storage_object FIELDS descriptor.id;
 DEFINE INDEX IF NOT EXISTS index_descriptor_revision ON storage_object FIELDS descriptor.revision;
+DEFINE INDEX IF NOT EXISTS index_descriptor ON storage_object FIELDS descriptor.revision, descriptor.id;
 DEFINE INDEX IF NOT EXISTS index_meta_data_type ON storage_object FIELDS meta.data_type;
 
 -- latest index for storage objects

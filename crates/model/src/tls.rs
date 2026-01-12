@@ -11,7 +11,7 @@ use crate::bytes::Base64Bytes;
 #[derive(
     Debug, Clone, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq,
 )]
-#[serde(rename_all = "camelCase")]
+
 pub struct Tls<TlsResolver = self::TlsResolver> {
     pub resolver: TlsResolver,
     pub options: TlsOptions,
@@ -20,7 +20,7 @@ pub struct Tls<TlsResolver = self::TlsResolver> {
 #[derive(
     Debug, Clone, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq,
 )]
-#[serde(rename_all = "camelCase")]
+
 #[serde(tag = "type", content = "data")]
 pub enum TlsResolver {
     Single(TlsCertParams),
@@ -44,7 +44,7 @@ impl From<TlsCertParams> for TlsResolver {
     PartialEq,
     Eq,
 )]
-#[serde(rename_all = "camelCase")]
+
 pub struct TlsCertParams {
     pub certs: Vec<Base64Bytes>,
     pub key: Base64Bytes,

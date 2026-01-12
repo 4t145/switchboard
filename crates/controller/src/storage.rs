@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use futures::future::BoxFuture;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use switchboard_custom_config::SerdeValue;
-use switchboard_model::{Cursor, FlattenPageQueryWithFilter, PageQuery, PagedList};
+use switchboard_model::{Cursor, FlattenPageQueryWithFilter, PageQuery, PagedList, ServiceConfig};
 
 use crate::ControllerContext;
 pub mod surrealdb_local;
@@ -116,6 +116,12 @@ pub struct ObjectFilter {
     pub created_after: Option<DateTime<Utc>>,
 }
 
+pub struct StorageObjectValueStyle {
+    pub descriptor: StorageObjectDescriptor,
+    pub meta: StorageMeta,
+    pub data: SerdeValue,
+}
+
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 pub struct ListObjectQuery {
     pub filter: ObjectFilter,
@@ -143,7 +149,7 @@ pub trait Storage: Send + Sync + 'static {
     fn get_object(
         &self,
         descriptor: &StorageObjectDescriptor,
-    ) -> impl Future<Output = Result<Option<SerdeValue>, StorageError>> + Send;
+    ) -> impl Future<Output = Result<Option<StorageObjectValueStyle>, StorageError>> + Send;
 
     fn list_objects(
         &self,
@@ -180,7 +186,7 @@ pub trait DynamicStorage: Send + Sync + 'static {
     fn get_object<'a>(
         &'a self,
         descriptor: &'a StorageObjectDescriptor,
-    ) -> BoxFuture<'a, Result<Option<SerdeValue>, StorageError>>;
+    ) -> BoxFuture<'a, Result<Option<StorageObjectValueStyle>, StorageError>>;
     fn delete_object<'a>(
         &'a self,
         descriptor: &'a StorageObjectDescriptor,
@@ -216,7 +222,7 @@ impl<S: Storage> DynamicStorage for S {
     fn get_object<'a>(
         &'a self,
         descriptor: &'a StorageObjectDescriptor,
-    ) -> BoxFuture<'a, Result<Option<SerdeValue>, StorageError>> {
+    ) -> BoxFuture<'a, Result<Option<StorageObjectValueStyle>, StorageError>> {
         Box::pin(self.get_object(descriptor))
     }
 
@@ -291,5 +297,50 @@ impl ControllerContext {
         self.storage
             .save_object(id, T::data_type(), serde_value)
             .await
+    }
+}
+
+pub struct JsonInterpreter;
+
+#[derive(Debug, thiserror::Error)]
+pub enum JsonInterpreterError {
+    #[error("Unsupported data type for JSON interpretation: {0}")]
+    UnsupportedDataType(String),
+    #[error("Serde Value error: {0}")]
+    SerdeValueError(#[from] switchboard_custom_config::SerdeValueError),
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
+}
+
+impl JsonInterpreter {
+    pub fn encode(obj: StorageObjectValueStyle) -> Result<serde_json::Value, JsonInterpreterError> {
+        let data_type = obj.meta.data_type.as_str();
+        if data_type == ServiceConfig::data_type() {
+            let config: ServiceConfig = obj
+                .data
+                .deserialize_into()
+                .map_err(JsonInterpreterError::SerdeValueError)?;
+            Ok(serde_json::to_value(&config).map_err(JsonInterpreterError::Json)?)
+        } else {
+            Err(JsonInterpreterError::UnsupportedDataType(
+                data_type.to_string(),
+            ))
+        }
+    }
+    pub fn decode(
+        data: serde_json::Value,
+        data_type: &str,
+    ) -> Result<SerdeValue, JsonInterpreterError> {
+        if data_type == ServiceConfig::data_type() {
+            let config: ServiceConfig =
+                serde_json::from_value(data).map_err(JsonInterpreterError::Json)?;
+            let serde_value = SerdeValue::serialize_from(&config)
+                .map_err(JsonInterpreterError::SerdeValueError)?;
+            Ok(serde_value)
+        } else {
+            Err(JsonInterpreterError::UnsupportedDataType(
+                data_type.to_string(),
+            ))
+        }
     }
 }

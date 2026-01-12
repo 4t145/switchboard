@@ -34,8 +34,7 @@ pub use switchboard_custom_config as custom_config;
 pub enum ConfigEvent {
     Reload,
 }
-#[derive(Debug, Clone, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Serialize, Deserialize,  PartialEq, Hash, bincode::Encode, bincode::Decode)]
 pub struct ServiceConfig<
     ConfigValue = SerdeValue,
     TlsResolver = crate::tls::TlsResolver,

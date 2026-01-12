@@ -112,14 +112,14 @@ async fn test_db_storage() -> switchboard_controller::Result<()> {
     println!("objects: {:#?}", second_page);
     assert_eq!(second_page.items.len(), 0);
     // test get object
-    let object_a2 = context.storage().get_object(&descriptor_a2).await?;
+    let object_a2 = context.storage().get_object(&descriptor_a2).await?.map(|v|v.data);
     assert_eq!(
         object_a2,
         Some(value!({
             "version": 2,
         }))
     );
-    let object_b1 = context.storage().get_object(&descriptor_b1).await?;
+    let object_b1 = context.storage().get_object(&descriptor_b1).await?.map(|v|v.data);
     assert_eq!(
         object_b1,
         Some(value!({

@@ -37,5 +37,5 @@
     <hr class="hr" />
     <!-- 对象列表 -->
     <!-- <h2 class="text-lg font-semibold mb-4">对象列表</h2> -->
-    <ObjectPages pageSize={12} {filter} />
+    <ObjectPages pageSize={12} {filter} selectionMode="none" showFilters={false} />
 </div>

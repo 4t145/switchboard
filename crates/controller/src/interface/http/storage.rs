@@ -11,14 +11,17 @@ use switchboard_model::{
 
 use crate::{
     interface::http::HttpState,
-    storage::{ListObjectQuery, ObjectFilter, StorageObjectDescriptor, StorageObjectWithoutData},
+    storage::{
+        JsonInterpreter, KnownStorageObject, ListObjectQuery, ObjectFilter,
+        StorageObjectDescriptor, StorageObjectValueStyle, StorageObjectWithoutData,
+    },
 };
 
 #[derive(Debug, serde::Deserialize)]
 pub struct SaveStorageObjectRequest {
     pub id: String,
     pub date_type: String,
-    pub data: SerdeValue,
+    pub data: serde_json::Value,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -42,7 +45,11 @@ pub async fn get(
             .storage()
             .get_object(&params)
             .await?;
-        crate::Result::Ok(obj)
+        let Some(obj) = obj else {
+            return crate::Result::Ok(None::<serde_json::Value>);
+        };
+        let json_value = JsonInterpreter::encode(obj)?;
+        crate::Result::Ok(Some(json_value))
     };
     super::result_to_json_response(process.await)
 }
@@ -93,10 +100,11 @@ pub async fn save(
     Json(request): Json<SaveStorageObjectRequest>,
 ) -> Response {
     let process = async {
+        let data = JsonInterpreter::decode(request.data, &request.date_type)?;
         let descriptor = state
             .controller_context
             .storage()
-            .save_object(&request.id, &request.date_type, request.data)
+            .save_object(&request.id, &request.date_type, data)
             .await?;
         crate::Result::Ok(descriptor)
     };

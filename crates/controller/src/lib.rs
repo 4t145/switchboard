@@ -63,4 +63,7 @@ pub enum Error {
 
     #[error("Resolve config error: {0}")]
     ResolveServiceConfigError(#[from] crate::resolve::ResolveServiceConfigError),
+
+    #[error("Json Interpreter error: {0}")]
+    JsonInterpreterError(#[from] crate::storage::JsonInterpreterError),
 }

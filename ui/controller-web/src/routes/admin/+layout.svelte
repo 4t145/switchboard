@@ -158,7 +158,7 @@
 	<!-- Main content area -->
 	<div class="flex min-w-0 flex-1 flex-col">
 		<!-- Page content -->
-		<main class="flex-1 overflow-auto p-5">
+		<main class="flex-1 overflow-auto ">
 			{@render children()}
 		</main>
 	</div>

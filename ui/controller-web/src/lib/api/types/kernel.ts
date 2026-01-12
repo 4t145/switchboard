@@ -12,16 +12,16 @@ export type KernelInfo = {
 };
 
 export type KernelStateKind =
-    | { kind: "waitingConfig" }
-    | { kind: "running"; data: { configSignature: Bytes } }
+    | { kind: "waiting_config" }
+    | { kind: "running"; data: { config_signature: Bytes } }
     | {
         kind: "updating";
         data: {
-            originalConfigSignature: Bytes;
-            newConfigSignature: Bytes;
+            original_config_signature: Bytes;
+            new_config_signature: Bytes;
         };
     }
-    | { kind: "shuttingDown" }
+    | { kind: "shutting_down" }
     | { kind: "stopped" };
 
 export type KernelState = {

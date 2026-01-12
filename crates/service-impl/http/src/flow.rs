@@ -54,7 +54,7 @@ pub struct FlowContext {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+
 pub struct FlowOptions {
     pub max_loop: Option<u32>,
 }

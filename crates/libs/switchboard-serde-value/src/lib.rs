@@ -563,4 +563,7 @@ impl<'de> Deserializer<'de> for SerdeValue {
             v => visitor.visit_newtype_struct(v),
         }
     }
+    fn is_human_readable(&self) -> bool {
+        false
+    }
 }

@@ -17,6 +17,7 @@ switchboard-model = { workspace = true }
 switchboard-kernel-control = { workspace = true, features = ["client"] }
 tracing = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["preserve_order"] }
 bincode = { version = "2", features = ["serde"] }
 anyhow = { version = "1" }
 rand = { version  = "0.9" }

@@ -23,3 +23,5 @@ export type StorageObjectMeta = {
     created_at: Date;
     data_type: string;
 }
+
+export type LinkOrValue<T> = { $link: StorageObjectDescriptor } | T;

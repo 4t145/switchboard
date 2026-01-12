@@ -1,6 +1,8 @@
+import type { LinkOrValue } from "./controller";
+
 export type TcpService = {
     provider: string;
     name: string;
-    config?: unknown;
+    config?: LinkOrValue<unknown>;
     description?: unknown;
 };
