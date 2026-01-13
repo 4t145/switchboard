@@ -85,12 +85,12 @@
         </div>
 
         <!-- OCSP -->
-        <FileToBase64Input 
+        <!-- <FileToBase64Input 
             label="OCSP Stapling (Optional)" 
             bind:value={params.ocsp as string} 
             accept=".der,.ocsp"
             helperText="Upload OCSP response if needed."
-        />
+        /> -->
     </div>
 {/snippet}
 

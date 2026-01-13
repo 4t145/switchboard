@@ -5,7 +5,8 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use switchboard_custom_config::{LinkOrValue, LinkResolver};
+// use switchboard_custom_config::{LinkOrValue, LinkResolver};
+use switchboard_link_or_value::{LinkOrValue, Resolvable, Resolver};
 
 use crate::bytes::Base64Bytes;
 #[derive(
@@ -14,13 +15,29 @@ use crate::bytes::Base64Bytes;
 
 pub struct Tls<TlsResolver = self::TlsResolver> {
     pub resolver: TlsResolver,
-    pub options: TlsOptions,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub options: Option<TlsOptions>,
 }
 
-#[derive(
-    Debug, Clone, Serialize, Deserialize, Hash, bincode::Encode, bincode::Decode, PartialEq, Eq,
-)]
+impl<L, TlsResolver> Resolvable<L, TlsResolver, Tls<TlsResolver>>
+    for Tls<LinkOrValue<L, TlsResolver>>
+where
+    L: Send + Sync + 'static,
+    TlsResolver: Send + Sync + 'static,
+{
+    async fn resolve_with<R: Resolver<L, TlsResolver>>(
+        self,
+        resolver: &R,
+    ) -> Result<Tls<TlsResolver>, R::Error> {
+        let resolved_resolver = self.resolver.resolve_with(resolver).await?;
+        Ok(Tls {
+            resolver: resolved_resolver,
+            options: self.options,
+        })
+    }
+}
 
+#[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq)]
 #[serde(tag = "type", content = "data")]
 pub enum TlsResolver {
     Single(TlsCertParams),
@@ -34,20 +51,12 @@ impl From<TlsCertParams> for TlsResolver {
 }
 
 #[derive(
-    Clone,
-    bon::Builder,
-    Serialize,
-    Deserialize,
-    Hash,
-    bincode::Encode,
-    bincode::Decode,
-    PartialEq,
-    Eq,
+    Clone, bon::Builder, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq,
 )]
 
-pub struct TlsCertParams {
-    pub certs: Vec<Base64Bytes>,
-    pub key: Base64Bytes,
+pub struct TlsCertParams<C = PemsFile, K = PemFile> {
+    pub certs: C,
+    pub key: K,
     pub ocsp: Option<Base64Bytes>,
 }
 
@@ -60,44 +69,31 @@ pub enum TlsCertParamsError {
 }
 impl TlsCertParams {
     pub fn from_bytes(cert_bytes: &[u8], key_bytes: &[u8]) -> Result<Self, TlsCertParamsError> {
-        let mut certs: Vec<Base64Bytes> = Vec::new();
+        let mut certs: PemsFile = PemsFile(Vec::new());
         for pem in pem::parse_many(cert_bytes).map_err(TlsCertParamsError::CertParseError)? {
-            let bytes = pem.into_contents();
-            certs.push(Base64Bytes(bytes));
+            certs.0.push(pem.into());
         }
         let key = pem::parse(key_bytes)
             .map_err(TlsCertParamsError::KeyParseError)?
-            .into_contents();
-        let key = Base64Bytes(key);
+            .into();
         Ok(TlsCertParams {
             certs,
             key,
             ocsp: None,
         })
     }
-    pub fn from_resolved_pem_files(
-        certs: PemsFile,
-        key: PemFile,
-    ) -> Result<Self, TlsCertParamsError> {
-        let certs: Vec<Base64Bytes> = certs
-            .0
-            .into_iter()
-            .map(|pem| Base64Bytes(pem.into_contents()))
-            .collect();
-        let key = Base64Bytes(key.0.into_contents());
-        Ok(TlsCertParams {
+    pub fn from_resolved_pem_files(certs: PemsFile, key: PemFile) -> Self {
+        TlsCertParams {
             certs,
             key,
             ocsp: None,
-        })
+        }
     }
 }
 
-impl Debug for TlsCertParams {
+impl<C, K> Debug for TlsCertParams<C, K> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("TlsCertParams")
-            .field("cert_chain_length", &self.certs.len())
-            .finish()
+        f.debug_struct("TlsCertParams").finish()
     }
 }
 
@@ -156,6 +152,12 @@ impl PemFile {
     }
 }
 
+impl From<pem::Pem> for PemFile {
+    fn from(pem: pem::Pem) -> Self {
+        PemFile(pem)
+    }
+}
+
 impl FromStr for PemFile {
     type Err = pem::PemError;
 
@@ -171,7 +173,6 @@ impl Display for PemFile {
         write!(f, "{}", s)
     }
 }
-
 
 impl bincode::Encode for PemFile {
     fn encode<E: bincode::enc::Encoder>(
@@ -228,6 +229,12 @@ impl<'de> Deserialize<'de> for PemFile {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PemsFile(pub Vec<pem::Pem>);
+
+impl From<Vec<pem::Pem>> for PemsFile {
+    fn from(pems: Vec<pem::Pem>) -> Self {
+        PemsFile(pems)
+    }
+}
 
 impl PemsFile {
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, pem::PemError> {
@@ -306,115 +313,160 @@ impl<'de> Deserialize<'de> for PemsFile {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-pub struct FileStyleTlsResolverItem {
+pub struct FileStyleTlsResolverItem<C = PemsFile, K = PemFile> {
     #[serde(alias = "cert")]
-    pub certs: LinkOrValue<PemsFile>,
-    pub key: LinkOrValue<PemFile>,
+    pub certs: C,
+    pub key: K,
 }
 
-impl FileStyleTlsResolverItem {
-    pub async fn resolve<R: LinkResolver>(
+impl<L, C, K> Resolvable<L, C, FileStyleTlsResolverItem<C, K>>
+    for FileStyleTlsResolverItem<LinkOrValue<L, C>, K>
+where
+    L: Send + Sync + 'static,
+    C: Send + Sync + 'static,
+    K: Send + Sync + 'static,
+{
+    async fn resolve_with<R: Resolver<L, C>>(
         self,
         resolver: &R,
-    ) -> Result<TlsCertParams, TlsResolverLoadError> {
-        let certs = self.certs.resolve(resolver).await?;
-        let key = self.key.resolve(resolver).await?;
-        let params = TlsCertParams::from_resolved_pem_files(certs, key)?;
-        Ok(params)
+    ) -> Result<FileStyleTlsResolverItem<C, K>, R::Error> {
+        let resolved_certs = self.certs.resolve_with(resolver).await?;
+        Ok(FileStyleTlsResolverItem {
+            certs: resolved_certs,
+            key: self.key,
+        })
     }
 }
 
+impl<L, C, K> Resolvable<L, K, FileStyleTlsResolverItem<C, K>>
+    for FileStyleTlsResolverItem<C, LinkOrValue<L, K>>
+where
+    L: Send + Sync + 'static,
+    C: Send + Sync + 'static,
+    K: Send + Sync + 'static,
+{
+    async fn resolve_with<R: Resolver<L, K>>(
+        self,
+        resolver: &R,
+    ) -> Result<FileStyleTlsResolverItem<C, K>, R::Error> {
+        let resolved_key = self.key.resolve_with(resolver).await?;
+        Ok(FileStyleTlsResolverItem {
+            certs: self.certs,
+            key: resolved_key,
+        })
+    }
+}
+impl FileStyleTlsResolverItem {
+    pub fn into_pem_files(self) -> TlsCertParams {
+        TlsCertParams::from_resolved_pem_files(self.certs, self.key)
+    }
+}
+
+// impl FileStyleTlsResolverItem<Pem
 #[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-pub struct TlsResolverItemInFileWithHostname {
+pub struct TlsResolverItemInFileWithHostname<C = PemsFile, K = PemFile> {
     #[serde(alias = "domain")]
     pub hostname: String,
     #[serde(flatten)]
-    pub tls_in_file: FileStyleTlsResolverItem,
+    pub tls_in_file: TlsCertParams<C, K>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(untagged)]
-pub enum FileStyleTlsResolver {
-    Single(FileStyleTlsResolverItem),
+pub enum FileStyleTlsResolver<C = PemsFile, K = PemFile> {
+    Single(TlsCertParams<C, K>),
     Sni {
-        sni: Vec<TlsResolverItemInFileWithHostname>,
+        sni: Vec<TlsResolverItemInFileWithHostname<C, K>>,
+    },
+}
+pub type UnresolvedFileStyleTlsResolver<L> =
+    FileStyleTlsResolver<LinkOrValue<L, PemsFile>, LinkOrValue<L, PemFile>>;
+#[derive(Debug, thiserror::Error)]
+pub enum TlsResolveError {
+    #[error("Failed to resolve certs: {source}")]
+    ResolveCertsError {
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+    #[error("Failed to resolve key: {source}")]
+    ResolveKeyError {
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync>,
     },
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum TlsResolverLoadError {
-    #[error("IO error: {0}")]
-    IoError(#[from] std::io::Error),
-    #[error("TLS cert params error: {0}")]
-    TlsCertParamsError(#[from] TlsCertParamsError),
-    #[error("Resolve error: {0}")]
-    ResolveError(#[from] switchboard_custom_config::Error),
-}
-
 impl FileStyleTlsResolver {
-    pub async fn resolve<R: LinkResolver>(
-        self,
-        resolver: &R,
-    ) -> Result<TlsResolver, TlsResolverLoadError> {
+    pub fn into_standard(self) -> TlsResolver {
         match self {
-            FileStyleTlsResolver::Single(tls_in_file) => {
-                let params = tls_in_file.resolve(resolver).await?;
-
-                Ok(TlsResolver::Single(params))
-            }
+            FileStyleTlsResolver::Single(tls_in_file) => TlsResolver::Single(tls_in_file),
             FileStyleTlsResolver::Sni { sni: tls_files } => {
                 let mut map = BTreeMap::new();
                 for tls_in_file_with_hostname in tls_files.into_iter() {
-                    let params = tls_in_file_with_hostname
-                        .tls_in_file
-                        .resolve(resolver)
-                        .await?;
+                    let params = tls_in_file_with_hostname.tls_in_file;
                     map.insert(tls_in_file_with_hostname.hostname.clone(), params);
                 }
-                Ok(TlsResolver::Sni(map))
+                TlsResolver::Sni(map)
             }
         }
     }
 }
 
-impl<ServiceConfig> crate::ServiceConfig<ServiceConfig, crate::tls::FileStyleTlsResolver> {
-    pub async fn resolve_tls_with_skip<R: LinkResolver>(
+impl<L> UnresolvedFileStyleTlsResolver<L> {
+    pub async fn resolve_to_standard<R>(
         self,
         resolver: &R,
-    ) -> crate::ServiceConfig<ServiceConfig, crate::tls::TlsResolver> {
-        let mut resolved_tls = BTreeMap::new();
-        let mut task_set = tokio::task::JoinSet::<
-            Result<(String, Tls<crate::tls::TlsResolver>), crate::tls::TlsResolverLoadError>,
-        >::new();
-        for (name, tls_in_file) in self.tls.clone().into_iter() {
-            let resolver = resolver.clone();
-            task_set.spawn(async move {
-                let resolver = tls_in_file.resolver.resolve(&resolver).await?;
-                let tls = crate::tls::Tls {
-                    resolver,
-                    options: tls_in_file.options,
-                };
-                Ok((name, tls))
-            });
-        }
-        while let Some(res) = task_set.join_next().await {
-            match res {
-                Ok(Ok((name, tls))) => {
-                    resolved_tls.insert(name, tls);
-                }
-                Ok(Err(e)) => {
-                    tracing::error!("Failed to resolve TLS: {}", e);
-                }
-                Err(e) => {
-                    tracing::error!("TLS resolve task join error: {}", e);
-                }
+    ) -> Result<TlsResolver, TlsResolveError>
+    where
+        R: Resolver<L, PemsFile>,
+        R: Resolver<L, PemFile>,
+        L: Send + Sync + 'static,
+    {
+        match self {
+            FileStyleTlsResolver::Single(unresolved_cert_params) => {
+                let certs = unresolved_cert_params
+                    .certs
+                    .resolve_with(resolver)
+                    .await
+                    .map_err(|e| TlsResolveError::ResolveCertsError {
+                        source: Box::new(e),
+                    })?;
+                let key = unresolved_cert_params
+                    .key
+                    .resolve_with(resolver)
+                    .await
+                    .map_err(|e| TlsResolveError::ResolveKeyError {
+                        source: Box::new(e),
+                    })?;
+                let tls_params = TlsCertParams::from_resolved_pem_files(certs, key);
+                let resolver = crate::tls::TlsResolver::Single(tls_params);
+
+                return Ok(resolver);
             }
-        }
-        crate::ServiceConfig {
-            tcp_services: self.tcp_services,
-            tcp_listeners: self.tcp_listeners,
-            tcp_routes: self.tcp_routes,
-            tls: resolved_tls,
+            FileStyleTlsResolver::Sni { sni } => {
+                let mut sni_map = BTreeMap::new();
+                for item in sni.into_iter() {
+                    let certs = item
+                        .tls_in_file
+                        .certs
+                        .resolve_with(resolver)
+                        .await
+                        .map_err(|e| TlsResolveError::ResolveCertsError {
+                            source: Box::new(e),
+                        })?;
+                    let key = item
+                        .tls_in_file
+                        .key
+                        .resolve_with(resolver)
+                        .await
+                        .map_err(|e| TlsResolveError::ResolveKeyError {
+                            source: Box::new(e),
+                        })?;
+                    let tls_params = TlsCertParams::from_resolved_pem_files(certs, key);
+                    sni_map.insert(item.hostname.clone(), tls_params);
+                }
+                let resolver = crate::tls::TlsResolver::Sni(sni_map);
+                return Ok(resolver);
+            }
         }
     }
 }

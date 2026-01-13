@@ -6,7 +6,6 @@
         pageSize: number;
         filter: ObjectFilter & {
             lockedFields?: string[];
-            compact?: boolean;
         };
         onSelect?: (item: StorageObjectWithoutData) => void;
         selectedId?: string | null;
@@ -142,7 +141,7 @@
                 createdAfter={currentFilter.created_after}
                 createdBefore={currentFilter.created_before}
                 lockedFields={initialFilter.lockedFields}
-                compact={initialFilter.compact}
+                compact
                 onSubmit={handleFilterSubmit}
             />
         </div>

@@ -1,6 +1,7 @@
 use schemars::{JsonSchema, Schema};
 use serde::{Deserialize, Serialize};
 use switchboard_custom_config::SerdeValue;
+use switchboard_link_or_value::{LinkOrValue, Resolvable, Resolver};
 pub mod consts;
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 
@@ -8,6 +9,23 @@ pub struct Config<Cfg = SerdeValue> {
     pub flow: FlowConfig<Cfg>,
     #[serde(default)]
     pub server: ServerConfig,
+}
+
+impl<L, Cfg> Resolvable<L, Cfg, Config<Cfg>> for Config<LinkOrValue<L, Cfg>>
+where
+    L: Send + Sync + 'static,
+    Cfg: Send + Sync + 'static,
+{
+    async fn resolve_with<R: switchboard_link_or_value::Resolver<L, Cfg>>(
+        self,
+        resolver: &R,
+    ) -> Result<Config<Cfg>, R::Error> {
+        let resolved_flow = self.flow.resolve_with(resolver).await?;
+        Ok(Config {
+            flow: resolved_flow,
+            server: self.server,
+        })
+    }
 }
 
 impl<Cfg> Default for Config<Cfg> {
@@ -20,7 +38,6 @@ impl<Cfg> Default for Config<Cfg> {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-
 #[serde(default)]
 pub struct ServerConfig {
     pub version: HttpVersion,
@@ -59,6 +76,97 @@ pub struct FlowConfig<Cfg = SerdeValue> {
     pub filters: BTreeMap<InstanceId, InstanceDataWithoutType<Cfg>>,
     #[serde(default)]
     pub options: FlowOptions,
+}
+
+impl<L, Cfg> Resolvable<L, Cfg, FlowConfig<Cfg>> for FlowConfig<LinkOrValue<L, Cfg>>
+where
+    L: Send + Sync + 'static,
+    Cfg: Send + Sync + 'static,
+{
+    async fn resolve_with<R: Resolver<L, Cfg>>(
+        self,
+        resolver: &R,
+    ) -> Result<FlowConfig<Cfg>, R::Error> {
+        let mut resolve_instances_tasks = tokio::task::JoinSet::new();
+        let mut resolve_nodes_tasks = tokio::task::JoinSet::new();
+        let mut resolve_filters_tasks = tokio::task::JoinSet::new();
+        for (instance_id, instance_data) in self.instances.into_iter() {
+            let resolver = resolver.clone();
+            resolve_instances_tasks.spawn(async move {
+                instance_data
+                    .config
+                    .resolve_with(&resolver)
+                    .await
+                    .map(|config| InstanceData {
+                        name: instance_data.name,
+                        class: instance_data.class,
+                        r#type: instance_data.r#type,
+                        config,
+                    })
+                    .map(|data| (instance_id, data))
+            });
+        }
+        for (node_id, node_data) in self.nodes.into_iter() {
+            let resolver = resolver.clone();
+            resolve_nodes_tasks.spawn(async move {
+                node_data
+                    .config
+                    .resolve_with(&resolver)
+                    .await
+                    .map(|config| {
+                        (
+                            node_id,
+                            InstanceDataWithoutType {
+                                name: node_data.name,
+                                class: node_data.class,
+                                config,
+                            },
+                        )
+                    })
+            });
+        }
+        for (filter_id, filter_data) in self.filters.into_iter() {
+            let resolver = resolver.clone();
+            resolve_filters_tasks.spawn(async move {
+                filter_data
+                    .config
+                    .resolve_with(&resolver)
+                    .await
+                    .map(|config| {
+                        (
+                            filter_id,
+                            InstanceDataWithoutType {
+                                name: filter_data.name,
+                                class: filter_data.class,
+                                config,
+                            },
+                        )
+                    })
+            });
+        }
+        let new_instances = resolve_instances_tasks
+            .join_all()
+            .await
+            .into_iter()
+            .collect::<Result<_, _>>()?;
+        let new_nodes = resolve_nodes_tasks
+            .join_all()
+            .await
+            .into_iter()
+            .collect::<Result<_, _>>()?;
+        let new_filters = resolve_filters_tasks
+            .join_all()
+            .await
+            .into_iter()
+            .collect::<Result<_, _>>()?;
+        Ok(FlowConfig {
+            entrypoint: self.entrypoint,
+            instances: new_instances,
+            nodes: new_nodes,
+            filters: new_filters,
+            options: self.options,
+        })
+    }
 }
 
 impl<Cfg> FlowConfig<Cfg> {
@@ -178,8 +286,6 @@ impl From<String> for NodePort {
         }
     }
 }
-
-
 
 impl NodePort {
     pub fn new(name: impl AsRef<str>) -> Self {
@@ -452,9 +558,7 @@ impl std::fmt::Display for ClassId {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-
-#[derive(bincode::Encode, bincode::Decode)]
+#[derive(Debug, Serialize, Deserialize, Clone, bincode::Encode, bincode::Decode)]
 pub struct ClassMeta {
     pub version: String,
     pub description: Option<String>,

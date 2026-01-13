@@ -26,5 +26,6 @@ regex = { version = "1" }
 http = { version = "1"}
 
 switchboard-custom-config = { workspace = true }
+switchboard-link-or-value = { workspace = true }
 
 tracing = { workspace = true }

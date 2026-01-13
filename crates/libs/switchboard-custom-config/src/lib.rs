@@ -5,51 +5,51 @@ use bytes::Bytes;
 pub use link::*;
 pub use switchboard_serde_value::{self, Error as SerdeValueError, SerdeValue};
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]
-#[serde(untagged)]
-pub enum LinkOrValue<Value = SerdeValue> {
-    Link(Link),
-    Value(Value),
-}
+// #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]
+// #[serde(untagged)]
+// pub enum LinkOrValue<Value = SerdeValue> {
+//     Link(Link),
+//     Value(Value),
+// }
 
-impl<V> LinkOrValue<V>
-where V: crate::formats::TransferObject
-{
-    pub fn is_link(&self) -> bool {
-        matches!(self, LinkOrValue::Link(_))
-    }
-    pub fn as_link(&self) -> Option<&Link> {
-        match self {
-            LinkOrValue::Link(link) => Some(link),
-            _ => None,
-        }
-    }
-    pub fn as_value(&self) -> Option<&V> {
-        match self {
-            LinkOrValue::Value(value) => Some(value),
-            _ => None,
-        }
-    }
-}
+// impl<V> LinkOrValue<V>
+// where V: crate::formats::TransferObject
+// {
+//     pub fn is_link(&self) -> bool {
+//         matches!(self, LinkOrValue::Link(_))
+//     }
+//     pub fn as_link(&self) -> Option<&Link> {
+//         match self {
+//             LinkOrValue::Link(link) => Some(link),
+//             _ => None,
+//         }
+//     }
+//     pub fn as_value(&self) -> Option<&V> {
+//         match self {
+//             LinkOrValue::Value(value) => Some(value),
+//             _ => None,
+//         }
+//     }
+// }
 
-impl<Value> LinkOrValue<Value>
-where Value: crate::formats::TransferObject
-{
-    pub async fn resolve<R: LinkResolver>(self, resolver: &R) -> Result<Value, Error> {
-        match self {
-            LinkOrValue::Link(link) => {
-                let config = resolver.fetch::<Value>(&link).await?;
-                Ok(config.value)
-            }
-            LinkOrValue::Value(value) => Ok(value),
-        }
-    }
-}
-impl Default for LinkOrValue {
-    fn default() -> Self {
-        LinkOrValue::Value(SerdeValue::default())
-    }
-}
+// impl<Value> LinkOrValue<Value>
+// where Value: crate::formats::TransferObject
+// {
+//     pub async fn resolve<R: LinkResolver>(self, resolver: &R) -> Result<Value, Error> {
+//         match self {
+//             LinkOrValue::Link(link) => {
+//                 let config = resolver.fetch::<Value>(&link).await?;
+//                 Ok(config.value)
+//             }
+//             LinkOrValue::Value(value) => Ok(value),
+//         }
+//     }
+// }
+// impl Default for LinkOrValue {
+//     fn default() -> Self {
+//         LinkOrValue::Value(SerdeValue::default())
+//     }
+// }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ConfigWithFormat<Value = SerdeValue> {

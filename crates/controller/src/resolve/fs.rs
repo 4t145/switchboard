@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use switchboard_custom_config::{FsLinkResolver, Link, LinkOrValue};
-pub use switchboard_model::resolve::fs::*;
+pub use switchboard_model::resolve::file_style::*;
 
 use crate::resolve::{ResolveServiceConfigError, ServiceConfigResolver};
 
@@ -25,7 +25,7 @@ impl FsServiceConfigResolver {
         &self,
         config: FsResolveConfig,
     ) -> Result<switchboard_model::ServiceConfig, ResolveConfigFileError> {
-        let svc_config = switchboard_model::resolve::fs::fetch_config(
+        let svc_config = switchboard_model::resolve::file_style::fetch_config(
             LinkOrValue::Link(Link::file_path(config.path)),
             &FsLinkResolver,
         )

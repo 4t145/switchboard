@@ -3,7 +3,7 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use futures::future::BoxFuture;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use switchboard_custom_config::SerdeValue;
+use switchboard_custom_config::{LinkOrValue, SerdeValue};
 use switchboard_model::{Cursor, FlattenPageQueryWithFilter, PageQuery, PagedList, ServiceConfig};
 
 use crate::ControllerContext;
@@ -266,7 +266,14 @@ mod impl_static_storage_object {
         };
     }
     type ServiceConfig = switchboard_model::ServiceConfig;
+    type Any = switchboard_custom_config::SerdeValue;
+    type TlsResolver = switchboard_model::tls::TlsResolver;
+    type HttpConfig = switchboard_model::services::http::Config;
     derive_local_type!(ServiceConfig);
+    derive_local_type!(Any);
+    derive_local_type!(TlsResolver);
+    derive_local_type!(HttpConfig);
+
 }
 
 pub(crate) async fn create_storage(
@@ -321,6 +328,12 @@ impl JsonInterpreter {
                 .deserialize_into()
                 .map_err(JsonInterpreterError::SerdeValueError)?;
             Ok(serde_json::to_value(&config).map_err(JsonInterpreterError::Json)?)
+        } else if data_type == switchboard_custom_config::SerdeValue::data_type() {
+            let json_value = obj
+                .data
+                .deserialize_into()
+                .map_err(JsonInterpreterError::SerdeValueError)?;
+            Ok(json_value)
         } else {
             Err(JsonInterpreterError::UnsupportedDataType(
                 data_type.to_string(),
@@ -344,3 +357,13 @@ impl JsonInterpreter {
         }
     }
 }
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub enum StorageLinkOrValue {
+    #[serde(alias = "$link")]
+    Link(StorageObjectDescriptor),
+    #[serde(untagged)]
+    Value(SerdeValue),
+}
+
+pub type StorageServiceConfig = ServiceConfig<LinkOrValue, LinkOrValue>;

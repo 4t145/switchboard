@@ -1,11 +1,4 @@
 <script lang="ts" module>
-    import { Select } from "bits-ui";
-    import Check from "phosphor-svelte/lib/Check";
-    import Palette from "phosphor-svelte/lib/Palette";
-    import CaretUpDown from "phosphor-svelte/lib/CaretUpDown";
-    import CaretDoubleUp from "phosphor-svelte/lib/CaretDoubleUp";
-    import CaretDoubleDown from "phosphor-svelte/lib/CaretDoubleDown";
-    import { Collapsible } from '@skeletonlabs/skeleton-svelte';
     interface Props {
         dataType?: string;
         id?: string;
@@ -31,7 +24,7 @@
         dataType = $bindable(),
         id = $bindable(),
         revision = $bindable(),
-        latestOnly = $bindable(),
+        latestOnly = $bindable(true),
         createdAfter = $bindable(),
         createdBefore = $bindable(),
         lockedFields = [],
@@ -58,119 +51,53 @@
         if (!lockedFields.includes('dataType')) dataType = '';
         if (!lockedFields.includes('id')) id = '';
         if (!lockedFields.includes('revision')) revision = '';
-        latestOnly = false;
+        if (!lockedFields.includes('latestOnly')) latestOnly = true;
         createdAfter = undefined;
         createdBefore = undefined;
     }
 </script>
 
-<form class={compact ? "flex flex-wrap gap-3 items-end p-2" : "w-full space-y-4 p-4"}>
-    {#if !compact}
-        <fieldset class="grid gap-4 md:grid-cols-3">
-            <legend>Basic Filters</legend>
-            {#if !lockedFields.includes('id')}
-            <label for="id" class="label">
-                <span class="label-text">ID</span>
-                <input bind:value={id} type="text" name="id" id="id" class="input w-full"/>
-            </label>
-            {/if}
-            {#if !lockedFields.includes('revision')}
-            <label for="revision" class="label">
-                <span class="label-text">Revision</span>
-                <input bind:value={revision} type="text" name="revision" id="revision" class="input w-full"/>
-            </label>
-            {/if}
-            {#if !lockedFields.includes('dataType')}
-            <label for="date-type" class="label">
-                <span class="label-text">Data Type</span>
-                <select class="select w-full" bind:value={dataType} id="date-type">
-                    <option value="">All</option>
-                    {#each dataTypeOptions as option}
-                        <option value={option.value}>{option.label}</option>
-                    {/each}
-                </select>
-            </label>
-            {/if}
-        </fieldset>
-        <fieldset class="grid gap-4 md:grid-cols-2">
-            <legend>
-                Advanced Filters
-                <button class = "btn-icon hover:preset-tonal" type="button">
-                    {#if advancedOpen}
-                        <CaretDoubleUp size={16} onclick={() => (advancedOpen = false)} />
-                    {:else}
-                        <CaretDoubleDown size={16} onclick={() => (advancedOpen = true)} />
-                    {/if}
+<form class="flex flex-wrap gap-4 items-center p-2 w-full">
+    <!-- Compact View -->
+    {#if !lockedFields.includes('id')}
+        <label class="flex items-center gap-2">
+            <span class="text-sm font-medium opacity-75">ID:</span>
+            <input bind:value={id} type="text" placeholder="Filter by ID..." class="input input-sm w-48"/>
+        </label>
+    {/if}
     
-                </button>
-            </legend>
-            <label for="latestOnly" class={`label ${advancedOpen ? '' : 'hidden'}`}>
-                <span class="label-text">Latest Only</span>
-                <input bind:checked={latestOnly} type="checkbox" id="latestOnly" class="checkbox"/>
-            </label>
-        </fieldset>
-        <fieldset class="flex flex-wrap gap-3 justify-end mt-4">
-            <button
-                    onclick={submit}
-                    type="button"
-                    class="btn preset-outlined-primary"
-                >
-                <SearchIcon size={18} />
-                <span>
-                    搜索
-                </span>
-            </button>
-            <button 
-                onclick={resetFilters}
-                type="button"
-                class="btn preset-outlined"
-            >
-                <BrushCleaningIcon size={18} />
-                <span>
-                    重置
-                </span>
-            </button>
-        </fieldset>
-    {:else}
-        <!-- Compact View -->
-        {#if !lockedFields.includes('id')}
-        <div class="flex flex-col gap-1">
-            <span class="text-xs opacity-70">ID</span>
-            <input bind:value={id} type="text" placeholder="ID" class="input input-sm w-32"/>
-        </div>
-        {/if}
-        
-        {#if !lockedFields.includes('revision')}
-        <div class="flex flex-col gap-1">
-            <span class="text-xs opacity-70">Revision</span>
-            <input bind:value={revision} type="text" placeholder="Revision" class="input input-sm w-24"/>
-        </div>
-        {/if}
+    {#if !lockedFields.includes('revision')}
+        <label class="flex items-center gap-2">
+            <span class="text-sm font-medium opacity-75">Rev:</span>
+            <input bind:value={revision} type="text" placeholder="SHA..." class="input input-sm w-32"/>
+        </label>
+    {/if}
 
-        {#if !lockedFields.includes('dataType')}
-        <div class="flex flex-col gap-1">
-             <span class="text-xs opacity-70">Type</span>
-             <select class="select select-sm w-32" bind:value={dataType}>
-                <option value="">All</option>
+    {#if !lockedFields.includes('dataType')}
+        <label class="flex items-center gap-2">
+            <span class="text-sm font-medium opacity-75">Type:</span>
+                <select class="select select-sm w-40" bind:value={dataType}>
+                <option value="">All Types</option>
                 {#each dataTypeOptions as option}
                     <option value={option.value}>{option.label}</option>
                 {/each}
             </select>
-        </div>
-        {/if}
-
-        <label class="flex items-center gap-2 pb-1 cursor-pointer">
-            <input bind:checked={latestOnly} type="checkbox" class="checkbox checkbox-sm"/>
-            <span class="text-sm">Latest Only</span>
         </label>
-
-        <div class="flex gap-2 ml-auto">
-             <button onclick={submit} type="button" class="btn btn-sm preset-filled-primary" title="Search">
-                <SearchIcon size={14} />
-            </button>
-            <button onclick={resetFilters} type="button" class="btn btn-sm preset-outlined" title="Reset">
-                <BrushCleaningIcon size={14} />
-            </button>
-        </div>
     {/if}
+    
+    {#if !lockedFields.includes('latestOnly')}
+        <label class="flex items-center gap-2 cursor-pointer">
+            <input bind:checked={latestOnly} type="checkbox" class="checkbox checkbox-sm"/>
+            <span class="text-sm font-medium">Latest Only</span>
+        </label>
+    {/if}
+
+    <div class="flex gap-2 ml-auto">
+        <button onclick={submit} type="button" class="btn btn-sm preset-filled-primary" title="Search">
+            <SearchIcon size={16} class="mr-1" /> Search
+        </button>
+        <button onclick={resetFilters} type="button" class="btn-icon btn-icon-sm preset-outlined" title="Reset">
+            <BrushCleaningIcon size={16} />
+        </button>
+    </div>
 </form>

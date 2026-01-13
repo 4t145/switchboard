@@ -150,7 +150,7 @@
             <div class="h-64 overflow-y-auto border border-surface-300 rounded p-2 bg-surface-50 dark:bg-surface-900">
                 <ObjectPages 
                     pageSize={10} 
-                    filter={{ data_type: dataType, latest_only: true }} 
+                    filter={{ data_type: dataType, latest_only: true, lockedFields: ['dataType'] }} 
                     selectionMode="single"
                     onSelect={selectLink}
                 />

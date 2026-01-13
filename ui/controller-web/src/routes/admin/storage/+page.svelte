@@ -9,7 +9,7 @@
     
     let dataTypeFilter = $state('');
     let idFilter = $state('');
-    let latestOnly = $state(false);
+    let latestOnly = $state(true);
     
     function applyFilters() {
         filter = {
@@ -18,13 +18,6 @@
             latest_only: latestOnly
         };
     }
-    
-    function resetFilters() {
-        dataTypeFilter = '';
-        idFilter = '';
-        latestOnly = true;
-        filter = { latest_only: true };
-    }
 </script>
 
 <div class="card flex flex-col gap-4 p-6">
@@ -32,6 +25,7 @@
         bind:dataType={dataTypeFilter}
         bind:id={idFilter}
         bind:latestOnly={latestOnly}
+        compact
         onSubmit={applyFilters}
     />
     <hr class="hr" />

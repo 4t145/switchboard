@@ -9,4 +9,4 @@ pub struct KernelConfig {
 }
 
 use switchboard_custom_config::LinkOrValue;
-pub use switchboard_model::resolve::fs::*;
+pub use switchboard_model::resolve::file_style::*;

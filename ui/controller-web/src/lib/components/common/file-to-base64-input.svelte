@@ -1,5 +1,6 @@
 <script lang="ts">
-    import { Upload, X, FileText } from 'lucide-svelte';
+	import { FileUpload } from '@skeletonlabs/skeleton-svelte';
+    import { Upload, X, FileText, FileIcon } from 'lucide-svelte';
 
     let { 
         value = $bindable(''),
@@ -24,9 +25,10 @@
         }
     });
 
-    function handleFileSelect(event: Event) {
-        const input = event.target as HTMLInputElement;
-        const file = input.files?.[0];
+    function handleFileSelect(details: {
+        acceptedFiles: File[];
+    }) {
+        const file = details.acceptedFiles[0];
         if (!file) return;
 
         fileName = file.name;
@@ -56,20 +58,39 @@
     </label>
     
     {#if !value}
-        <input 
-            type="file" 
-            class="file-input file-input-bordered w-full" 
-            {accept}
-            onchange={handleFileSelect} 
-        />
-        {#if helperText}
-            <div class="label">
-                <span class="label-text-alt">{helperText}</span>
-            </div>
-        {/if}
+        <FileUpload {accept} onFileChange={handleFileSelect} class="w-full">
+            {#if helperText}
+                <FileUpload.Label>
+                    {helperText}
+                </FileUpload.Label>
+            {/if}
+            <FileUpload.Dropzone>
+                <FileIcon class="size-10" />
+                <FileUpload.Trigger>Browse Files</FileUpload.Trigger>
+                <FileUpload.HiddenInput />
+            </FileUpload.Dropzone>
+            <FileUpload.ItemGroup>
+                <FileUpload.Context>
+                    {#snippet children(fileUpload)}
+                        {#each fileUpload().acceptedFiles as file (file.name)}
+                            <FileUpload.Item {file}>
+                                <FileUpload.ItemName>{file.name}</FileUpload.ItemName>
+                                <FileUpload.ItemSizeText>{file.size} bytes</FileUpload.ItemSizeText>
+                                <FileUpload.ItemDeleteTrigger />
+                            </FileUpload.Item>
+                        {/each}
+                    {/snippet}
+                </FileUpload.Context>
+            </FileUpload.ItemGroup>
+            <FileUpload.ClearTrigger>Clear Files</FileUpload.ClearTrigger>
+        </FileUpload>
+  
+        
     {:else}
         <div class="flex items-center gap-2 p-2 border border-surface-300 dark:border-surface-600 rounded-lg bg-surface-50 dark:bg-surface-800">
             <FileText size={20} class="text-primary-500" />
+            
+
             <span class="flex-1 truncate text-sm font-medium">{fileName}</span>
             <button class="btn-icon btn-icon-sm hover:variant-soft-error" onclick={clear} title="Clear">
                 <X size={16} />

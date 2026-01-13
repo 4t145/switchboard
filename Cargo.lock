@@ -6129,6 +6129,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "switchboard-link-or-value"
+version = "0.1.0"
+dependencies = [
+ "bincode 2.0.1",
+ "serde",
+]
+
+[[package]]
 name = "switchboard-model"
 version = "0.1.0"
 dependencies = [
@@ -6145,6 +6153,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "switchboard-custom-config",
+ "switchboard-link-or-value",
  "thiserror 2.0.17",
  "tokio",
  "tracing",
