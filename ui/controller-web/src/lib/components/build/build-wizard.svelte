@@ -2,15 +2,15 @@
     import { Check, ChevronRight, Save } from 'lucide-svelte';
     import StepSourceSelection from './step-source-selection.svelte';
     import StepConfigEditor from './step-config-editor.svelte';
-    import type { ServiceConfig } from '$lib/api/types';
+    import type { HumanReadableServiceConfig } from '$lib/api/types';
 
     let currentStep = $state<number>(1);
-    let config = $state<ServiceConfig | null>(null);
+    let config = $state<HumanReadableServiceConfig | null>(null);
     let sourceSummary = $state<string>("");
     let saveAs = $state<string | undefined>(undefined);
 
     function onSourceSelected(loadedConfig: Record<string, any>, summary: string, saveAsVal?: string) {
-        config = loadedConfig as ServiceConfig;
+        config = loadedConfig as HumanReadableServiceConfig;
         sourceSummary = summary;
         saveAs = saveAsVal;
         currentStep = 2;

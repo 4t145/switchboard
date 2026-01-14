@@ -33,10 +33,8 @@
     function handleCreateNew() {
         // Initialize an empty structure for ServiceConfig
         onNext({
-            tcp_services: {},
-            tcp_listeners: {},
-            tls: {},
-            tcp_routes: {}
+            tcp_services: [],
+            tls: []
         }, "New Empty Configuration");
     }
 
@@ -147,7 +145,7 @@
         <div class="h-[500px] overflow-y-auto border border-surface-200 dark:border-surface-700 rounded-lg p-2">
             <ObjectPages 
                 pageSize={12}
-                filter={{ data_type: 'ServiceConfig', latest_only: true, lockedFields: ['dataType'], compact: true }}
+                filter={{ data_type: 'ServiceConfig', latest_only: true, lockedFields: ['dataType'] }}
                 selectionMode="single"
                 selectedId={selectedConfigId}
                 onSelect={(item) => {

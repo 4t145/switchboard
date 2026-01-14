@@ -1,8 +1,8 @@
-import type { ServiceConfig, StorageObjectDescriptor } from '../types';
+import type { HumanReadableServiceConfig, StorageObjectDescriptor } from '../types';
 
 export type ResolveServiceConfigResponse = {
 	descriptor?: StorageObjectDescriptor;
-	config: ServiceConfig;
+	config: HumanReadableServiceConfig;
 };
 
 export type ResolveServiceConfigRequest = {

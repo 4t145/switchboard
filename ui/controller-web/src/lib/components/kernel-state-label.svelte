@@ -12,13 +12,13 @@
 </script>
 
 <div class="inline-block px-2 py-1 rounded text-sm font-medium
-    {kind === 'waitingConfig' ? 'bg-red-100 text-red-800' : ''}
+    {kind === 'waiting_config' ? 'bg-red-100 text-red-800' : ''}
     {kind === 'running' ? 'bg-green-100 text-green-800' : ''}
     {kind === 'updating' ? 'bg-yellow-100 text-yellow-800' : ''}
-    {kind === 'shuttingDown' ? 'bg-red-100 text-red-800' : ''}
+    {kind === 'shutting_down' ? 'bg-red-100 text-red-800' : ''}
     {kind === 'stopped' ? 'bg-red-100 text-red-800' : ''}">
     <div class="flex items-center gap-1">
-        {#if kind === 'waitingConfig'}
+        {#if kind === 'waiting_config'}
                 等待配置<Loader class="w-4 h-4"/>
         {:else if kind === 'running'}
                 <CheckCircle class="w-4 h-4"/>
@@ -26,7 +26,7 @@
         {:else if kind === 'updating'}
                 <Loader class="w-4 h-4 animate-spin"/>
                 更新中
-        {:else if kind === 'shuttingDown'}
+        {:else if kind === 'shutting_down'}
                 <AlertCircle class="w-4 h-4"/>
                 关闭中
         {:else if kind === 'stopped'}

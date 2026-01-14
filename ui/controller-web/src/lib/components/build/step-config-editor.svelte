@@ -1,8 +1,8 @@
 <script lang="ts">
     import ServiceConfigEditor from '../editor/service-config-editor.svelte';
-    import type { ServiceConfig } from '$lib/api/types';
+    import type { HumanReadableServiceConfig } from '$lib/api/types';
 
-    let { config = $bindable() } = $props<{ config: ServiceConfig }>();
+    let { config = $bindable() } = $props<{ config: HumanReadableServiceConfig }>();
 </script>
 
 <div class="h-full w-full flex flex-col">

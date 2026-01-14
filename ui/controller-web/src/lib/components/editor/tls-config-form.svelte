@@ -1,20 +1,12 @@
 <script lang="ts">
     import LinkOrValueEditor from './link-or-value-editor.svelte';
     import TlsResolverForm from './tls-resolver-form.svelte';
-    import { Trash2 } from 'lucide-svelte';
-    import type { Tls } from '$lib/api/types';
+    import type { FileStyleTls, FileStyleTlsResolver, TlsCertParams } from '$lib/api/types';
 
-    // Tls Config Editor
-    // Tls object has: { resolver: LinkOrValue<TlsResolver>, options: TlsOptions }
-    
     let { 
-        value = $bindable(),
-        key,
-        onKeyChange
+        value = $bindable()
     } = $props<{ 
-        value: Tls,
-        key: string,
-        onKeyChange: (newKey: string) => void
+        value: FileStyleTls
     }>();
 
     // Default TlsOptions
@@ -30,50 +22,13 @@
             require_ems: true
         } as any;
     }
-    
-    // Default Resolver
-    if (!value.resolver) {
-        value.resolver = { Single: { certs: [], key: '', ocsp: null } } as any;
-    }
-
 </script>
 
 {#snippet resolverSnippet()}
-    <!-- The inner form for TlsResolver -->
-    <!-- We need to bind to the value passed by LinkOrValueEditor (which is the resolver object) -->
-    <!-- Wait, LinkOrValueEditor renders this snippet passing nothing, 
-         it expects the snippet to bind to the `value` prop passed to LinkOrValueEditor?
-         No, LinkOrValueEditor has `value` prop which IS the LinkOrValue.
-         When it is in 'Value' mode, `value` is the TlsResolver object.
-         So we need to bind that object to TlsResolverForm.
-    -->
-    
-    <!-- Issue: LinkOrValueEditor generic handling.
-         In `LinkOrValueEditor`, when mode is Value, `value` is the raw object.
-         We need to pass that raw object to `TlsResolverForm`.
-         But `value` in `LinkOrValueEditor` is bound. 
-         
-         The `renderValue` snippet in `LinkOrValueEditor` is called without args currently.
-         Ideally, `LinkOrValueEditor` should yield the value to the snippet?
-         Let's update `LinkOrValueEditor` to yield value if possible, or we just rely on parent context?
-         
-         Actually, `value.resolver` in THIS component IS the value we are editing.
-         So if `LinkOrValueEditor` binds to `value.resolver`, then `value.resolver` updates.
-         If it is a Link, `value.resolver` is `{ $link: ... }`.
-         If it is Value, `value.resolver` is `{ Single: ... }`.
-         
-         So `TlsResolverForm` needs to bind to `value.resolver`.
-         BUT, `TlsResolverForm` expects `{ Single: ... }`, NOT `{ $link: ... }`.
-         It only renders when `LinkOrValueEditor` determines it is NOT a link.
-         
-         So, we can simply bind `value={value.resolver}` to `TlsResolverForm`.
-         Svelte 5 reactivity should handle the type change gracefully?
-         Typescript will complain that `value.resolver` (LinkOrValue) is not assignable to `TlsResolver` (Value).
-         
-         We can cast it: `value={value.resolver as TlsResolver}`.
-         Runtime safety is guaranteed by `LinkOrValueEditor` only rendering this when it IS a value.
-    -->
-    <TlsResolverForm bind:value={value.resolver as any} />
+    <!-- In FileStyle, the resolver is part of the Tls object itself (flattened in Rust) -->
+    <!-- So we bind directly to 'value' but treat it as the resolver part -->
+    <!-- We need to ensure we only pass the resolver part which is typed correctly for the form -->
+    <TlsResolverForm bind:value={value as unknown as { Single?: TlsCertParams; Sni?: Record<string, TlsCertParams> }} />
 {/snippet}
 
 <div class="space-y-6">
@@ -83,19 +38,16 @@
             <input 
                 class="input" 
                 type="text" 
-                value={key}
-                onchange={(e) => onKeyChange(e.currentTarget.value)}
+                bind:value={value.name}
                 placeholder="tls-1" 
             />
         </label>
 
         <h3 class="h3 mb-4 font-bold">Certificate Resolver</h3>
-        <LinkOrValueEditor 
-            bind:value={value.resolver} 
-            dataType="TlsResolver"
-            renderValue={resolverSnippet}
-            defaultValue={() => ({ Single: { certs: [], key: '', ocsp: null } })}
-        />
+        <!-- Since resolver is flattened into 'value', we pass 'value' as the resolver object to TlsResolverForm -->
+        <!-- But wait, TlsResolverForm expects { Single: ... } or { Sni: ... } -->
+        <!-- Our 'value' (FileStyleTls) has those keys because of the intersection type -->
+        <TlsResolverForm bind:value={value as unknown as { Single?: TlsCertParams; Sni?: Record<string, TlsCertParams> }} />
     </div>
 
     <div class="card p-4 border border-surface-200 dark:border-surface-700">

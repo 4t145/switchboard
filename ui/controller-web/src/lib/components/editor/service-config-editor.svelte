@@ -1,23 +1,28 @@
 <script lang="ts">
     import { Trash2, Plus, Edit } from 'lucide-svelte';
-    import type { ServiceConfig, TcpService, Listener, Tls, TcpRoute } from '$lib/api/types';
+    import type { HumanReadableServiceConfig, FileTcpServiceConfig, FileStyleTls, FileBind } from '$lib/api/types';
     import { Tabs } from '@skeletonlabs/skeleton-svelte';
     import TcpServiceForm from './tcp-service-form.svelte';
-    import ListenerForm from './listener-form.svelte';
     import TlsConfigForm from './tls-config-form.svelte';
-    import TcpRouteForm from './tcp-route-form.svelte';
+    // Removed ListenerForm and TcpRouteForm imports as they are merged into service config
 
-    let { config = $bindable() } = $props<{ config: ServiceConfig }>();
+    let { config = $bindable() } = $props<{ config: HumanReadableServiceConfig }>();
 
     let activeTab = $state('services');
-    let editingItem: { type: string, key: string } | null = $state(null);
+    let editingItem: { type: string, index: number } | null = $state(null);
 
     // Initializers for new items
     const initializers = {
-        services: (): TcpService => ({ name: '', provider: 'Static', config: {}, description: '' }),
-        listeners: (): Listener => ({ bind: '', description: '' }),
-        tls: (): Tls => ({ 
-            resolver: { Single: { certs: [], key: '', ocsp: null } } as any, 
+        services: (): FileTcpServiceConfig => ({ 
+            provider: 'Static', 
+            name: '', 
+            config: {}, 
+            description: '',
+            binds: [] 
+        }),
+        tls: (): FileStyleTls => ({ 
+            name: '',
+            Single: { certs: [], key: '', ocsp: null },
             options: {
                 ignore_client_order: false,
                 max_fragment_size: null,
@@ -28,94 +33,71 @@
                 send_tls13_tickets: 0,
                 require_ems: false
             } as any
-        }),
-        routes: (): TcpRoute => ({ bind: '', service: '', tls: '' })
+        })
     };
 
-    function addItem(type: 'services' | 'listeners' | 'tls' | 'routes') {
-        const prefix = type.slice(0, -1); // remove 's'
-        let key = `${prefix}-${Object.keys(config[`tcp_${type}`] || config[type] || {}).length + 1}`;
+    function addItem(type: 'services' | 'tls') {
+        const newItem = initializers[type]();
+        const collection = type === 'services' ? config.tcp_services : config.tls;
         
-        let counter = 1;
-        const collection = type === 'services' ? config.tcp_services :
-                          type === 'listeners' ? config.tcp_listeners :
-                          type === 'routes' ? config.tcp_routes :
-                          config.tls;
-                          
-        while (key in collection) {
-            key = `${prefix}-${Object.keys(collection).length + ++counter}`;
+        // Auto-generate name/ID
+        const prefix = type === 'services' ? 'service' : 'tls';
+        let counter = collection.length + 1;
+        let name = `${prefix}-${counter}`;
+        
+        // Simple unique name check
+        while (collection.some((item: any) => item.name === name)) {
+             counter++;
+             name = `${prefix}-${counter}`;
+        }
+        newItem.name = name;
+
+        // Add to collection
+        if (type === 'services') {
+            config.tcp_services = [...config.tcp_services, newItem as FileTcpServiceConfig];
+        } else {
+            config.tls = [...config.tls, newItem as FileStyleTls];
         }
 
-        if (type === 'services') config.tcp_services[key] = initializers.services();
-        else if (type === 'listeners') config.tcp_listeners[key] = initializers.listeners();
-        else if (type === 'tls') config.tls[key] = initializers.tls();
-        else if (type === 'routes') config.tcp_routes[key] = initializers.routes();
-
-        editingItem = { type, key };
+        editingItem = { type, index: config[type === 'services' ? 'tcp_services' : 'tls'].length - 1 };
     }
 
-    function deleteItem(type: 'services' | 'listeners' | 'tls' | 'routes', key: string) {
-        if (type === 'services') delete config.tcp_services[key];
-        else if (type === 'listeners') delete config.tcp_listeners[key];
-        else if (type === 'tls') delete config.tls[key];
-        else if (type === 'routes') delete config.tcp_routes[key];
+    function deleteItem(type: 'services' | 'tls', index: number) {
+        if (type === 'services') {
+            config.tcp_services = config.tcp_services.filter((_: unknown, i: number) => i !== index);
+        } else {
+            config.tls = config.tls.filter((_: unknown, i: number) => i !== index);
+        }
         
-        if (editingItem?.type === type && editingItem?.key === key) {
+        if (editingItem?.type === type && editingItem?.index === index) {
             editingItem = null;
+        } else if (editingItem?.type === type && editingItem.index > index) {
+             editingItem.index--;
         }
-        
-        config = config; // trigger reactivity
     }
 
-    function getKeys(obj: Record<string, any>) {
-        return Object.keys(obj || {});
-    }
-
-    function renameItem(type: 'services' | 'listeners' | 'tls' | 'routes', oldKey: string, newKey: string) {
-        if (!newKey || oldKey === newKey) return;
-        
-        const collection = getCollection(type);
-        if (newKey in collection) {
-            // alert('Key already exists!'); // Simple alert for now, or use a toast
-            return;
-        }
-
-        const value = collection[oldKey];
-        delete collection[oldKey];
-        collection[newKey] = value;
-        
-        // Sync internal name for services
-        if (type === 'services' && value && typeof value === 'object' && 'name' in value) {
-            (value as TcpService).name = newKey;
-        }
-
-        if (editingItem?.type === type && editingItem?.key === oldKey) {
-            editingItem.key = newKey;
-        }
-        
-        config = config; // trigger reactivity
-    }
-
+    // Helper to get collection for template
     function getCollection(type: string) {
         if (type === 'services') return config.tcp_services;
-        if (type === 'listeners') return config.tcp_listeners;
         if (type === 'tls') return config.tls;
-        if (type === 'routes') return config.tcp_routes;
-        return {};
+        return [];
+    }
+
+    // Helper to get name of item
+    function getItemName(item: any) {
+        return item.name || 'Unnamed';
     }
 </script>
 
 <div class="h-full flex flex-col p-4">
     <!-- Tabs Header -->
-    <Tabs value={activeTab} onValueChange={(e) => activeTab = e.value}>
+    <Tabs value={activeTab} onValueChange={(e) => { activeTab = e.value; editingItem = null; }}>
         <Tabs.List class="mb-4">
             <Tabs.Trigger value="services">Services</Tabs.Trigger>
-            <Tabs.Trigger value="listeners">Listeners</Tabs.Trigger>
             <Tabs.Trigger value="tls">TLS</Tabs.Trigger>
-            <Tabs.Trigger value="routes">Routes</Tabs.Trigger>
         </Tabs.List>
         
-        <!-- Tab Content Wrapper - We use conditional rendering instead of multiple Tabs.Content to share layout -->
+        <!-- Tab Content Wrapper -->
         <div class="h-[calc(100vh-12rem)] flex gap-6">
             
             <!-- Sidebar: List -->
@@ -127,20 +109,20 @@
                     </button>
                 </div>
                 <div class="overflow-y-auto flex-1 p-2 space-y-2">
-                    {#each getKeys(getCollection(activeTab)) as key}
+                    {#each getCollection(activeTab) as item, index}
                         <!-- svelte-ignore a11y_click_events_have_key_events -->
                         <!-- svelte-ignore a11y_no_static_element_interactions -->
-                        <div class="flex items-center justify-between p-3 rounded-container-token hover:bg-surface-200-700-token transition-colors cursor-pointer border border-transparent {editingItem?.key === key && editingItem?.type === activeTab ? 'variant-soft-primary' : ''}"
-                             onclick={() => editingItem = { type: activeTab, key }}>
-                            <span class="font-medium truncate flex-1">{key}</span>
+                        <div class="flex items-center justify-between p-3 rounded-container-token hover:bg-surface-200-700-token transition-colors cursor-pointer border border-transparent {editingItem?.index === index && editingItem?.type === activeTab ? 'variant-soft-primary' : ''}"
+                             onclick={() => editingItem = { type: activeTab, index }}>
+                            <span class="font-medium truncate flex-1">{getItemName(item)}</span>
                             <div class="flex gap-1">
-                                <button class="btn-icon btn-icon-sm" onclick={(e) => { e.stopPropagation(); deleteItem(activeTab as any, key); }}>
+                                <button class="btn-icon btn-icon-sm" onclick={(e) => { e.stopPropagation(); deleteItem(activeTab as any, index); }}>
                                     <Trash2 size={14} class="text-error-500" />
                                 </button>
                             </div>
                         </div>
                     {/each}
-                    {#if getKeys(getCollection(activeTab)).length === 0}
+                    {#if getCollection(activeTab).length === 0}
                         <div class="text-center p-8 opacity-50 text-sm">
                             No items found.<br/>Click "Add" to create one.
                         </div>
@@ -154,37 +136,19 @@
                     <div class="p-4 border-b border-surface-200-700-token bg-surface-200-700-token/50 flex justify-between items-center flex-none">
                         <div class="flex items-center gap-2">
                             <Edit size={16} class="opacity-70" />
-                            <span class="font-bold">Editing: {editingItem.key}</span>
+                            <span class="font-bold">Editing: {getItemName(getCollection(activeTab)[editingItem.index])}</span>
                         </div>
                     </div>
                     
                     <div class="overflow-y-auto flex-1">
-                        {#if activeTab === 'services' && config.tcp_services[editingItem.key]}
+                        {#if activeTab === 'services'}
                             <TcpServiceForm 
-                                bind:value={config.tcp_services[editingItem.key]} 
-                                key={editingItem.key}
-                                onKeyChange={(newKey) => renameItem('services', editingItem!.key, newKey)}
+                                bind:value={config.tcp_services[editingItem.index]} 
+                                tlsKeys={config.tls.map((t: any) => t.name)}
                             />
-                        {:else if activeTab === 'listeners' && config.tcp_listeners[editingItem.key]}
-                            <ListenerForm 
-                                bind:value={config.tcp_listeners[editingItem.key]} 
-                                key={editingItem.key}
-                                onKeyChange={(newKey) => renameItem('listeners', editingItem!.key, newKey)}
-                            />
-                        {:else if activeTab === 'tls' && config.tls[editingItem.key]}
+                        {:else if activeTab === 'tls'}
                             <TlsConfigForm 
-                                bind:value={config.tls[editingItem.key]} 
-                                key={editingItem.key}
-                                onKeyChange={(newKey) => renameItem('tls', editingItem!.key, newKey)}
-                            />
-                        {:else if activeTab === 'routes' && config.tcp_routes[editingItem.key]}
-                            <TcpRouteForm 
-                                bind:value={config.tcp_routes[editingItem.key]} 
-                                key={editingItem.key}
-                                onKeyChange={(newKey) => renameItem('routes', editingItem!.key, newKey)}
-                                listenerKeys={getKeys(config.tcp_listeners)}
-                                serviceKeys={getKeys(config.tcp_services)}
-                                tlsKeys={getKeys(config.tls)}
+                                bind:value={config.tls[editingItem.index]} 
                             />
                         {/if}
                     </div>

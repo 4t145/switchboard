@@ -7,6 +7,7 @@ export * from './error';
 export * from './kernel';
 export * from './protocol';
 export * from './tls';
+export * from './human_readable';
 export * from './listener';
 export * from './tcp_service';
 import type { Listener } from './listener';

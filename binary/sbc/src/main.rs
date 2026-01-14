@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use switchboard_controller::config::ControllerConfig;
-use switchboard_model::custom_config::{FsLinkResolver, LinkOrValue, SerdeValue};
 
 #[derive(clap::Parser)]
 pub struct CliArgs {
