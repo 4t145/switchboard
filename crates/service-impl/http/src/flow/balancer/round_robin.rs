@@ -27,7 +27,11 @@ impl RoundRobinBalancer {
 }
 
 impl BalancerStrategy for RoundRobinBalancer {
-    fn select(&self, _request_parts: &mut http::request::Parts, _context: &mut FlowContext) -> Option<NodePort> {
+    fn select(
+        &self,
+        _request_parts: &mut http::request::Parts,
+        _context: &mut FlowContext,
+    ) -> Option<NodePort> {
         let backend_count = self.weights.len();
         if backend_count == 0 {
             return None;

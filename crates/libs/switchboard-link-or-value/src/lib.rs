@@ -1,3 +1,5 @@
+pub mod resolver;
+
 #[derive(
     Debug,
     serde::Serialize,

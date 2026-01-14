@@ -67,7 +67,8 @@ impl Default for ConfigWithFormat {
 }
 
 impl<V> ConfigWithFormat<V>
-where V: crate::formats::TransferObject
+where
+    V: crate::formats::TransferObject,
 {
     pub fn into_value(self) -> V {
         self.value

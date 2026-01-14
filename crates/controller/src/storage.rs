@@ -1,12 +1,15 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use chrono::{DateTime, Utc};
 use futures::future::BoxFuture;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use switchboard_custom_config::{LinkOrValue, SerdeValue};
-use switchboard_model::{Cursor, FlattenPageQueryWithFilter, PageQuery, PagedList, ServiceConfig};
+use switchboard_link_or_value::LinkOrValue;
+use switchboard_model::{
+    FlattenPageQueryWithFilter, PageQuery, PagedList, SerdeValue,
+    resolve::file_style::FileStyleConfig, switchboard_serde_value::Error as SerdeValueError,
+};
 
-use crate::ControllerContext;
+use crate::{ControllerContext, link_resolver::Link};
 pub mod surrealdb_local;
 
 #[derive(Debug, Clone, Deserialize, Serialize, Hash, PartialEq, Eq)]
@@ -29,9 +32,29 @@ pub struct StorageObjectDescriptor {
     pub revision: String,
 }
 
+#[derive(Debug, thiserror::Error)]
+#[error("Invalid storage object descriptor: {0}")]
+pub struct InvalidStorageObjectDescriptor(String);
+
+impl FromStr for StorageObjectDescriptor {
+    type Err = InvalidStorageObjectDescriptor;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts = s.split_once('#');
+        let (id, revision) = match parts {
+            Some((id, revision)) => (id, revision),
+            None => return Err(InvalidStorageObjectDescriptor(s.to_string())),
+        };
+        Ok(StorageObjectDescriptor {
+            id: id.to_string(),
+            revision: revision.to_string(),
+        })
+    }
+}
+
 impl std::fmt::Display for StorageObjectDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.id, self.revision)
+        write!(f, "{}#{}", self.id, self.revision)
     }
 }
 
@@ -69,9 +92,9 @@ pub enum StorageError {
     #[error("Decode error: {0}")]
     DecodeError(#[from] bincode::error::DecodeError),
     #[error("Serialization error: {0}")]
-    SerializationError(#[source] switchboard_custom_config::SerdeValueError),
+    SerializationError(#[source] SerdeValueError),
     #[error("Deserialization error: {0}")]
-    DeserializationError(#[source] switchboard_custom_config::SerdeValueError),
+    DeserializationError(#[source] SerdeValueError),
     #[error("Digest mismatch: expected {expected}, found {found}")]
     DigestMismatch { expected: String, found: String },
 }
@@ -249,31 +272,34 @@ impl<S: Storage> DynamicStorage for S {
 }
 
 pub type SharedStorage = Arc<dyn DynamicStorage>;
-
-pub trait KnownStorageObject: Serialize + DeserializeOwned + Send + Sync + 'static {
+pub type StorageHttpConfig =
+    switchboard_model::services::http::Config<LinkOrValue<Link, SerdeValue>>;
+pub trait KnownObject: Serialize + DeserializeOwned + Send + Sync + 'static {
     fn data_type() -> &'static str;
 }
 
 mod impl_static_storage_object {
-    use super::KnownStorageObject;
+    use super::{KnownObject, StorageHttpConfig};
+    use crate::link_resolver::Link;
+    use switchboard_model::{HumanReadableServiceConfig, SerdeValue};
     macro_rules! derive_local_type {
         ($type: ty) => {
-            impl KnownStorageObject for $type {
+            impl KnownObject for $type {
                 fn data_type() -> &'static str {
                     stringify!($type)
                 }
             }
         };
     }
-    type ServiceConfig = switchboard_model::ServiceConfig;
-    type Any = switchboard_custom_config::SerdeValue;
+    type ServiceConfig = HumanReadableServiceConfig<Link>;
+    type Any = SerdeValue;
     type TlsResolver = switchboard_model::tls::TlsResolver;
-    type HttpConfig = switchboard_model::services::http::Config;
+    type HttpConfig = StorageHttpConfig;
     derive_local_type!(ServiceConfig);
+    derive_local_type!(String);
     derive_local_type!(Any);
     derive_local_type!(TlsResolver);
     derive_local_type!(HttpConfig);
-
 }
 
 pub(crate) async fn create_storage(
@@ -294,7 +320,7 @@ impl ControllerContext {
     pub fn storage(&self) -> &SharedStorage {
         &self.storage
     }
-    pub async fn save_known_object<T: KnownStorageObject>(
+    pub async fn save_known_object<T: KnownObject>(
         &self,
         id: &str,
         object: T,
@@ -314,56 +340,27 @@ pub enum JsonInterpreterError {
     #[error("Unsupported data type for JSON interpretation: {0}")]
     UnsupportedDataType(String),
     #[error("Serde Value error: {0}")]
-    SerdeValueError(#[from] switchboard_custom_config::SerdeValueError),
+    SerdeValueError(#[from] SerdeValueError),
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
 }
 
 impl JsonInterpreter {
     pub fn encode(obj: StorageObjectValueStyle) -> Result<serde_json::Value, JsonInterpreterError> {
-        let data_type = obj.meta.data_type.as_str();
-        if data_type == ServiceConfig::data_type() {
-            let config: ServiceConfig = obj
-                .data
-                .deserialize_into()
-                .map_err(JsonInterpreterError::SerdeValueError)?;
-            Ok(serde_json::to_value(&config).map_err(JsonInterpreterError::Json)?)
-        } else if data_type == switchboard_custom_config::SerdeValue::data_type() {
-            let json_value = obj
-                .data
-                .deserialize_into()
-                .map_err(JsonInterpreterError::SerdeValueError)?;
-            Ok(json_value)
-        } else {
-            Err(JsonInterpreterError::UnsupportedDataType(
-                data_type.to_string(),
-            ))
-        }
+        let config: serde_json::Value = obj
+            .data
+            .deserialize_into()
+            .map_err(JsonInterpreterError::SerdeValueError)?;
+        Ok(config)
     }
     pub fn decode(
         data: serde_json::Value,
-        data_type: &str,
+        _data_type: &str,
     ) -> Result<SerdeValue, JsonInterpreterError> {
-        if data_type == ServiceConfig::data_type() {
-            let config: ServiceConfig =
-                serde_json::from_value(data).map_err(JsonInterpreterError::Json)?;
-            let serde_value = SerdeValue::serialize_from(&config)
-                .map_err(JsonInterpreterError::SerdeValueError)?;
-            Ok(serde_value)
-        } else {
-            Err(JsonInterpreterError::UnsupportedDataType(
-                data_type.to_string(),
-            ))
-        }
+        let serde_value =
+            SerdeValue::serialize_from(&data).map_err(JsonInterpreterError::SerdeValueError)?;
+        Ok(serde_value)
     }
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
-pub enum StorageLinkOrValue {
-    #[serde(alias = "$link")]
-    Link(StorageObjectDescriptor),
-    #[serde(untagged)]
-    Value(SerdeValue),
-}
-
-pub type StorageServiceConfig = ServiceConfig<LinkOrValue, LinkOrValue>;
+pub type StorageServiceConfig = FileStyleConfig<Link>;

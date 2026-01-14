@@ -1,6 +1,6 @@
 pub mod http_client;
-pub mod static_response;
 pub mod reverse_proxy;
+pub mod static_response;
 use switchboard_model::services::http::NodeInterface;
 
 use crate::{

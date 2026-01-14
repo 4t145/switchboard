@@ -6,7 +6,9 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 // use switchboard_custom_config::{LinkOrValue, LinkResolver};
-use switchboard_link_or_value::{LinkOrValue, Resolvable, Resolver};
+use switchboard_link_or_value::{
+    LinkOrValue, Resolvable, Resolver, resolver::string_parse::StringParseResolver,
+};
 
 use crate::bytes::Base64Bytes;
 #[derive(
@@ -412,27 +414,24 @@ impl FileStyleTlsResolver {
 }
 
 impl<L> UnresolvedFileStyleTlsResolver<L> {
-    pub async fn resolve_to_standard<R>(
-        self,
-        resolver: &R,
-    ) -> Result<TlsResolver, TlsResolveError>
+    pub async fn resolve_to_standard<R>(self, resolver: &R) -> Result<TlsResolver, TlsResolveError>
     where
-        R: Resolver<L, PemsFile>,
-        R: Resolver<L, PemFile>,
+        R: Resolver<L, String>,
         L: Send + Sync + 'static,
     {
+        let str_resolver = StringParseResolver::new(resolver.clone());
         match self {
             FileStyleTlsResolver::Single(unresolved_cert_params) => {
                 let certs = unresolved_cert_params
                     .certs
-                    .resolve_with(resolver)
+                    .resolve_with(&str_resolver)
                     .await
                     .map_err(|e| TlsResolveError::ResolveCertsError {
                         source: Box::new(e),
                     })?;
                 let key = unresolved_cert_params
                     .key
-                    .resolve_with(resolver)
+                    .resolve_with(&str_resolver)
                     .await
                     .map_err(|e| TlsResolveError::ResolveKeyError {
                         source: Box::new(e),
@@ -448,7 +447,7 @@ impl<L> UnresolvedFileStyleTlsResolver<L> {
                     let certs = item
                         .tls_in_file
                         .certs
-                        .resolve_with(resolver)
+                        .resolve_with(&str_resolver)
                         .await
                         .map_err(|e| TlsResolveError::ResolveCertsError {
                             source: Box::new(e),
@@ -456,7 +455,7 @@ impl<L> UnresolvedFileStyleTlsResolver<L> {
                     let key = item
                         .tls_in_file
                         .key
-                        .resolve_with(resolver)
+                        .resolve_with(&str_resolver)
                         .await
                         .map_err(|e| TlsResolveError::ResolveKeyError {
                             source: Box::new(e),

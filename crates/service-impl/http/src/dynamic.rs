@@ -37,11 +37,11 @@ where
 }
 
 /// Clone the request body for cases where it needs to be read multiple times.
-/// 
+///
 /// # Warnings
 /// Cloning the body requires reading it fully into memory, which can lead to
 /// high memory usage for large bodies. Use with caution.
-/// 
+///
 /// # Errors
 /// Returns an error if reading the body fails.
 pub async fn clone_body(body: &mut DynBody) -> Result<DynBody, BoxedError> {

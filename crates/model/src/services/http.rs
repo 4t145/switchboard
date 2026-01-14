@@ -1,6 +1,6 @@
+use crate::SerdeValue;
 use schemars::{JsonSchema, Schema};
 use serde::{Deserialize, Serialize};
-use switchboard_custom_config::SerdeValue;
 use switchboard_link_or_value::{LinkOrValue, Resolvable, Resolver};
 pub mod consts;
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -180,8 +180,6 @@ impl<Cfg> FlowConfig<Cfg> {
         }
     }
 }
-
-pub type FlowConfigWithLink = FlowConfig<switchboard_custom_config::Link>;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, bincode::Encode, bincode::Decode)]
 

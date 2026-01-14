@@ -1,3 +1,1 @@
-pub struct TagRelation {
-    
-}
+pub struct TagRelation {}

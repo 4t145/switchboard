@@ -10,14 +10,16 @@ pub mod listener;
 pub use listener::*;
 pub mod tag;
 use serde::{Deserialize, Serialize};
-use switchboard_custom_config::SerdeValue;
 use switchboard_link_or_value::{LinkOrValue, Resolvable, Resolver};
+pub use switchboard_serde_value;
+pub use switchboard_serde_value::SerdeValue;
 pub use tag::*;
 pub mod tcp_service;
 pub use tcp_service::*;
 pub mod tls;
 pub use tls::*;
 
+use crate::resolve::file_style::FileStyleConfig;
 use crate::tcp_route::TcpRoute;
 pub mod bytes;
 pub mod control;
@@ -30,10 +32,8 @@ pub mod regex;
 pub mod services;
 pub mod tcp_route;
 
-pub use switchboard_custom_config as custom_config;
-pub enum ConfigEvent {
-    Reload,
-}
+pub type HumanReadableServiceConfig<L> = FileStyleConfig<L>;
+
 #[derive(
     Debug, Clone, Serialize, Deserialize, PartialEq, Hash, bincode::Encode, bincode::Decode,
 )]

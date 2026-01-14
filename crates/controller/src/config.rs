@@ -1,11 +1,9 @@
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
-use switchboard_model::{
-    bytes::Base64Bytes, controller::ControllerInfo, protocol::DEFAULT_STATE_REPORT_INTERVAL_SECS,
-};
+use switchboard_model::{controller::ControllerInfo, protocol::DEFAULT_STATE_REPORT_INTERVAL_SECS};
 
-use crate::{interface::InterfaceConfig, resolve::ResolveConfig, resource::ResourceConfig, storage::StorageProvider};
+use crate::{interface::InterfaceConfig, storage::StorageProvider};
 
 /// Controller Configuration
 /// # Example

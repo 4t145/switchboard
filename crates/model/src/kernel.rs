@@ -7,8 +7,9 @@ pub const UDS_DEFAULT_PATH: &str = "/var/run/switchboard/kernel/default.sock";
 pub const UDS_DEFAULT_DIR: &str = "/var/run/switchboard/kernel/";
 pub const HTTP_DEFAULT_PORT: u16 = 8056;
 
-#[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
-
+#[derive(
+    Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq,
+)]
 #[serde(default)]
 pub struct KernelInfo {
     pub name: String,
@@ -29,10 +30,9 @@ impl Default for KernelInfo {
     }
 }
 
-
-
-#[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
-
+#[derive(
+    Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq,
+)]
 #[serde(default)]
 pub struct KernelMeta {
     pub version: String,
@@ -48,8 +48,9 @@ impl Default for KernelMeta {
     }
 }
 
-#[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
-
+#[derive(
+    Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq,
+)]
 #[serde(tag = "kind", content = "data")]
 pub enum KernelStateKind {
     WaitingConfig,
@@ -57,14 +58,16 @@ pub enum KernelStateKind {
         config_version: String,
     },
     Updating {
-        original_config_version:String,
+        original_config_version: String,
         new_config_version: String,
     },
     ShuttingDown,
     Stopped,
 }
 
-#[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq,
+)]
 
 pub struct KernelState {
     #[serde(flatten)]
@@ -88,15 +91,18 @@ impl KernelState {
     }
 }
 
-#[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq,
+)]
 
 pub struct KernelInfoAndState {
     pub info: KernelInfo,
     pub state: KernelState,
 }
 
-#[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
-
+#[derive(
+    Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq,
+)]
 #[serde(tag = "connection", content = "state")]
 pub enum KernelConnectionAndState {
     Connected(KernelInfoAndState),

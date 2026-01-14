@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
 use gateway_api::httproutes::HTTPRouteRulesBackendRefs;
-use switchboard_custom_config::switchboard_serde_value::value;
 use switchboard_model::services::http::{
     ClassId, InstanceData, InstanceId, InstanceType, NodeOutput, NodePort, NodeTarget,
     consts::{BALANCER_CLASS_ID, REVERSE_PROXY_CLASS_ID},
 };
+use switchboard_model::switchboard_serde_value::value;
 impl super::HttpGatewayBuilder {
     pub(crate) fn build_backend_instance_from_k8s_backend_ref(
         &mut self,

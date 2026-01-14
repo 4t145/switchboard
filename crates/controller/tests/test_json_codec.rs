@@ -1,5 +1,7 @@
 use chrono::Utc;
-use switchboard_controller::storage::{JsonInterpreter, KnownStorageObject, StorageMeta, StorageObjectDescriptor, StorageObjectValueStyle};
+use switchboard_controller::storage::{
+    JsonInterpreter, KnownObject, StorageMeta, StorageObjectDescriptor, StorageObjectValueStyle,
+};
 use switchboard_custom_config::{SerdeValue, switchboard_serde_value::value};
 use switchboard_model::{Listener, ServiceConfig, TcpServiceConfig, tcp_route};
 
@@ -14,7 +16,7 @@ fn test_json_codec() {
         description: None,
     };
     let bind_ip = "0.0.0.0:9080".parse().unwrap();
-    let tcp_listener_1 =Listener {
+    let tcp_listener_1 = Listener {
         bind: bind_ip,
         description: None,
     };
@@ -27,12 +29,8 @@ fn test_json_codec() {
         tcp_services: vec![("example-service".to_string(), tcp_service_1)]
             .into_iter()
             .collect(),
-        tcp_listeners: vec![(bind_ip, tcp_listener_1)]
-            .into_iter()
-            .collect(),
-        tcp_routes: vec![(bind_ip, tcp_route_1)]
-            .into_iter()
-            .collect(),
+        tcp_listeners: vec![(bind_ip, tcp_listener_1)].into_iter().collect(),
+        tcp_routes: vec![(bind_ip, tcp_route_1)].into_iter().collect(),
         tls: std::collections::BTreeMap::new(),
     };
     let data = SerdeValue::serialize_from(&example_service_config).unwrap();
@@ -51,8 +49,6 @@ fn test_json_codec() {
 
     let json_value = JsonInterpreter::encode(obj).unwrap();
     let decoded_obj = JsonInterpreter::decode(json_value, ServiceConfig::data_type()).unwrap();
-    let decoded_service_config: ServiceConfig = decoded_obj
-        .deserialize_into()
-        .unwrap();
+    let decoded_service_config: ServiceConfig = decoded_obj.deserialize_into().unwrap();
     assert_eq!(example_service_config, decoded_service_config);
 }

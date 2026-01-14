@@ -6,7 +6,7 @@ use std::mem::MaybeUninit;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use switchboard_service::utils::rewind::Rewind;
-use tokio::io::{AsyncRead, ReadBuf, self};
+use tokio::io::{self, AsyncRead, ReadBuf};
 
 use bytes::Bytes;
 

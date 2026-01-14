@@ -4,9 +4,7 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use crate::{hostname::HostnameTree, path::PathTree};
 
-#[derive(
-    Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode,
-)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]
 
 pub struct RouterSerde<T> {
     #[serde(default = "BTreeMap::new")]
@@ -14,7 +12,7 @@ pub struct RouterSerde<T> {
     pub hostname: BTreeMap<String, path::PathTreeSerdeMapStyle<T>>,
 }
 
-impl <T> Default for RouterSerde<T> {
+impl<T> Default for RouterSerde<T> {
     fn default() -> Self {
         Self {
             hostname: BTreeMap::new(),

@@ -6,8 +6,8 @@ use std::{
 use k8s_openapi::api::core::v1::Secret;
 use kube::{Api, ResourceExt, api::ListParams};
 use serde::{Deserialize, Serialize};
-use switchboard_custom_config::{
-    K8sResource, SerdeValue,
+use switchboard_model::{
+    HumanReadableServiceConfig, SerdeValue,
     switchboard_serde_value::{self, value},
 };
 
@@ -22,10 +22,23 @@ use switchboard_model::{
     tcp_route::TcpRoute,
 };
 
+use crate::link_resolver::Link;
+
 mod backend;
 mod filter;
 mod route;
 mod rule_match;
+
+struct K8sResource {
+    pub namespace: Option<String>,
+    pub name: String,
+}
+
+impl K8sResource {
+    pub fn new(namespace: Option<String>, name: String) -> Self {
+        Self { namespace, name }
+    }
+}
 
 fn target_name(name: &str, namespace: Option<&str>, port: Option<u16>) -> String {
     match (namespace, port) {
@@ -93,7 +106,7 @@ impl ServiceBuilder {
 
         Ok(tls_cert_params)
     }
-    pub async fn resolve(self) -> Result<switchboard_model::ServiceConfig, ServiceBuilderError> {
+    pub async fn resolve(self) -> Result<HumanReadableServiceConfig<Link>, ServiceBuilderError> {
         let switchboard_model::ServiceConfig::<SerdeValue, K8sResource> {
             tcp_services,
             tcp_listeners,
@@ -122,6 +135,7 @@ impl ServiceBuilder {
             tcp_routes,
             tls: resolved_tls,
         };
+        let resolved_config = HumanReadableServiceConfig::<Link>::from_standard(resolved_config);
         Ok(resolved_config)
     }
     pub fn build_http_service(
@@ -280,7 +294,7 @@ impl K8sServiceConfigBuilder {
     }
     pub async fn build_config_from_k8s(
         &self,
-    ) -> Result<switchboard_model::ServiceConfig, K8sGatewayResourceError> {
+    ) -> Result<HumanReadableServiceConfig<Link>, K8sGatewayResourceError> {
         let gateways = self.gather_k8s_gateway_config().await?;
         let mut builder = ServiceBuilder::new(self.client.clone());
         for (_gateway_name, gateway_data) in gateways.gateways {

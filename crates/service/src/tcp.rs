@@ -106,15 +106,13 @@ impl TcpAccepted {
     pub fn replace_tls(&mut self, config: Arc<rustls::ServerConfig>) {
         self.context.tls_acceptor.replace(config.into());
     }
-    pub async fn close_directly(mut self) -> io::Result<()>{
+    pub async fn close_directly(mut self) -> io::Result<()> {
         self.stream.shutdown().await
     }
 }
 
 impl TcpListener {
-    pub async fn bind(
-        addr: SocketAddr,
-    ) -> io::Result<Self> {
+    pub async fn bind(addr: SocketAddr) -> io::Result<Self> {
         let inner = TokioTcpListener::bind(addr).await?;
         Ok(Self { inner, bind: addr })
     }

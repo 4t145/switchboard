@@ -15,8 +15,9 @@ pub fn detect_format_from_path(path: &std::path::Path) -> &str {
     }
 }
 
-impl<V> crate::ConfigWithFormat<V> 
-where V: crate::formats::TransferObject
+impl<V> crate::ConfigWithFormat<V>
+where
+    V: crate::formats::TransferObject,
 {
     pub async fn read_from_file(path: &std::path::Path) -> Result<Self, crate::Error> {
         // read file type
@@ -39,7 +40,10 @@ where V: crate::formats::TransferObject
 #[derive(Clone, Debug, Default)]
 pub struct FsLinkResolver;
 impl LinkResolver for FsLinkResolver {
-    async fn fetch<V: crate::formats::TransferObject>(&self, link: &Link) -> Result<crate::ConfigWithFormat<V>, crate::Error> {
+    async fn fetch<V: crate::formats::TransferObject>(
+        &self,
+        link: &Link,
+    ) -> Result<crate::ConfigWithFormat<V>, crate::Error> {
         if let Some(path) = link.as_file_path() {
             crate::ConfigWithFormat::read_from_file(path).await
         } else {

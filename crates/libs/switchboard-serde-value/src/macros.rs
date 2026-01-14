@@ -1,5 +1,3 @@
-
-
 #[macro_export]
 macro_rules! value {
     // Hide distracting implementation details from the generated rustdoc.
@@ -192,4 +190,3 @@ macro_rules! value_unexpected {
 macro_rules! value_expect_expr_comma {
     ($e:expr , $($tt:tt)*) => {};
 }
-

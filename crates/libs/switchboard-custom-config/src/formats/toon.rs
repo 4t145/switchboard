@@ -18,7 +18,10 @@ impl Formats for Toon {
         Ok(t)
     }
 
-    fn encode_bytes<T: TransferObject>(&self, value: &T) -> Result<bytes::Bytes, Self::EncodeError> {
+    fn encode_bytes<T: TransferObject>(
+        &self,
+        value: &T,
+    ) -> Result<bytes::Bytes, Self::EncodeError> {
         let vec = serde_toon::to_string(value)?;
         Ok(bytes::Bytes::from(vec))
     }

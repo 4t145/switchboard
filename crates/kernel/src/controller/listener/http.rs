@@ -1,7 +1,7 @@
 use std::net::{IpAddr, Ipv6Addr};
 
 use serde::{Deserialize, Serialize};
-use switchboard_model::{Tls, FileStyleTlsResolver, kernel::HTTP_DEFAULT_PORT};
+use switchboard_model::{FileStyleTlsResolver, Tls, kernel::HTTP_DEFAULT_PORT};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]

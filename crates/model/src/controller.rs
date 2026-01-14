@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
-
+#[derive(
+    Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq,
+)]
 #[serde(default)]
 pub struct ControllerInfo {
     pub name: String,
@@ -9,8 +10,9 @@ pub struct ControllerInfo {
     pub meta: ControllerMeta,
 }
 
-#[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
-
+#[derive(
+    Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq,
+)]
 #[serde(default)]
 pub struct ControllerMeta {
     pub version: String,

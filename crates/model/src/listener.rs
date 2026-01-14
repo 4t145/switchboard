@@ -17,7 +17,6 @@ use serde::{Deserialize, Serialize};
     PartialEq,
     Eq,
 )]
-
 #[builder(on(String, into))]
 pub struct Listener {
     pub bind: SocketAddr,

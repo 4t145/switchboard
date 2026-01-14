@@ -38,7 +38,10 @@ k8s-openapi = { version = "0.26", default-features = false, features = ["v1_34"]
 gateway-api = "0.19.0"
 
 switchboard-http-router = { workspace = true }
-switchboard-custom-config = { workspace = true }
+# switchboard-custom-config = { workspace = true }
+switchboard-link-or-value = { workspace = true }
+switchboard-file-resolver = { workspace = true }
+
 regex = { version = "1"}
 bytes = { version = "1"}
 chrono = { version = "0.4", features = ["serde"] }

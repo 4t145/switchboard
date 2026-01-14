@@ -6004,9 +6004,10 @@ dependencies = [
  "serde_json",
  "sha2",
  "surrealdb",
- "switchboard-custom-config",
+ "switchboard-file-resolver",
  "switchboard-http-router",
  "switchboard-kernel-control",
+ "switchboard-link-or-value",
  "switchboard-model",
  "thiserror 2.0.17",
  "tokio",
@@ -6038,6 +6039,21 @@ version = "0.1.0"
 dependencies = [
  "deno_ast",
  "deno_core",
+]
+
+[[package]]
+name = "switchboard-file-resolver"
+version = "0.1.0"
+dependencies = [
+ "bincode 2.0.1",
+ "serde",
+ "serde_json",
+ "serde_toon",
+ "switchboard-link-or-value",
+ "switchboard-serde-value",
+ "thiserror 2.0.17",
+ "tokio",
+ "toml",
 ]
 
 [[package]]
@@ -6099,7 +6115,6 @@ dependencies = [
  "rustls",
  "serde",
  "serde_json",
- "switchboard-custom-config",
  "switchboard-kernel-control",
  "switchboard-model",
  "switchboard-service",
@@ -6134,6 +6149,7 @@ version = "0.1.0"
 dependencies = [
  "bincode 2.0.1",
  "serde",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -6152,8 +6168,8 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "switchboard-custom-config",
  "switchboard-link-or-value",
+ "switchboard-serde-value",
  "thiserror 2.0.17",
  "tokio",
  "tracing",

@@ -14,7 +14,7 @@ members = [
     "examples/example-api-server",
     "crates/libs/switchboard-kernel-control",
     "crates/libs/switchboard-serde-value",
-    "crates/libs/switchboard-link-or-value",
+    "crates/libs/switchboard-link-or-value", "crates/libs/switchboard-file-resolver",
 ]
 resolver = "2"
 
@@ -28,6 +28,7 @@ switchboard-custom-config = { path = "crates/libs/switchboard-custom-config" }
 switchboard-kernel-control = { path = "crates/libs/switchboard-kernel-control", default-features = false }
 switchboard-serde-value = { path = "crates/libs/switchboard-serde-value" }
 switchboard-link-or-value = { path = "crates/libs/switchboard-link-or-value" }
+switchboard-file-resolver = { path = "crates/libs/switchboard-file-resolver" }
 
 tokio = { version = "1" }
 tokio-util = { version = "0.7" }

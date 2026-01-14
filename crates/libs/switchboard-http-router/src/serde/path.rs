@@ -23,7 +23,7 @@ pub struct PathTreeSerde<T> {
 #[serde(transparent)]
 pub struct PathTreeSerdeMapStyle<T> {
     /// 1. match routes: "/get/users/*"
-    /// 2. regex routes: "re:^/get/users/([0-9]+)$" 
+    /// 2. regex routes: "re:^/get/users/([0-9]+)$"
     /// 3. fallback route: "fallback"
     pub route: BTreeMap<String, RuleBucketSimplifiedSerde<T>>,
 }
@@ -55,7 +55,7 @@ impl<T: Clone> PathTreeSerdeMapStyle<T> {
     pub fn into_regular_style(self) -> PathTreeSerde<T> {
         let mut path_tree = PathTreeSerde::default();
         for (mut route, bucket) in self.route {
-            if route == "fallback"  {
+            if route == "fallback" {
                 path_tree.fallback = Some(bucket.into_target());
             } else if let Some(regex_str) = route.strip_prefix("re:") {
                 let regex = regex_str.to_string();
@@ -67,7 +67,7 @@ impl<T: Clone> PathTreeSerdeMapStyle<T> {
                 // check if route ends with '/*' for matchit route
                 if let Some(prefix) = route.strip_suffix("/*") {
                     route = format!("{}/{{*rest}}", prefix);
-                } 
+                }
                 path_tree
                     .route
                     .insert(route, RuleBucketSimplifiedSerde::from(bucket));
@@ -75,15 +75,15 @@ impl<T: Clone> PathTreeSerdeMapStyle<T> {
         }
         path_tree
     }
-} 
-
+}
 
 impl<T> PathTreeSerde<T> {
     pub fn add_matchit_route(&mut self, route: String, target: RuleBucketSimplifiedSerde<T>) {
         self.route.insert(route, target);
     }
     pub fn add_regex_route(&mut self, regex: String, target: RuleBucketSimplifiedSerde<T>) {
-        self.regex_matches.push(PathTreeRegexMatchSerde { regex, target });
+        self.regex_matches
+            .push(PathTreeRegexMatchSerde { regex, target });
     }
 }
 
@@ -123,9 +123,7 @@ impl<T: Clone> TryInto<PathTree<T>> for PathTreeSerdeMapStyle<T> {
     }
 }
 
-#[derive(
-    Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode,
-)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]
 
 pub struct PathTreeRegexMatchSerde<T> {
     pub regex: String,

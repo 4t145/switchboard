@@ -31,7 +31,9 @@ impl StrTemplate {
         result
     }
     pub fn is_literal(&self) -> bool {
-        self.segments.iter().all(|seg| matches!(seg, PathTemplateSegment::Static(_)))
+        self.segments
+            .iter()
+            .all(|seg| matches!(seg, PathTemplateSegment::Static(_)))
     }
 }
 
@@ -192,6 +194,9 @@ mod test {
         values_missing_user.insert("version", "v2");
 
         let rendered_missing_user = template.render(&values_missing_user);
-        assert_eq!(rendered_missing_user, "api/v2/users/user-guest/data/{brackets}");
+        assert_eq!(
+            rendered_missing_user,
+            "api/v2/users/user-guest/data/{brackets}"
+        );
     }
 }

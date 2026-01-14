@@ -88,7 +88,6 @@ impl FromStr for ServiceDescriptor {
     }
 }
 
-
 impl<'de> Deserialize<'de> for ServiceDescriptor {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

@@ -28,7 +28,7 @@ pub struct Constructor {
 #[derive(Debug, thiserror::Error)]
 pub enum ConstructError {
     #[error("Config decode error: {0}")]
-    ConfigDecodeError(switchboard_model::custom_config::SerdeValueError),
+    ConfigDecodeError(#[from] switchboard_model::switchboard_serde_value::Error),
     #[error("Build error: {0}")]
     BuildError(Box<dyn std::error::Error + Send + Sync>),
 }

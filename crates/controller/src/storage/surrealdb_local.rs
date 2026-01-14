@@ -1,33 +1,21 @@
 use std::path::Path;
 
 use crate::storage::{
-    ListObjectQuery, Storage, StorageError, StorageMeta, StorageObject, StorageObjectDescriptor, StorageObjectValueStyle, StorageObjectWithoutData, decode_object
+    ListObjectQuery, Storage, StorageError, StorageMeta, StorageObject, StorageObjectDescriptor,
+    StorageObjectValueStyle, StorageObjectWithoutData, decode_object,
 };
 use chrono::Utc;
 use surrealdb::sql::Thing;
 use surrealdb::{
-    RecordId, RecordIdKey, Surreal,
+    Surreal,
     engine::local::{Db, RocksDb},
-    opt::{CreateResource, IntoResource},
 };
-use switchboard_custom_config::SerdeValue;
-use switchboard_model::{Cursor, Indexed, PageQuery};
+use switchboard_model::{Cursor, Indexed, SerdeValue};
 pub struct SurrealRocksDbStorage {
     pub client: Surreal<Db>,
 }
-const OBJECT_TABLE: &str = "storage_object";
-const OBJECT_LATEST_INDEX_TABLE: &str = "storage_object_latest";
-
-// 新增：最新版本索引结构
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-struct LatestRevisionIndex {
-    id: String,          // 对象 ID
-    revision: String,    // 最新版本号
-    record_id: RecordId, // 指向实际记录的 ID
-}
 
 const PROVIDER: &str = "SurrealDB";
-type FlattenedListObjectQuery = switchboard_model::FlattenPageQueryWithFilter<super::ObjectFilter>;
 
 impl SurrealRocksDbStorage {
     pub async fn new(db_dir: &Path) -> Result<Self, StorageError> {
@@ -118,7 +106,6 @@ impl Storage for SurrealRocksDbStorage {
             },
             data: value,
         }))
-
     }
     async fn save_object(
         &self,

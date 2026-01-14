@@ -251,7 +251,6 @@ impl FromStr for RuleMatchExpr {
 #[derive(
     Debug, Clone, Default, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode,
 )]
-
 #[serde(default)]
 pub struct RuleMatchSerde {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -301,7 +300,6 @@ impl RuleMatchSerde {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]
-
 #[serde(tag = "kind", content = "value")]
 pub enum RegexOrExactSerde {
     Regex(String),

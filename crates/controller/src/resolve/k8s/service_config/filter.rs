@@ -11,7 +11,6 @@ use gateway_api::{
         HTTPRouteRulesBackendRefsFiltersRequestRedirectScheme,
     },
 };
-use switchboard_custom_config::switchboard_serde_value::value;
 use switchboard_model::services::http::{
     ClassId, InstanceData, InstanceId, InstanceType,
     consts::{
@@ -20,6 +19,7 @@ use switchboard_model::services::http::{
         FILTER_URL_REWRITE_CLASS_ID,
     },
 };
+use switchboard_model::switchboard_serde_value::value;
 pub fn filter_id(target: &str, index: usize) -> InstanceId {
     InstanceId::new(format!("filter-{}-{}", target, index))
 }

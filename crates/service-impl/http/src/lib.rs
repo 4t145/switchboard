@@ -15,7 +15,8 @@ use rustls::ServerConfig;
 use std::{ops::Deref, sync::Arc};
 use switchboard_model::services::http::HttpVersion;
 use switchboard_service::{
-    SerdeValue, SerdeValueError, TcpServiceProvider, tcp::{TcpAccepted, TcpConnectionContext}
+    SerdeValue, SerdeValueError, TcpServiceProvider,
+    tcp::{TcpAccepted, TcpConnectionContext},
 };
 use tokio_util::sync::CancellationToken;
 use utils::read_version;
@@ -189,10 +190,7 @@ impl TcpServiceProvider for HttpProvider {
     async fn construct(&self, config: Option<SerdeValue>) -> Result<Self::Service, Self::Error> {
         let config: config::Config = config.unwrap_or_default().deserialize_into()?;
         let class_registry = ClassRegistry::global();
-        let flow = Flow::build(
-            config.flow,
-            class_registry.read_owned().await.deref(),
-        )?;
+        let flow = Flow::build(config.flow, class_registry.read_owned().await.deref())?;
         let service = Http {
             service: flow,
             version: config.server.version,

@@ -1,10 +1,13 @@
 use std::{future::ready, pin::Pin, time::Duration};
 
 use switchboard_custom_config::formats::decode_bytes;
-use switchboard_kernel_control::{kernel::{
-    kernel_service_server::{KernelService, KernelServiceServer},
-    *,
-}, tonic_health};
+use switchboard_kernel_control::{
+    kernel::{
+        kernel_service_server::{KernelService, KernelServiceServer},
+        *,
+    },
+    tonic_health,
+};
 use switchboard_model::ServiceConfig;
 
 use crate::KernelContext;
@@ -27,13 +30,14 @@ pub(crate) struct StatusStream {
     interval: tokio::time::Interval,
 }
 
-
-
 impl StatusStream {
     pub fn new(kernel_context: &KernelContext) -> Self {
-        let interval = tokio::time::interval(
-            Duration::from_secs(kernel_context.kernel_config.controller.state_report_interval as u64)
-            );
+        let interval = tokio::time::interval(Duration::from_secs(
+            kernel_context
+                .kernel_config
+                .controller
+                .state_report_interval as u64,
+        ));
         Self {
             kernel_context: kernel_context.clone(),
             interval,
@@ -49,7 +53,12 @@ impl tokio_stream::Stream for StatusStream {
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
         let this = self.get_mut();
-        if this.kernel_context.state_receiver.has_changed().expect("state channel has been closed unexpectedly") {
+        if this
+            .kernel_context
+            .state_receiver
+            .has_changed()
+            .expect("state channel has been closed unexpectedly")
+        {
             let state = this.kernel_context.get_state();
             let status: KernelState = state.into();
             return std::task::Poll::Ready(Some(Ok(status)));
@@ -68,7 +77,6 @@ impl tokio_stream::Stream for StatusStream {
         }
     }
 }
-
 
 impl KernelService for KernelServiceImpl {
     type WatchStatusStream = StatusStream;
@@ -142,8 +150,7 @@ impl KernelService for KernelServiceImpl {
                     Ok(tonic::Response::new(response))
                 }
                 Err(e) => {
-                    let error_stack = 
-                        switchboard_model::error::ErrorStack::from_std(e).into();
+                    let error_stack = switchboard_model::error::ErrorStack::from_std(e).into();
                     let response = UpdateConfigResponse { 
                         result: Some(switchboard_kernel_control::kernel::update_config_response::Result::Error(error_stack)) 
                     };
@@ -173,14 +180,30 @@ impl KernelService for KernelServiceImpl {
         Box::pin(ready(Ok(response)))
     }
 
-    fn get_current_state<'life0,'async_trait>(&'life0 self, _request:tonic::Request<switchboard_kernel_control::kernel::GetCurrentStateRequest> ,) ->  Pin<Box<dyn Future<Output = std::result::Result<tonic::Response<switchboard_kernel_control::kernel::KernelState> ,tonic::Status> > + Send+'async_trait> >where 'life0:'async_trait,Self:'async_trait {
+    fn get_current_state<'life0, 'async_trait>(
+        &'life0 self,
+        _request: tonic::Request<switchboard_kernel_control::kernel::GetCurrentStateRequest>,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = std::result::Result<
+                        tonic::Response<switchboard_kernel_control::kernel::KernelState>,
+                        tonic::Status,
+                    >,
+                > + Send
+                + 'async_trait,
+        >,
+    >
+    where
+        'life0: 'async_trait,
+        Self: 'async_trait,
+    {
         let current_state = self.kernel_context.get_state();
         let proto_state: switchboard_kernel_control::kernel::KernelState = current_state.into();
         let response = tonic::Response::new(proto_state);
         Box::pin(ready(Ok(response)))
     }
 }
-
 
 impl KernelContext {
     pub(crate) fn build_grpc_server(&self) -> KernelServiceServer<KernelServiceImpl> {

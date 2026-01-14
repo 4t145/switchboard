@@ -1,8 +1,7 @@
 use axum::{Json, extract::State, response::Response};
-use switchboard_custom_config::SerdeValue;
-use switchboard_model::{ServiceConfig, error::ResultObject};
+use switchboard_model::{HumanReadableServiceConfig, SerdeValue, ServiceConfig};
 
-use crate::{interface::http::HttpState, storage::StorageObjectDescriptor};
+use crate::{interface::http::HttpState, link_resolver::Link, storage::StorageObjectDescriptor};
 #[derive(Debug, serde::Deserialize)]
 pub struct ResolveServiceConfigRequest {
     pub resolver: String,
@@ -14,7 +13,7 @@ pub struct ResolveServiceConfigRequest {
 
 pub struct ResolveServiceConfigResponse {
     pub descriptor: Option<StorageObjectDescriptor>,
-    pub config: ServiceConfig,
+    pub config: HumanReadableServiceConfig<Link>,
 }
 
 pub async fn resolve_service_config(

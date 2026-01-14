@@ -62,7 +62,7 @@ impl Router for RouterRouter {
                 RouterError::NoMatchRoute | RouterError::HostNotFound => {
                     tracing::debug!("No matching route found");
                     NodePort::Default
-                },
+                }
             },
         }
     }

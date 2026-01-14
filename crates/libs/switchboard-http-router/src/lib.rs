@@ -25,14 +25,9 @@ impl<T: Clone> Router<T> {
             hostname_tree: hostname::HostnameTree::new(),
         }
     }
-    pub fn set(
-        &mut self,
-        hostname: impl AsRef<str>,
-        tree: path::PathTree<T>,
-    ) {
+    pub fn set(&mut self, hostname: impl AsRef<str>, tree: path::PathTree<T>) {
         let hostname: Arc<str> = Arc::from(hostname.as_ref());
-        self.hostname_tree
-            .set(&hostname.clone(), (hostname, tree));
+        self.hostname_tree.set(&hostname.clone(), (hostname, tree));
     }
     pub fn match_request_parts(
         &self,
@@ -40,7 +35,9 @@ impl<T: Clone> Router<T> {
     ) -> Result<RouterMatched<T>, error::Error> {
         let host = try_extract_hostname(parts)?;
         if let Some(tree) = self.hostname_tree.get(host) {
-            let tree_matched = tree.1.match_request_parts(parts)
+            let tree_matched = tree
+                .1
+                .match_request_parts(parts)
                 .ok_or(error::Error::NoMatchRoute)?;
             Ok(RouterMatched {
                 hostname: tree.0.clone(),

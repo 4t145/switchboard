@@ -7,7 +7,8 @@ use std::{
 };
 
 use switchboard_service::{
-    SerdeValue, SerdeValueError,TcpServiceProvider, tcp::{AsyncStream, TcpService}
+    SerdeValue, SerdeValueError, TcpServiceProvider,
+    tcp::{AsyncStream, TcpService},
 };
 
 use tokio::io;

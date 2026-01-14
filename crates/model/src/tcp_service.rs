@@ -1,5 +1,5 @@
+use crate::SerdeValue;
 use serde::{Deserialize, Serialize};
-use switchboard_custom_config::SerdeValue;
 use switchboard_link_or_value::{LinkOrValue, Resolvable, Resolver};
 
 #[derive(
@@ -43,34 +43,5 @@ where
             config: resolved_config,
             description: self.description,
         })
-    }
-}
-
-pub type TcpServiceConfigWithLink = TcpServiceConfig<switchboard_custom_config::Link>;
-
-impl TcpServiceConfigWithLink {
-    pub async fn resolve_links<R>(
-        self,
-        resolver: &R,
-    ) -> Result<TcpServiceConfig, switchboard_custom_config::Error>
-    where
-        R: switchboard_custom_config::LinkResolver,
-    {
-        if let Some(linked_config) = self.config {
-            let resolved_config = resolver.fetch(&linked_config).await?.value;
-            Ok(TcpServiceConfig {
-                provider: self.provider,
-                name: self.name,
-                config: Some(resolved_config),
-                description: self.description,
-            })
-        } else {
-            Ok(TcpServiceConfig {
-                provider: self.provider,
-                name: self.name,
-                config: None,
-                description: self.description,
-            })
-        }
     }
 }

@@ -15,7 +15,10 @@ pub struct RuleBucket<T: Clone> {
 
 impl<T: Clone> RuleBucket<T> {
     pub fn new(target: T) -> Self {
-        Self { rules: Vec::new(), target }
+        Self {
+            rules: Vec::new(),
+            target,
+        }
     }
     pub fn new_single(data: T) -> Self {
         Self {
@@ -24,8 +27,7 @@ impl<T: Clone> RuleBucket<T> {
         }
     }
     pub fn sort(&mut self) {
-        self.rules
-            .sort_by_key(RuleMatch::priority);
+        self.rules.sort_by_key(RuleMatch::priority);
     }
     pub fn add_rule(&mut self, rule: RuleMatch) {
         self.rules.push(rule);

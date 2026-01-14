@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq,
+)]
 
 pub struct ErrorStack {
     pub frames: Vec<ErrorStackFrame>,
@@ -18,7 +20,9 @@ impl std::fmt::Display for ErrorStack {
 
 impl std::error::Error for ErrorStack {}
 
-#[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq,
+)]
 
 pub struct ErrorStackFrame {
     pub error: String,
@@ -40,15 +44,18 @@ impl ErrorStack {
     }
 }
 
-#[derive(Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq,
+)]
 
 pub enum ResultObject<T> {
     Data(T),
     Error(ErrorStack),
 }
 
-impl<T, E> From<Result<T, E>> for ResultObject<T> 
-where E: std::error::Error + 'static
+impl<T, E> From<Result<T, E>> for ResultObject<T>
+where
+    E: std::error::Error + 'static,
 {
     fn from(result: Result<T, E>) -> Self {
         match result {

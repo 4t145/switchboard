@@ -6,7 +6,8 @@ use std::{
 };
 
 use switchboard_service::{
-    SerdeValue, SerdeValueError, TcpServiceProvider, tcp::{AsyncStream, TcpService}
+    SerdeValue, SerdeValueError, TcpServiceProvider,
+    tcp::{AsyncStream, TcpService},
 };
 use tokio::io::{self, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
@@ -216,8 +217,15 @@ impl TcpService for Socks5 {
     fn name(&self) -> &str {
         "socks5"
     }
-    fn serve(self: Arc<Self>, accepted: switchboard_service::tcp::TcpAccepted) -> Pin<Box<dyn Future<Output = io::Result<()>> + 'static + Send>> {
-        Box::pin(self.serve_inner(accepted.stream, accepted.context.ct, accepted.context.peer_addr))
+    fn serve(
+        self: Arc<Self>,
+        accepted: switchboard_service::tcp::TcpAccepted,
+    ) -> Pin<Box<dyn Future<Output = io::Result<()>> + 'static + Send>> {
+        Box::pin(self.serve_inner(
+            accepted.stream,
+            accepted.context.ct,
+            accepted.context.peer_addr,
+        ))
     }
 }
 

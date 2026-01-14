@@ -25,7 +25,7 @@ serde_json = { version = "1", features = ["preserve_order"] }
 regex = { version = "1" }
 http = { version = "1"}
 
-switchboard-custom-config = { workspace = true }
+# switchboard-custom-config = { workspace = true }
 switchboard-link-or-value = { workspace = true }
-
+switchboard-serde-value = { workspace = true, features = ["bincode"] }
 tracing = { workspace = true }

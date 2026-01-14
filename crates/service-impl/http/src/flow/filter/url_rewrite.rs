@@ -7,7 +7,8 @@ use switchboard_http_router::utils::str_template::StrTemplate;
 use switchboard_model::services::http::ClassId;
 
 use crate::{
-    DynRequest, DynResponse, consts::ERR_FILTER_URL_REWRITE,
+    DynRequest, DynResponse,
+    consts::ERR_FILTER_URL_REWRITE,
     flow::filter::{FilterClass, FilterLike},
     utils::error_response,
 };

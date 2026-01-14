@@ -1,4 +1,5 @@
-    use crate::formats::TransferObject;
+
+use crate::formats::TransferObject;
 
 use super::Formats;
 
@@ -18,7 +19,10 @@ impl Formats for Bincode {
         Ok(t)
     }
 
-    fn encode_bytes<T: TransferObject>(&self, value: &T) -> Result<bytes::Bytes, Self::EncodeError> {
+    fn encode_bytes<T: TransferObject>(
+        &self,
+        value: &T,
+    ) -> Result<bytes::Bytes, Self::EncodeError> {
         let vec = bincode::encode_to_vec(value, bincode::config::standard())?;
         Ok(bytes::Bytes::from(vec))
     }

@@ -5,13 +5,13 @@ pub enum Error {
     #[error("no matching route found")]
     NoMatchRoute,
     #[error("no matching host found")]
-    HostNotFound
+    HostNotFound,
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum BuildError {
     #[error("matchit insert error: {0}")]
-    MatchitInsertError(#[from] matchit::InsertError),   
+    MatchitInsertError(#[from] matchit::InsertError),
     #[error("invalid regex: {0}")]
     InvalidRegex(#[from] regex::Error),
     #[error("invalid header name: {0}")]

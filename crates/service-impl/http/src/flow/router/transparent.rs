@@ -1,5 +1,4 @@
-
-use super::{Router, NodePort};
+use super::{NodePort, Router};
 
 pub struct Transparent;
 

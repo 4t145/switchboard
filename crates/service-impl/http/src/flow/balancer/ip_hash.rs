@@ -2,8 +2,7 @@ use std::{collections::BTreeMap, convert::identity, net::IpAddr};
 
 use switchboard_model::services::http::NodePort;
 
-use crate::{ flow::balancer::BalancerStrategy};
-
+use crate::flow::balancer::BalancerStrategy;
 
 pub type IpHashBalancerConfig = BTreeMap<NodePort, u32>;
 #[derive(Debug)]

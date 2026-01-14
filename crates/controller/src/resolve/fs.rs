@@ -1,8 +1,12 @@
 use std::path::PathBuf;
-use switchboard_custom_config::{FsLinkResolver, Link, LinkOrValue};
+use switchboard_link_or_value::LinkOrValue;
+use switchboard_model::{HumanReadableServiceConfig, SerdeValue};
 pub use switchboard_model::resolve::file_style::*;
 
-use crate::resolve::{ResolveServiceConfigError, ServiceConfigResolver};
+use crate::{
+    link_resolver::{ControllerLinkResolver, Link},
+    resolve::{ResolveServiceConfigError, ServiceConfigResolver},
+};
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Hash, PartialEq, Eq)]
 #[serde(default)]
@@ -24,10 +28,11 @@ impl FsServiceConfigResolver {
     async fn resolve_service_config_from_fs(
         &self,
         config: FsResolveConfig,
-    ) -> Result<switchboard_model::ServiceConfig, ResolveConfigFileError> {
-        let svc_config = switchboard_model::resolve::file_style::fetch_config(
+        context: crate::ControllerContext,
+    ) -> Result<HumanReadableServiceConfig<Link>, ResolveConfigFileError> {
+        let svc_config = switchboard_model::resolve::file_style::fetch_human_readable_config(
             LinkOrValue::Link(Link::file_path(config.path)),
-            &FsLinkResolver,
+            &context.link_resolver(),
         )
         .await?;
         Ok(svc_config)
@@ -36,16 +41,16 @@ impl FsServiceConfigResolver {
 impl ServiceConfigResolver for FsServiceConfigResolver {
     fn resolve(
         &self,
-        resolve_config: switchboard_custom_config::SerdeValue,
-        _context: crate::ControllerContext,
+        resolve_config: SerdeValue,
+        context: crate::ControllerContext,
     ) -> futures::future::BoxFuture<
         '_,
-        Result<switchboard_model::ServiceConfig, ResolveServiceConfigError>,
+        Result<HumanReadableServiceConfig<Link>, ResolveServiceConfigError>,
     > {
         Box::pin(async move {
             let resolve_config = resolve_config.deserialize_into::<FsResolveConfig>()?;
             let config = self
-                .resolve_service_config_from_fs(resolve_config)
+                .resolve_service_config_from_fs(resolve_config, context)
                 .await
                 .map_err(ResolveServiceConfigError::resolve_error)?;
             Ok(config)

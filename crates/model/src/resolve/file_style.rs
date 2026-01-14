@@ -134,7 +134,7 @@ pub struct FileStyleTls<Tls = FileStyleTlsResolver> {
     pub options: Option<TlsOptions>,
 }
 
-use switchboard_custom_config::SerdeValue;
+use crate::SerdeValue;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ResolveConfigFileError {
@@ -145,9 +145,7 @@ pub enum ResolveConfigFileError {
         context: String,
     },
     #[error("Value deserialize error")]
-    ValueDeserialize(#[from] switchboard_custom_config::SerdeValueError),
-    #[error("config error")]
-    ConfigError(#[from] switchboard_custom_config::Error),
+    ValueDeserialize(#[from] ::switchboard_serde_value::Error),
     #[error("Resolve tls cert error")]
     ResolveTlsCert {
         #[from]
@@ -168,13 +166,79 @@ impl ResolveConfigFileError {
 }
 
 impl<L> FileStyleConfig<L> {
+    pub fn from_standard(config: crate::ServiceConfig) -> Self
+    where
+        L: Send + Sync + 'static + Serialize,
+    {
+        let mut tls = Vec::new();
+        for (name, tls_config) in config.tls {
+            let resolver = match tls_config.resolver {
+                crate::tls::TlsResolver::Single(params) => {
+                    crate::tls::FileStyleTlsResolver::Single(crate::tls::TlsCertParams {
+                        certs: LinkOrValue::Value(params.certs),
+                        key: LinkOrValue::Value(params.key),
+                        ocsp: params.ocsp,
+                    })
+                }
+                crate::tls::TlsResolver::Sni(map) => {
+                    let mut sni = Vec::new();
+                    for (hostname, params) in map {
+                        sni.push(crate::tls::TlsResolverItemInFileWithHostname {
+                            hostname,
+                            tls_in_file: crate::tls::TlsCertParams {
+                                certs: LinkOrValue::Value(params.certs),
+                                key: LinkOrValue::Value(params.key),
+                                ocsp: params.ocsp,
+                            },
+                        });
+                    }
+                    crate::tls::FileStyleTlsResolver::Sni { sni }
+                }
+            };
+            tls.push(FileStyleTls {
+                name,
+                resolver,
+                options: tls_config.options,
+            });
+        }
+
+        let mut service_binds: BTreeMap<String, Vec<FileBind>> = BTreeMap::new();
+        for (addr, route) in &config.tcp_routes {
+            let description = config
+                .tcp_listeners
+                .get(addr)
+                .and_then(|l| l.description.clone());
+            service_binds
+                .entry(route.service.clone())
+                .or_default()
+                .push(FileBind {
+                    bind: *addr,
+                    tls: route.tls.clone(),
+                    description,
+                });
+        }
+
+        let mut tcp_services = Vec::new();
+        for (name, service) in config.tcp_services {
+            let binds = service_binds.remove(&name).unwrap_or_default();
+            tcp_services.push(FileTcpServiceConfig {
+                provider: service.provider,
+                name: service.name,
+                config: service.config.map(LinkOrValue::Value),
+                description: service.description,
+                binds,
+            });
+        }
+
+        FileStyleConfig { tcp_services, tls }
+    }
     pub async fn resolve_into_standard<R>(
         self,
         resolver: &R,
     ) -> Result<crate::ServiceConfig, ResolveConfigFileError>
     where
         L: Send + Sync + Clone + DeserializeOwned + 'static,
-        R: Resolver<L, SerdeValue> + Resolver<L, PemFile> + Resolver<L, PemsFile>,
+        R: Resolver<L, SerdeValue> + Resolver<L, String>,
     {
         let config = self;
         let mut resolved_tcp_services = std::collections::BTreeMap::new();
@@ -252,18 +316,29 @@ impl<L> FileStyleConfig<L> {
     }
 }
 
+pub async fn fetch_human_readable_config<L, R>(
+    service_config: LinkOrValue<L, SerdeValue>,
+    resolver: &R,
+) -> Result<HumanReadableServiceConfig<L>, ResolveConfigFileError>
+where
+    L: Send + Sync + Clone + DeserializeOwned + 'static,
+    R: Resolver<L, SerdeValue> + Resolver<L, String>,
+{
+    let config: SerdeValue = service_config.resolve_with(resolver).await.map_err(
+        ResolveConfigFileError::when_resolve("resolve service config"),
+    )?;
+    let config: FileStyleConfig<L> = config.deserialize_into()?;
+    Ok(config)
+}
 pub async fn fetch_config<L, R>(
     service_config: LinkOrValue<L, SerdeValue>,
     resolver: &R,
 ) -> Result<crate::ServiceConfig, ResolveConfigFileError>
 where
     L: Send + Sync + Clone + DeserializeOwned + 'static,
-    R: Resolver<L, SerdeValue> + Resolver<L, PemFile> + Resolver<L, PemsFile>,
+    R: Resolver<L, SerdeValue> + Resolver<L, String>,
 {
-    let config: SerdeValue = service_config.resolve_with(resolver).await.map_err(
-        ResolveConfigFileError::when_resolve("resolve service config"),
-    )?;
-    let config: FileStyleConfig<L> = config.deserialize_into()?;
+    let config = fetch_human_readable_config(service_config, resolver).await?;
     let resolved_config = config.resolve_into_standard(resolver).await?;
     Ok(resolved_config)
 }
@@ -274,8 +349,7 @@ pub async fn fs_preprocess_service_config<L, R: Resolver<L, SerdeValue>>(
     resolved_config: SerdeValue,
 ) -> Result<SerdeValue, ResolveConfigFileError>
 where
-    L: Send + Sync + 'static,
-    crate::services::http::Config<LinkOrValue<L, SerdeValue>>: DeserializeOwned,
+    L: Send + Sync + DeserializeOwned + 'static,
 {
     match provider {
         "http" => {

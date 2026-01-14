@@ -1,7 +1,12 @@
 use std::{collections::HashMap, path::Path, sync::Arc};
 
 use futures::future::BoxFuture;
-use switchboard_custom_config::{SerdeValue, SerdeValueError, switchboard_serde_value::value};
+use switchboard_model::{
+    HumanReadableServiceConfig,
+    switchboard_serde_value::{Error as SerdeValueError, SerdeValue, value},
+};
+
+use crate::link_resolver::Link;
 
 pub mod fs;
 pub mod k8s;
@@ -24,7 +29,7 @@ pub trait ServiceConfigResolver: Send + Sync + 'static {
         &self,
         resolve_config: SerdeValue,
         context: crate::ControllerContext,
-    ) -> BoxFuture<'_, Result<switchboard_model::ServiceConfig, ResolveServiceConfigError>>;
+    ) -> BoxFuture<'_, Result<HumanReadableServiceConfig<Link>, ResolveServiceConfigError>>;
 }
 
 pub type SharedServiceConfigResolver = Arc<dyn ServiceConfigResolver>;
@@ -115,7 +120,7 @@ impl ServiceConfigResolverRegistry {
         resolver: &str,
         config: SerdeValue,
         context: crate::ControllerContext,
-    ) -> Result<switchboard_model::ServiceConfig, ResolveServiceConfigError> {
+    ) -> Result<HumanReadableServiceConfig<Link>, ResolveServiceConfigError> {
         if let Some(item) = self.resolvers.get(resolver) {
             item.resolver.resolve(config, context).await
         } else {
@@ -131,7 +136,7 @@ impl crate::ControllerContext {
         &self,
         resolver: &str,
         config: SerdeValue,
-    ) -> Result<switchboard_model::ServiceConfig, crate::Error> {
+    ) -> Result<HumanReadableServiceConfig<Link>, crate::Error> {
         let config = self.resolve.resolve(resolver, config, self.clone()).await?;
         Ok(config)
     }
@@ -139,7 +144,7 @@ impl crate::ControllerContext {
     pub async fn resolve_config_from_fs(
         &self,
         path: &Path,
-    ) -> Result<switchboard_model::ServiceConfig, crate::Error> {
+    ) -> Result<HumanReadableServiceConfig<Link>, crate::Error> {
         self.resolve_config(
             "fs",
             value!( {

@@ -1,8 +1,6 @@
-
 use sha2::Digest;
 
 use crate::ServiceConfig;
-
 
 impl ServiceConfig {
     pub fn digest_sha256_base64(&self) -> String {

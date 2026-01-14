@@ -11,7 +11,7 @@ readme.workspace = true
 
 [dependencies]
 switchboard-model = { workspace = true }
-switchboard-custom-config = { workspace = true }
+# switchboard-custom-config = { workspace = true }
 switchboard-kernel-control = { workspace = true, default-features = false, features = ["server"] }
 switchboard-service = { workspace = true }
 

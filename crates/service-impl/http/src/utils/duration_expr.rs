@@ -51,10 +51,7 @@ impl<'de> serde::Deserialize<'de> for Never {
 /// - `Never`: Represents an infinite timeout, should be serialized/deserialized as the string "never".
 pub enum TimeoutDuration {
     Never(Never),
-    Expr(
-        #[serde(with = "self")]
-        tokio::time::Duration
-    ),
+    Expr(#[serde(with = "self")] tokio::time::Duration),
     MilliSecond(u32),
 }
 
@@ -68,12 +65,15 @@ impl TimeoutDuration {
     pub fn as_duration(&self) -> Option<std::time::Duration> {
         match self {
             TimeoutDuration::Never(_) => None,
-            TimeoutDuration::Expr(dur) => Some(std::time::Duration::from_secs(dur.as_secs()).checked_add(std::time::Duration::from_nanos(dur.subsec_nanos() as u64)).unwrap()),
+            TimeoutDuration::Expr(dur) => Some(
+                std::time::Duration::from_secs(dur.as_secs())
+                    .checked_add(std::time::Duration::from_nanos(dur.subsec_nanos() as u64))
+                    .unwrap(),
+            ),
             TimeoutDuration::MilliSecond(ms) => Some(std::time::Duration::from_millis(*ms as u64)),
         }
     }
 }
-
 
 pub struct DurationExprDisplay<'d>(pub &'d tokio::time::Duration);
 
@@ -83,7 +83,10 @@ impl<'d> std::fmt::Display for DurationExprDisplay<'d> {
     }
 }
 
-pub fn fmt_duration_expr(duration: &tokio::time::Duration, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+pub fn fmt_duration_expr(
+    duration: &tokio::time::Duration,
+    f: &mut std::fmt::Formatter,
+) -> std::fmt::Result {
     // convert to H:M:S format
     let total_secs = duration.as_secs();
     let nano_secs = duration.subsec_nanos();
@@ -91,7 +94,7 @@ pub fn fmt_duration_expr(duration: &tokio::time::Duration, f: &mut std::fmt::For
     let minutes = (total_secs % 3600) / 60;
     let seconds = total_secs % 60;
     let millis = nano_secs / 1_000_000;
-    
+
     if hours > 0 {
         write!(f, "{}h {:02}m {:02}s", hours, minutes, seconds)?;
     } else if minutes > 0 {
@@ -114,7 +117,9 @@ pub enum DurationExprParseError {
     #[error("Invalid unit: {0}")]
     InvalidUnit(String),
 }
-pub fn from_duration_expr(duration_str: &str) -> Result<tokio::time::Duration, DurationExprParseError> {
+pub fn from_duration_expr(
+    duration_str: &str,
+) -> Result<tokio::time::Duration, DurationExprParseError> {
     let duration_str = duration_str.trim();
     let mut total_millis: u64 = 0;
     let mut num_buf = String::new();
@@ -124,7 +129,9 @@ pub fn from_duration_expr(duration_str: &str) -> Result<tokio::time::Duration, D
         if c.is_digit(10) {
             if !unit_buf.is_empty() {
                 // Process previous number and unit
-                let num: u64 = num_buf.parse().map_err(|_| DurationExprParseError::InvalidNumber(num_buf.clone()))?;
+                let num: u64 = num_buf
+                    .parse()
+                    .map_err(|_| DurationExprParseError::InvalidNumber(num_buf.clone()))?;
                 match unit_buf.as_str() {
                     "h" => total_millis += num * 3600 * 1000,
                     "m" => total_millis += num * 60 * 1000,
@@ -142,7 +149,9 @@ pub fn from_duration_expr(duration_str: &str) -> Result<tokio::time::Duration, D
     }
 
     if !num_buf.is_empty() && !unit_buf.is_empty() {
-        let num: u64 = num_buf.parse().map_err(|_| DurationExprParseError::InvalidNumber(num_buf.clone()))?;
+        let num: u64 = num_buf
+            .parse()
+            .map_err(|_| DurationExprParseError::InvalidNumber(num_buf.clone()))?;
         match unit_buf.as_str() {
             "h" => total_millis += num * 3600 * 1000,
             "m" => total_millis += num * 60 * 1000,
@@ -152,7 +161,7 @@ pub fn from_duration_expr(duration_str: &str) -> Result<tokio::time::Duration, D
         }
     }
 
-    Ok(tokio::time::Duration::from_millis(total_millis))   
+    Ok(tokio::time::Duration::from_millis(total_millis))
 }
 
 #[cfg(test)]

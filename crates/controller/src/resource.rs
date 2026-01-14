@@ -1,5 +1,5 @@
-pub mod tls;
 pub mod gateway;
+pub mod tls;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Default, Hash, PartialEq, Eq)]
 #[serde(default)]

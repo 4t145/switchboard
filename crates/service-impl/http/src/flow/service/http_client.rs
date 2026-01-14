@@ -1,4 +1,3 @@
-
 use http::StatusCode;
 use http_body_util::BodyExt;
 use switchboard_model::services::http::{ClassId, consts::HTTP_CLIENT_CLASS_ID};
