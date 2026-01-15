@@ -1,7 +1,7 @@
-import type { ViewBox } from "./types/sbh-flow";
+import type { ViewBox } from './types/sbh-flow';
 
 export interface SbhFlowViewBoxContext {
-    getViewBox: () => ViewBox;
+	getViewBox: () => ViewBox;
 }
 
-export const SBH_FLOW_VIEW_BOX_CONTEXT: unique symbol = Symbol("sbhFlowViewBox");
+export const SBH_FLOW_VIEW_BOX_CONTEXT: unique symbol = Symbol('sbhFlowViewBox');

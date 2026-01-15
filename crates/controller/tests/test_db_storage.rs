@@ -2,8 +2,8 @@ use switchboard_controller::{
     config::ControllerConfig,
     storage::{ListObjectQuery, ObjectFilter},
 };
-use switchboard_custom_config::switchboard_serde_value::value;
 use switchboard_model::PageQuery;
+use switchboard_model::switchboard_serde_value::value;
 
 #[tokio::test]
 async fn test_db_storage() -> switchboard_controller::Result<()> {
@@ -144,7 +144,19 @@ async fn test_db_storage() -> switchboard_controller::Result<()> {
     // try get deleted object
     let get_deleted_a2 = context.storage().get_object(&deleted_a2).await?;
     assert!(get_deleted_a2.is_none());
-
+    // check list after deletion
+    let objects_a_list = context
+        .storage()
+        .list_objects(ListObjectQuery {
+            filter: ObjectFilter {
+                id: Some("test-object-a".into()),
+                ..Default::default()
+            },
+            page: PageQuery::with_limit(10),
+        })
+        .await?;
+    assert_eq!(objects_a_list.items.len(), 1);
+    assert_eq!(objects_a_list.items[0].data.descriptor, descriptor_a1);
     // restore deleted object
     let _restored_a2 = context
         .storage()
@@ -204,5 +216,6 @@ async fn test_db_storage() -> switchboard_controller::Result<()> {
     assert!(check_deleted_1.is_none());
     let check_deleted_2 = context.storage().get_object(&to_delete_2).await?;
     assert!(check_deleted_2.is_none());
+
     Ok(())
 }

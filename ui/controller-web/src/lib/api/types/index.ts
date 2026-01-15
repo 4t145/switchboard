@@ -21,4 +21,3 @@ export type ServiceConfig = {
 	tls: Record<string, Tls>;
 	tcp_routes: Record<string, TcpRoute>;
 };
-

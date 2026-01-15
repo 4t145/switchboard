@@ -235,7 +235,7 @@ impl Serializer for SerdeValueSerializer {
     type SerializeStruct = collection::SerdeMap;
     type SerializeStructVariant = SerializeVariant<collection::SerdeMap>;
     fn is_human_readable(&self) -> bool {
-        false
+        true
     }
 
     for_primitives! {
@@ -536,7 +536,7 @@ impl<'de> Deserializer<'de> for SerdeValue {
                 Some(value) => visitor.visit_some(*value),
                 None => visitor.visit_none(),
             },
-            v => v.deserialize_any(visitor),
+            v => visitor.visit_some(v),
         }
     }
 
@@ -564,6 +564,6 @@ impl<'de> Deserializer<'de> for SerdeValue {
         }
     }
     fn is_human_readable(&self) -> bool {
-        false
+        true
     }
 }

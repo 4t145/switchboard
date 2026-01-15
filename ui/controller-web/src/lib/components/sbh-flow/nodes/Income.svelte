@@ -22,10 +22,12 @@
 	let { updateNodeData } = useSvelteFlow();
 </script>
 
-<div class="rounded-tr-3xl rounded-tl-3xl rounded-br rounded-bl border bg-white px-1 shadow-sm transition-shadow duration-200 hover:shadow-md pt-2 pb-1">
-    <div class="flex items-center justify-between">
-        <ArrowBigDown class="inline" size="1em"></ArrowBigDown>
-    </div>
+<div
+	class="rounded-tl-3xl rounded-tr-3xl rounded-br rounded-bl border bg-white px-1 pt-2 pb-1 shadow-sm transition-shadow duration-200 hover:shadow-md"
+>
+	<div class="flex items-center justify-between">
+		<ArrowBigDown class="inline" size="1em"></ArrowBigDown>
+	</div>
 </div>
 <Handle
 	type="target"

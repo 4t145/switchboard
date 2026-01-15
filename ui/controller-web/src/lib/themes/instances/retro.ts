@@ -1,4 +1,4 @@
-import type { Theme } from "..";
+import type { Theme } from '..';
 
 const RED: string = '#B3514B';
 const LIGHT_YELLOW: string = '#DFD6CB';
@@ -42,13 +42,13 @@ const spacecraftButtonStyles = `
 `;
 
 const retroTheme: Theme = {
-    name: 'retro',
-    styles: {
-        'Button': spacecraftButtonStyles,
-        'Card': `bg-[${LIGHT_YELLOW}] border-4 border-[${RED}] p-4 rounded-lg shadow-lg`,
-        'Header': 'bg-green-500 text-white text-3xl font-extrabold p-6',
-        'Footer': 'bg-blue-500 text-white text-center p-4 mt-8',
-    }
-}
+	name: 'retro',
+	styles: {
+		Button: spacecraftButtonStyles,
+		Card: `bg-[${LIGHT_YELLOW}] border-4 border-[${RED}] p-4 rounded-lg shadow-lg`,
+		Header: 'bg-green-500 text-white text-3xl font-extrabold p-6',
+		Footer: 'bg-blue-500 text-white text-center p-4 mt-8'
+	}
+};
 
 export default retroTheme;

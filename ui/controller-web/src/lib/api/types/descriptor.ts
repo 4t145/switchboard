@@ -1,7 +1,7 @@
 export type AnonServiceDescriptor = {
-    provider: string;
-    tls: string | null;
-    config: string | null;
+	provider: string;
+	tls: string | null;
+	config: string | null;
 };
 
 export type NamedServiceDescriptor = string;

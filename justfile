@@ -27,3 +27,6 @@ build-container:
 
 test-start-kind:
     bash tests/k8s/setup-kind.sh
+
+debug-surreal:
+    surreal start rocksdb://tmp/data/controller_storage.db

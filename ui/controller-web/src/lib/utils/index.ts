@@ -1,5 +1,3 @@
-import { shortRev } from "./short-rev";
+import { shortRev } from './short-rev';
 
-export {
-    shortRev
-};
+export { shortRev };

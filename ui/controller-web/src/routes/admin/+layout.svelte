@@ -17,8 +17,7 @@
 		Bell,
 		User,
 		ArrowLeftRightIcon,
-		Factory,
-
+		Factory
 	} from 'lucide-svelte';
 	import Logo from '$lib/components/logo.svelte';
 	let { children } = $props();
@@ -66,10 +65,10 @@
 		{
 			label: 'Services',
 			icon: 'activity',
-			href: '/admin/services',
+			href: '/admin/services'
 		},
 		{ label: 'Build', icon: 'factory', href: '/admin/build' },
-		{ label: 'Storage', icon: 'database', href: '/admin/storage' },
+		{ label: 'Storage', icon: 'database', href: '/admin/storage' }
 	];
 
 	// 计算当前活跃路径
@@ -113,12 +112,15 @@
 	<!-- Sidebar -->
 	<div
 		class={`
-        fixed inset-y-0 left-0 z-50 lg:relative 
-        transform transition-all duration-300 ease-in-out dark:border-gray-700 dark:bg-gray-800
+        fixed inset-y-0 left-0 z-50 transform 
+        transition-all duration-300 ease-in-out lg:relative dark:border-gray-700 dark:bg-gray-800
     `}
 	>
 		<!-- Navigation using Skeleton Navigation -->
-		<Navigation layout={isLayoutRail ? 'rail' : 'sidebar'} class={isLayoutRail ? '' : 'grid grid-rows-[1fr_auto] gap-4'}>
+		<Navigation
+			layout={isLayoutRail ? 'rail' : 'sidebar'}
+			class={isLayoutRail ? '' : 'grid grid-rows-[1fr_auto] gap-4'}
+		>
 			<Navigation.Header>
 				<Navigation.Trigger onclick={toggleLayoutRail}>
 					<ArrowLeftRightIcon class={isLayoutRail ? 'size-5' : 'size-4'} />
@@ -130,9 +132,13 @@
 				<Navigation.Group>
 					<Navigation.Label class={`pl-2 ${isLayoutRail ? 'sr-only' : ''}`}>Main</Navigation.Label>
 					<Navigation.Menu>
-						{#each navigationItems.filter(i => !i.subItems) as link (link.href)}
+						{#each navigationItems.filter((i) => !i.subItems) as link (link.href)}
 							{@const Icon = iconComponents[link.icon]}
-							<Navigation.TriggerAnchor href={link.href} onclick={() => { navigateTo(link.href); }}
+							<Navigation.TriggerAnchor
+								href={link.href}
+								onclick={() => {
+									navigateTo(link.href);
+								}}
 								aria-current={isActive(link.href) ? 'page' : undefined}
 							>
 								<Icon class="size-4" />
@@ -143,7 +149,10 @@
 				</Navigation.Group>
 			</Navigation.Content>
 			<Navigation.Footer>
-				<Navigation.TriggerAnchor href="/admin/settings" title="Settings" aria-label="Settings"
+				<Navigation.TriggerAnchor
+					href="/admin/settings"
+					title="Settings"
+					aria-label="Settings"
 					class="rounded px-2 py-2 hover:bg-gray-50 dark:hover:bg-gray-700/50"
 				>
 					<Settings class="size-4" />
@@ -158,7 +167,7 @@
 	<!-- Main content area -->
 	<div class="flex min-w-0 flex-1 flex-col">
 		<!-- Page content -->
-		<main class="flex-1 overflow-auto ">
+		<main class="flex-1 overflow-auto">
 			{@render children()}
 		</main>
 	</div>

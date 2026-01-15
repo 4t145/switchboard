@@ -71,7 +71,7 @@ export class ViewBox implements ViewBoxState {
 	public width: number;
 	public height: number;
 	constructor(canvas: SVGSVGElement, state: ViewBoxState) {
-		console.log("ViewBox constructor", state);
+		console.log('ViewBox constructor', state);
 		this.position = state.position;
 		this.scale = state.scale;
 		this.width = state.width;
@@ -87,20 +87,16 @@ export class ViewBox implements ViewBoxState {
 		const scaleX = svgWidth / this.width;
 		const scaleY = svgHeight / this.height;
 		const actualScale = Math.min(scaleX, scaleY);
-		return actualScale
+		return actualScale;
 	}
-	canvasCoordToClientCoord(
-		canvasCoord: Position,
-	): Position {
+	canvasCoordToClientCoord(canvasCoord: Position): Position {
 		const rect = this.canvas.getBoundingClientRect();
 		const scale = this.actualScale();
 		const x = (canvasCoord.x - this.position.x) * scale + rect.left;
 		const y = (canvasCoord.y - this.position.y) * scale + rect.top;
 		return { x, y };
 	}
-	clientCoordToCanvasCoord(
-		clientCoord: Position,
-	): Position {
+	clientCoordToCanvasCoord(clientCoord: Position): Position {
 		const rect = this.canvas.getBoundingClientRect();
 		const scale = this.actualScale();
 		const x = (clientCoord.x - rect.left) / scale + this.position.x;

@@ -1,23 +1,23 @@
 export type Indexed<T> = {
-    id: string;
-    data: T;
+	id: string;
+	data: T;
 };
 
 export type Cursor = {
-    next: string | null;
-}
+	next: string | null;
+};
 
 export type PagedResult<T> = {
-    items: Indexed<T>[];
-    next_cursor: Cursor | null;
+	items: Indexed<T>[];
+	next_cursor: Cursor | null;
 };
 
 export type PageQuery = {
-    limit: number;
-    cursor: Cursor;
+	limit: number;
+	cursor: Cursor;
 };
 
 export type FlattenPageQueryWithFilter<T> = {
-    limit: number;
-    next: string | null;
+	limit: number;
+	next: string | null;
 } & T;

@@ -1,14 +1,16 @@
 export type ErrorStackFrame = {
-    typeName: string;
-    error: string;
-}
+	typeName: string;
+	error: string;
+};
 
 export type ErrorStack = {
-    frames: ErrorStackFrame[];
-}
+	frames: ErrorStackFrame[];
+};
 
-export type ResultObject<T> = {
-    data: T;
-} | {
-    error: ErrorStack;
-}
+export type ResultObject<T> =
+	| {
+			data: T;
+	  }
+	| {
+			error: ErrorStack;
+	  };

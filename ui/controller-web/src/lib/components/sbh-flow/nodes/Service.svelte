@@ -22,18 +22,20 @@
 	let { updateNodeData } = useSvelteFlow();
 </script>
 
-<div class="rounded-br-3xl rounded-bl-3xl rounded-tr rounded-tl border bg-white px-1 shadow-sm transition-shadow duration-200 hover:shadow-md pb-4">
-    <div class="flex items-center justify-between">
-        <span>
-            <Server class="inline" size="1em"></Server>
-            <span class="rounded bg-pink-500 px-1 text-sm font-semibold text-white">
-                {data.class}
-            </span>
-            <span>
-                {data.name}
-            </span>
-        </span>
-    </div>
+<div
+	class="rounded-tl rounded-tr rounded-br-3xl rounded-bl-3xl border bg-white px-1 pb-4 shadow-sm transition-shadow duration-200 hover:shadow-md"
+>
+	<div class="flex items-center justify-between">
+		<span>
+			<Server class="inline" size="1em"></Server>
+			<span class="rounded bg-pink-500 px-1 text-sm font-semibold text-white">
+				{data.class}
+			</span>
+			<span>
+				{data.name}
+			</span>
+		</span>
+	</div>
 </div>
 <Handle
 	type="target"

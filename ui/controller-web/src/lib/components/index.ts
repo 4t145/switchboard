@@ -1,3 +1,3 @@
-import ObjectFilter from "./object-filter.svelte";
+import ObjectFilter from './object-filter.svelte';
 
 export { ObjectFilter };

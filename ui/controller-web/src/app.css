@@ -2,11 +2,11 @@
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
 
-@import '@skeletonlabs/skeleton'; 
-@import '@skeletonlabs/skeleton-svelte'; 
+@import '@skeletonlabs/skeleton';
+@import '@skeletonlabs/skeleton-svelte';
 @import '@skeletonlabs/skeleton/themes/vintage';
 
 input::placeholder {
-  font-style: italic;
-  opacity: 0.8;
+	font-style: italic;
+	opacity: 0.8;
 }

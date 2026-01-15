@@ -45,9 +45,9 @@ DEFINE FUNCTION IF NOT EXISTS fn::storage_object::delete($descriptor: object) ->
     IF ($record IS NONE) {
         RETURN NONE;
     };
-    LET $latest = SELECT * FROM ONLY storage_object_latest WHERE id = $descriptor.id;
+    LET $latest = SELECT * FROM ONLY storage_object_latest WHERE id = type::thing("storage_object_latest", $descriptor.id);
     IF ($latest.revision == $descriptor.revision) {
-        DELETE storage_object_latest WHERE id = $descriptor.id;
+        DELETE storage_object_latest WHERE id = type::thing("storage_object_latest", $descriptor.id);
     };
     DELETE storage_object WHERE descriptor.id = $descriptor.id AND descriptor.revision = $descriptor.revision;
     RETURN $descriptor;
@@ -81,23 +81,23 @@ DEFINE FUNCTION IF NOT EXISTS fn::storage_object::list($filter: object, $limit: 
 
 
 DEFINE FUNCTION IF NOT EXISTS fn::storage_object::delete_by_id($object_id: string) {
-    LET $latest = SELECT * FROM ONLY storage_object_latest WHERE id = $object_id;
+    LET $latest = SELECT * FROM ONLY storage_object_latest WHERE id = type::thing("storage_object_latest", $object_id);
     IF ($latest IS NOT NONE) {
-        DELETE storage_object_latest WHERE id = $object_id;
+        DELETE storage_object_latest WHERE id = type::thing("storage_object_latest", $object_id);
     };
     DELETE storage_object WHERE descriptor.id = $object_id;
 };
 
 DEFINE FUNCTION IF NOT EXISTS fn::storage_object::batch_delete($descriptors: array<object>) {
     DELETE FROM storage_object WHERE descriptor IN $descriptors;
-    LET $affected_ids = array::distinct(array::map($descriptors, | $deleted | $deleted.id));
+    LET $affected_ids = array::distinct(array::map($descriptors, | $deleted | type::thing("storage_object_latest", $affected_id)));
     FOR $affected_id IN $affected_ids {
-        LET $latest = SELECT * FROM ONLY storage_object_latest WHERE id = $affected_id;
+        LET $latest = SELECT * FROM ONLY storage_object_latest WHERE id = $affected_ids;
         LET $current_latest = SELECT descriptor, id FROM ONLY storage_object WHERE descriptor.id = $affected_id ORDER BY id DESC LIMIT 1;
         IF ($current_latest IS NONE) {
             DELETE storage_object_latest WHERE id = $affected_id;
         } ELSE IF ($latest.revision != $current_latest.descriptor.revision) {
-            UPSERT storage_object_latest CONTENT { id: $affected_id, revision: $current_latest.descriptor.revision, object: type::thing("storage_object", $current_latest.id) };
+            UPSERT storage_object_latest CONTENT { id: $affected_id, revision: $current_latest.descriptor.revision, object: type::thing("storage_object_latest", $current_latest.id) };
         };
     };
 };

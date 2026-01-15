@@ -57,8 +57,10 @@ impl From<TlsCertParams> for TlsResolver {
 )]
 
 pub struct TlsCertParams<C = PemsFile, K = PemFile> {
+    #[serde(alias = "cert")]
     pub certs: C,
     pub key: K,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub ocsp: Option<Base64Bytes>,
 }
 

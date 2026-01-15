@@ -5,6 +5,7 @@ use crate::storage::{
     StorageObjectValueStyle, StorageObjectWithoutData, decode_object,
 };
 use chrono::Utc;
+use surrealdb::opt::auth::Root;
 use surrealdb::sql::Thing;
 use surrealdb::{
     Surreal,

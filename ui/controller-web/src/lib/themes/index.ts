@@ -18,10 +18,6 @@ export type ThemeOptions = {
 	darkMode: boolean;
 };
 
-export function getClass(
-	theme: Theme,
-	componentName: ThemeName,
-	options: ThemeOptions
-): string {
+export function getClass(theme: Theme, componentName: ThemeName, options: ThemeOptions): string {
 	return intoClassString(theme.styles[componentName] || '', options);
 }

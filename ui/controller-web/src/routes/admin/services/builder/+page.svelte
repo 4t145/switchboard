@@ -21,7 +21,6 @@
 		}
 	});
 
-
 	function handleLoad() {
 		const saved = localStorage.getItem('flowchart-state');
 		if (saved) {

@@ -91,13 +91,15 @@
 <SvelteFlow bind:nodes bind:edges {nodeTypes} fitView>
 	<Controls position="bottom-left" showFitView showLock showZoom />
 	<Background variant={BackgroundVariant.Dots} />
-	<MiniMap nodeColor= { node => {
-		if (node.type === 'income') return '#000000'; // black
-		if (node.type === 'layer') return '#000000'; // black
-		if (node.type === 'dangling') return 'orange'; // yellow
-		if (node.type === 'service') return '#ec4899'; // pink-500
-		if (node.type === 'note') return '#fef08a'; // yellow-50
-		if (node.type === 'router') return '#22d3ee'; // cyan-500
-		return '#9ca3af'; // gray for others
-	}}/>
+	<MiniMap
+		nodeColor={(node) => {
+			if (node.type === 'income') return '#000000'; // black
+			if (node.type === 'layer') return '#000000'; // black
+			if (node.type === 'dangling') return 'orange'; // yellow
+			if (node.type === 'service') return '#ec4899'; // pink-500
+			if (node.type === 'note') return '#fef08a'; // yellow-50
+			if (node.type === 'router') return '#22d3ee'; // cyan-500
+			return '#9ca3af'; // gray for others
+		}}
+	/>
 </SvelteFlow>
