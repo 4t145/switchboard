@@ -60,11 +60,11 @@
 		// Add to collection
 		if (type === 'services') {
 			config.tcp_services = [...config.tcp_services, newItem as FileTcpServiceConfig];
+			editingItem = { type, index: config.tcp_services.length - 1 };
 		} else {
 			config.tls = [...config.tls, newItem as FileStyleTls];
+			editingItem = { type, index: config.tls.length - 1 };
 		}
-
-		editingItem = { type, index: config[type === 'services' ? 'tcp_services' : 'tls'].length - 1 };
 	}
 
 	function deleteItem(type: 'services' | 'tls', index: number) {

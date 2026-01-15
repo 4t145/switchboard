@@ -12,23 +12,11 @@
 		Search,
 		CheckCircle,
 		AlertCircle,
-
 		GripVerticalIcon,
-
-
 		MinusIcon,
-
 		MinimizeIcon,
-
 		XIcon,
-
 		MaximizeIcon
-
-
-
-
-
-
 	} from 'lucide-svelte';
 	import ObjectPages from '$lib/components/object-pages.svelte';
 	import type { StorageObjectDescriptor } from '$lib/api/types';
@@ -47,9 +35,66 @@
 
 	let { value = $bindable(), dataType, renderValue, defaultValue }: Props = $props();
 
+	// Helper function to check if a string is a valid URI
+	function isValidURI(str: string): boolean {
+		// Check for common URI schemes
+		const uriSchemes = [
+			'file://',
+			'http://',
+			'https://',
+			'ftp://',
+			'ftps://',
+			'storage://',
+			'data:',
+			'mailto:',
+			'tel:',
+			'sms:'
+		];
+		
+		// Check if string starts with any known URI scheme
+		for (const scheme of uriSchemes) {
+			if (str.startsWith(scheme)) {
+				return true;
+			}
+		}
+		
+		// Additional check for URLs without explicit scheme but with domain patterns
+		// This helps catch URLs that might be missing http:// prefix
+		if (str.includes('.')) {
+			// Check if it looks like a domain name (not just a filename)
+			const domainLikePattern = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
+			
+			// Additional validation: ensure it's not just a filename with extension
+			// Domain names should have at least one subdomain or TLD that's 2+ chars
+			if (domainLikePattern.test(str)) {
+				const parts = str.split('/')[0].split('.');  // Get domain part before any path
+				// Check if the last part (TLD) is at least 2 characters and not a common file extension
+				const lastPart = parts[parts.length - 1];
+				const commonFileExtensions = ['txt', 'json', 'xml', 'yml', 'yaml', 'conf', 'cfg', 'ini', 'log', 'md', 'csv'];
+				
+				// If it's a common file extension or less than 2 chars, don't treat as domain
+				if (commonFileExtensions.includes(lastPart.toLowerCase()) || lastPart.length < 2) {
+					return false;
+				}
+				
+				// Must have at least 2 parts (subdomain.tld or domain.tld)
+				if (parts.length >= 2) {
+					return true;
+				}
+			}
+		}
+		
+		return false;
+	}
+
 	// Parsing Helpers
 	function parseLink(val: any): { kind: LinkKind; data: any } | null {
 		if (typeof val === 'string') {
+			// Only treat as link if it's actually a URI
+			if (!isValidURI(val)) {
+				return null;
+			}
+			
 			if (val.startsWith('file://')) return { kind: 'file', data: val.slice(7) };
 			if (val.startsWith('http://') || val.startsWith('https://'))
 				return { kind: 'http', data: val };
@@ -61,10 +106,17 @@
 						data: { id: parts[0], revision: parts[1] } as StorageObjectDescriptor
 					};
 			}
-		}
-		// Legacy support for { $link: ... }
-		if (val && typeof val === 'object' && '$link' in val) {
-			return { kind: 'storage', data: val.$link };
+			
+			// Handle other URI schemes as HTTP for now (could be extended later)
+			if (val.startsWith('ftp://') || val.startsWith('ftps://')) {
+				return { kind: 'http', data: val };
+			}
+			
+			// Handle domain-like strings as HTTP
+			const domainLikePattern = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
+			if (domainLikePattern.test(val)) {
+				return { kind: 'http', data: val.startsWith('http') ? val : `http://${val}` };
+			}
 		}
 		return null;
 	}
@@ -208,12 +260,12 @@
 	}
 
 	function switchToReferenceMode() {
-		// Defaults to Storage selector if no link set
+		// Default to storage:// format to trigger link mode
+		if (!isLink) {
+			value = 'storage://#';
+		}
+		// Open the storage selector
 		isSelectingStorage = true;
-		// We don't set value yet, user cancels -> stays inline?
-		// Or we should set a dummy value?
-		// Let's just open the selector. If they select, it becomes a link.
-		// If they cancel, they stay in inline mode.
 	}
 </script>
 

@@ -1,11 +1,14 @@
 <script lang="ts">
-	import FileToBase64Input from '$lib/components/common/file-to-base64-input.svelte';
+	import PemInput from '$lib/components/common/pem-input.svelte';
+	import LinkOrValueEditor from './link-or-value-editor.svelte';
 	import { Trash2, Plus } from 'lucide-svelte';
 
+	// The types now involve LinkOrValue wrapping the PemFile/PemsFile
+	// We simplify for the frontend form, assuming generic params for LinkOrValue
 	type TlsCertParams = {
-		certs: string[]; // Base64
-		key: string; // Base64
-		ocsp: string | null; // Base64
+		certs: any; // LinkOrValue<PemsFile>
+		key: any; // LinkOrValue<PemFile>
+		ocsp: any | null; // Base64 or Link? It's Base64Bytes in Rust struct usually, but let's check definition
 	};
 
 	// TlsResolver can be { Single: ... } or { Sni: ... }
@@ -17,28 +20,45 @@
 	// Internal state to track mode
 	let mode = $state<'Single' | 'Sni'>('Single');
 
-	// Initialize
+	// Initialize and ensure data exists
 	$effect(() => {
-		if (value.Sni) mode = 'Sni';
-		else mode = 'Single';
+		const v = value as any;
+		// Determine mode based on data presence
+		if (v.Sni) {
+			mode = 'Sni';
+		} else {
+			// Default to Single
+			mode = 'Single';
+			// CRITICAL: Ensure Single data structure exists if missing
+			// This fixes the issue where the form doesn't appear for new items
+			if (!v.Single) {
+				// Initialize with empty link/value structures if needed, 
+				// but for now simple empty objects might suffice if LinkOrValueEditor handles undefined
+				v.Single = { certs: undefined, key: undefined, ocsp: null };
+			}
+		}
 	});
 
 	function switchMode(newMode: 'Single' | 'Sni') {
+		if (mode === newMode) return;
 		mode = newMode;
+		
+		// CRITICAL: Modify the object properties in place using the reference.
+		// DO NOT assign to 'value' (e.g. value = { ... }) as that replaces the entire object
+		// and causes data loss of parent properties like 'name' and 'options'.
+		const v = value as any;
+
 		if (newMode === 'Single') {
-			value = { Single: { certs: [], key: '', ocsp: null } };
+			if (v.Sni) delete v.Sni;
+			if (!v.Single) {
+				v.Single = { certs: undefined, key: undefined, ocsp: null };
+			}
 		} else {
-			value = { Sni: {} };
+			if (v.Single) delete v.Single;
+			if (!v.Sni) {
+				v.Sni = {};
+			}
 		}
-	}
-
-	// --- Helpers for Cert Params ---
-	function addCert(params: TlsCertParams) {
-		params.certs = [...params.certs, ''];
-	}
-
-	function removeCert(params: TlsCertParams, index: number) {
-		params.certs = params.certs.filter((_, i) => i !== index);
 	}
 </script>
 
@@ -46,47 +66,43 @@
 	<div
 		class="space-y-4 rounded border border-surface-200 bg-surface-50 p-4 dark:border-surface-700 dark:bg-surface-900/50"
 	>
-		<!-- Key -->
-		<FileToBase64Input
-			label="Private Key (PEM)"
-			bind:value={params.key}
-			accept=".key,.pem"
-			helperText="Upload the private key file."
-		/>
-
-		<!-- Certs -->
-		<div class="space-y-2">
-			<div class="flex items-center justify-between">
-				<span class="label-text font-bold">Certificates Chain</span>
-				<button class="variant-ghost-primary btn btn-sm" onclick={() => addCert(params)}>
-					<Plus size={14} /> Add Cert
-				</button>
-			</div>
-
-			{#if params.certs.length === 0}
-				<div class="text-sm italic opacity-50">No certificates added.</div>
-			{/if}
-
-			{#each params.certs as _, i}
-				<div class="flex items-start gap-2">
-					<div class="flex-1">
-						<FileToBase64Input
-							label={`Certificate ${i + 1}`}
-							bind:value={params.certs[i]}
-							accept=".crt,.pem,.cer"
-						/>
-					</div>
-					<button
-						class="variant-soft-error mt-8 btn-icon btn-icon-sm"
-						onclick={() => removeCert(params, i)}
-					>
-						<Trash2 size={16} />
-					</button>
-				</div>
-			{/each}
+		<!-- Key: LinkOrValue<PemFile> -->
+		<div class="space-y-1">
+			<span class="label-text font-bold">Private Key</span>
+			<LinkOrValueEditor
+				bind:value={params.key}
+				dataType="PemFile"
+				defaultValue={() => ''}
+			>
+				{#snippet renderValue()}
+					<PemInput
+						label="Private Key Content (PEM)"
+						bind:value={params.key}
+						helperText="Private key file content."
+					/>
+				{/snippet}
+			</LinkOrValueEditor>
 		</div>
 
-		<!-- OCSP -->
+		<!-- Certs: LinkOrValue<PemsFile> -->
+		<div class="space-y-1">
+			<span class="label-text font-bold">Certificate Chain</span>
+			<LinkOrValueEditor
+				bind:value={params.certs}
+				dataType="PemsFile"
+				defaultValue={() => []}
+			>
+				{#snippet renderValue()}
+					<PemInput
+						label="Certificate Chain Content (PEM)"
+						bind:value={params.certs}
+						helperText="Certificate chain (server cert first, then intermediates)."
+					/>
+				{/snippet}
+			</LinkOrValueEditor>
+		</div>
+
+		<!-- OCSP (Optional, usually just bytes, keeping commented out as per original) -->
 		<!-- <FileToBase64Input 
             label="OCSP Stapling (Optional)" 
             bind:value={params.ocsp as string} 
@@ -153,7 +169,7 @@
 						if (domain && value.Sni) {
 							value.Sni = {
 								...value.Sni,
-								[domain]: { certs: [], key: '', ocsp: null }
+								[domain]: { certs: undefined, key: undefined, ocsp: null }
 							};
 							input.value = '';
 						}
