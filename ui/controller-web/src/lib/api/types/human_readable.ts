@@ -15,10 +15,21 @@ export type FileTcpServiceConfig = {
 	binds: FileBind[];
 };
 
+export type SniFileStyleTlsResolver = { sni: ({ hostname: string } & TlsCertParams)[] };
 export type FileStyleTlsResolver =
-	| { Single: TlsCertParams }
-	| { Sni: { sni: { hostname: string; tls_in_file: TlsCertParams }[] } };
+	| TlsCertParams
+	| SniFileStyleTlsResolver;
 
+export function isSniTlsResolver(
+	resolver: FileStyleTlsResolver
+): resolver is SniFileStyleTlsResolver {
+	return (resolver as SniFileStyleTlsResolver).sni !== undefined;
+}
+export function isSingleTlsResolver(
+	resolver: FileStyleTlsResolver
+): resolver is TlsCertParams {
+	return (resolver as TlsCertParams).certs !== undefined;
+}
 export type FileStyleTls = {
 	name: string;
 	options?: TlsOptions;

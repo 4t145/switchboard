@@ -74,7 +74,7 @@
 	>
 		<div class="mb-4 flex items-center justify-between">
 			<h4 class="h4 font-bold">Listeners & Routes</h4>
-			<button class="variant-filled-secondary btn btn-sm" onclick={addBind}>
+			<button class="preset-filled-secondary btn btn-sm" onclick={addBind}>
 				<Plus size={14} /> Add Bind
 			</button>
 		</div>
@@ -120,7 +120,7 @@
 						</label>
 					</div>
 					<button
-						class="variant-soft-error mt-6 btn-icon btn-icon-sm"
+						class="preset-tonal-error mt-6 btn-icon btn-icon-sm"
 						onclick={() => removeBind(i)}
 					>
 						<Trash2 size={16} />
@@ -140,6 +140,7 @@
 		<LinkOrValueEditor
 			bind:value={value.config}
 			dataType="TcpServiceConfig"
+			dataFormat="object"
 			renderValue={jsonConfigSnippet}
 			defaultValue={() => ({})}
 		/>

@@ -2,7 +2,7 @@ import type { Base64Bytes } from './bytes';
 import type { LinkOrValue } from './controller';
 
 export type TlsCertParams = {
-	certs: Base64Bytes[];
+	certs: Base64Bytes;
 	key: Base64Bytes;
 	ocsp: Base64Bytes | null;
 };

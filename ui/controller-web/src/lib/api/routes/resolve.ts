@@ -11,12 +11,16 @@ export type ResolveServiceConfigRequest = {
 	save_as?: string;
 };
 
-import { fetchJson } from './index';
+import { fetchJson, fetchText } from './index';
 
 export const resolveApi = {
 	service_config: (request: ResolveServiceConfigRequest) =>
 		fetchJson<ResolveServiceConfigResponse>('/api/resolve/service_config', {
 			method: 'POST',
 			body: JSON.stringify(request)
-		})
+		}),
+	link_to_string: (link: string) =>
+		fetchText('/api/resolve/link/string', {}, new URLSearchParams({ link })),
+	link_to_object: (link: string) =>
+		fetchJson<unknown>('/api/resolve/link/object', {}, new URLSearchParams({ link }))
 };

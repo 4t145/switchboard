@@ -89,7 +89,7 @@
 			<FileText size={20} class="text-primary-500" />
 
 			<span class="flex-1 truncate text-sm font-medium">{fileName}</span>
-			<button class="hover:variant-soft-error btn-icon btn-icon-sm" onclick={clear} title="Clear">
+			<button class="hover:preset-tonal-error btn-icon btn-icon-sm" onclick={clear} title="Clear">
 				<X size={16} />
 			</button>
 		</div>

@@ -92,3 +92,24 @@ fn result_to_json_response<T: Serialize, E: std::error::Error + 'static>(
         }
     }
 }
+
+fn result_to_plaintext_response<T: ToString, E: std::error::Error + 'static>(
+    result: Result<T, E>,
+) -> axum::response::Response {
+    match result {
+        Ok(data) => axum::response::Response::builder()
+            .header(
+                axum::http::header::CONTENT_TYPE,
+                "text/plain; charset=utf-8",
+            )
+            .body(data.to_string().into())
+            .unwrap(),
+        Err(e) => {
+            tracing::warn!("Internal server error: {}", e);
+            let error_response = switchboard_model::error::ErrorStack::from_std(e);
+            let mut response = axum::Json(error_response).into_response();
+            *response.status_mut() = axum::http::StatusCode::INTERNAL_SERVER_ERROR;
+            response
+        }
+    }
+}

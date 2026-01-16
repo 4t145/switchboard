@@ -13,6 +13,15 @@ pub struct ControllerLinkResolver {
     file: FileResolver,
 }
 
+impl ControllerLinkResolver {
+    pub async fn resolve_link_to_value(&self, link: Link) -> Result<SerdeValue, LinkResolveError> {
+        <Self as Resolver<Link, SerdeValue>>::resolve(self, link).await
+    }
+    pub async fn resolve_link_to_string(&self, link: Link) -> Result<String, LinkResolveError> {
+        <Self as Resolver<Link, String>>::resolve(self, link).await
+    }
+}
+
 impl crate::ControllerContext {
     pub fn link_resolver(self) -> ControllerLinkResolver {
         ControllerLinkResolver {

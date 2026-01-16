@@ -275,7 +275,7 @@
 						<div class="flex items-center gap-1 ml-3">
 							{#if showViewDetails}
 								<button
-									class="btn-icon btn-icon-sm hover:variant-soft-primary transition-colors"
+									class="btn-icon btn-icon-sm hover:preset-tonal-primary transition-colors"
 									onclick={(e) => { e.stopPropagation(); handleViewDetails(item); }}
 									title="Details"
 								>
@@ -284,7 +284,7 @@
 							{/if}
 							{#if showEdit}
 								<button
-									class="btn-icon btn-icon-sm hover:variant-soft-secondary transition-colors"
+									class="btn-icon btn-icon-sm hover:preset-tonal-secondary transition-colors"
 									onclick={(e) => { e.stopPropagation(); handleEdit(item); }}
 									title="Edit"
 								>
@@ -293,7 +293,7 @@
 							{/if}
 							{#if showDelete}
 								<button
-									class="btn-icon btn-icon-sm hover:variant-soft-error transition-colors"
+									class="btn-icon btn-icon-sm hover:preset-tonal-error transition-colors"
 									onclick={(e) => { e.stopPropagation(); handleRemove(item); }}
 									title="Delete"
 								>
@@ -335,7 +335,7 @@
 								<span class="text-primary-700 dark:text-primary-300">{item.descriptor.id}</span><span class="text-surface-500 dark:text-surface-400">#{shortRev(item.descriptor.revision)}</span>
 							</span>
 							<button
-								class="btn-icon btn-icon-sm opacity-0 group-hover:opacity-100 hover:variant-soft-surface transition-opacity"
+								class="btn-icon btn-icon-sm opacity-0 group-hover:opacity-100 hover:preset-tonal-surface transition-opacity"
 								onclick={(e) => copyToClipboard(e, getIdRevString(item))}
 								title="Copy ID#Rev"
 							>
@@ -351,7 +351,7 @@
 					<div class="flex items-center gap-1 ml-3">
 						{#if showViewDetails}
 							<button
-								class="btn-icon btn-icon-sm opacity-0 group-hover:opacity-100 hover:variant-soft-primary transition-opacity"
+								class="btn-icon btn-icon-sm opacity-0 group-hover:opacity-100 hover:preset-tonal-primary transition-opacity"
 								onclick={(e) => { e.stopPropagation(); handleViewDetails(item); }}
 								title="Details"
 							>
@@ -360,7 +360,7 @@
 						{/if}
 						{#if showEdit}
 							<button
-								class="btn-icon btn-icon-sm opacity-0 group-hover:opacity-100 hover:variant-soft-secondary transition-opacity"
+								class="btn-icon btn-icon-sm opacity-0 group-hover:opacity-100 hover:preset-tonal-secondary transition-opacity"
 								onclick={(e) => { e.stopPropagation(); handleEdit(item); }}
 								title="Edit"
 							>
@@ -369,7 +369,7 @@
 						{/if}
 						{#if showDelete}
 							<button
-								class="btn-icon btn-icon-sm opacity-0 group-hover:opacity-100 hover:variant-soft-error transition-opacity"
+								class="btn-icon btn-icon-sm opacity-0 group-hover:opacity-100 hover:preset-tonal-error transition-opacity"
 								onclick={(e) => { e.stopPropagation(); handleRemove(item); }}
 								title="Delete"
 							>
@@ -378,7 +378,7 @@
 						{/if}
 						{#if selectionMode === 'multiple' && !isSelected(item)}
 							<button
-								class="btn-icon btn-icon-sm opacity-0 group-hover:opacity-100 hover:variant-soft-success transition-opacity"
+								class="btn-icon btn-icon-sm opacity-0 group-hover:opacity-100 hover:preset-tonal-success transition-opacity"
 								onclick={(e) => { e.stopPropagation(); handleSelect(item); }}
 								title="Select"
 							>
@@ -400,10 +400,10 @@
 
 	<!-- Error State -->
 	{#if error}
-		<div class="alert variant-soft-error flex items-center gap-2">
+		<div class="alert preset-tonal-error flex items-center gap-2">
 			<Info size={16} />
 			<span class="flex-1">Error: {error.message}</span>
-			<button class="variant-filled-error btn btn-sm" onclick={reload}>Retry</button>
+			<button class="preset-filled-error btn btn-sm" onclick={reload}>Retry</button>
 		</div>
 	{/if}
 
@@ -421,7 +421,7 @@
 				<p>No items found.</p>
 			</div>
 		{:else if hasMore}
-			<button class="variant-soft-surface btn btn-sm" onclick={loadNextPage} disabled={loading}>
+			<button class="preset-tonal-surface btn btn-sm" onclick={loadNextPage} disabled={loading}>
 				{#if loading}
 					<Loader2 class="mr-2 animate-spin" size={14} /> Loading...
 				{:else}
@@ -454,7 +454,7 @@
 							</Dialog.Title>
 						</div>
 					</div>
-					<Dialog.CloseTrigger class="btn-icon btn-icon-sm hover:variant-soft-surface">
+					<Dialog.CloseTrigger class="btn-icon btn-icon-sm hover:preset-tonal-surface">
 						<X size={16} />
 					</Dialog.CloseTrigger>
 				</header>

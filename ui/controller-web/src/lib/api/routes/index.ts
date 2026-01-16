@@ -4,7 +4,10 @@ import { kernelManagerApi } from './kernel_manager';
 import { resolveApi } from './resolve';
 import { storageApi } from './storage';
 
-export async function fetchJson<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function fetchJson<T>(path: string, init: RequestInit = {}, query: URLSearchParams = new URLSearchParams()): Promise<T> {
+	if (query.toString()) {
+		path += `?${query.toString()}`;
+	}
 	let response = await fetch(path, {
 		headers: {
 			'Content-Type': 'application/json',
@@ -15,11 +18,16 @@ export async function fetchJson<T>(path: string, init: RequestInit = {}): Promis
 	response = await catchAndThrowHttpError(response);
 	return (await response.json()) as T;
 }
-export async function fetchQuery<T>(
-	url: string,
-	query: URLSearchParams,
-	init: RequestInit = {}
-): Promise<T> {
+
+export async function fetchQuery<T>(path: string, query: URLSearchParams = new URLSearchParams(), init: RequestInit = {}): Promise<T> {
+	if (query.toString()) {
+		path += `?${query.toString()}`;
+	}
+	let response = await fetch(path, init);
+	response = await catchAndThrowHttpError(response);
+	return (await response.json()) as T;
+}
+export async function fetchText(url: string, init: RequestInit = {}, query: URLSearchParams = new URLSearchParams()): Promise<string> {
 	let urlWithParams = url;
 	if (query.toString()) {
 		urlWithParams += `?${query.toString()}`;
@@ -28,7 +36,7 @@ export async function fetchQuery<T>(
 		...init
 	});
 	const checkedResponse = await catchAndThrowHttpError(response);
-	return (await checkedResponse.json()) as T;
+	return await checkedResponse.text();
 }
 
 async function catchAndThrowHttpError(response: Response): Promise<Response> {

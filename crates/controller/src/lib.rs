@@ -66,4 +66,7 @@ pub enum Error {
 
     #[error("Json Interpreter error: {0}")]
     JsonInterpreterError(#[from] crate::storage::JsonInterpreterError),
+
+    #[error("Link resolve error: {0}")]
+    LinkResolveError(#[from] crate::link_resolver::LinkResolveError),
 }

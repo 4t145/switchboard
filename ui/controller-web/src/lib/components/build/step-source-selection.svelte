@@ -150,9 +150,9 @@
 		<div class="flex items-center justify-between">
 			<h4 class="h4">Select Saved Configuration</h4>
 			<div class="flex gap-2">
-				<button class="variant-ghost-surface btn btn-sm" onclick={goBack}>Back</button>
+				<button class="preset-ghost-surface btn btn-sm" onclick={goBack}>Back</button>
 				<button
-					class="variant-filled-secondary btn btn-sm"
+					class="preset-filled-secondary btn btn-sm"
 					disabled={!selectedConfigId || isLoading}
 					onclick={confirmLoadSaved}
 				>
@@ -204,7 +204,7 @@
 				</p>
 			</label>
 		{:else}
-			<div class="alert variant-soft-info">
+			<div class="alert preset-tonal-info">
 				Will attempt to load configuration from the Kubernetes cluster currently configured in the
 				controller's environment.
 			</div>
@@ -219,9 +219,9 @@
 		</label>
 
 		<div class="flex justify-end gap-2 border-t border-surface-200 pt-4 dark:border-surface-700">
-			<button class="variant-ghost-surface btn" onclick={goBack}>Back</button>
+			<button class="preset-ghost-surface btn" onclick={goBack}>Back</button>
 			<button
-				class="variant-filled-tertiary btn"
+				class="preset-filled-tertiary btn"
 				disabled={(resolver === 'fs' && !fsPath) || isLoading}
 				onclick={confirmFromSource}
 			>

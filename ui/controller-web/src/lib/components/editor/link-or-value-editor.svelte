@@ -21,19 +21,20 @@
 	import ObjectPages from '$lib/components/object-pages.svelte';
 	import type { StorageObjectDescriptor } from '$lib/api/types';
 	import { shortRev } from '$lib/utils';
-	import { Tabs, FloatingPanel, Portal } from '@skeletonlabs/skeleton-svelte';
+	import { FloatingPanel, Portal, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 
 	// Define types matching Rust Link variants
 	type LinkKind = 'storage' | 'file' | 'http';
 
 	type Props = {
 		value: any;
+		dataFormat: 'string' | 'object'
 		dataType: string;
 		renderValue: any; // RenderSnippet
 		defaultValue: () => any;
 	};
 
-	let { value = $bindable(), dataType, renderValue, defaultValue }: Props = $props();
+	let { value = $bindable(), dataType, renderValue, dataFormat, defaultValue }: Props = $props();
 
 	// Helper function to check if a string is a valid URI
 	function isValidURI(str: string): boolean {
@@ -45,10 +46,6 @@
 			'ftp://',
 			'ftps://',
 			'storage://',
-			'data:',
-			'mailto:',
-			'tel:',
-			'sms:'
 		];
 		
 		// Check if string starts with any known URI scheme
@@ -58,35 +55,8 @@
 			}
 		}
 		
-		// Additional check for URLs without explicit scheme but with domain patterns
-		// This helps catch URLs that might be missing http:// prefix
-		if (str.includes('.')) {
-			// Check if it looks like a domain name (not just a filename)
-			const domainLikePattern = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
-			
-			// Additional validation: ensure it's not just a filename with extension
-			// Domain names should have at least one subdomain or TLD that's 2+ chars
-			if (domainLikePattern.test(str)) {
-				const parts = str.split('/')[0].split('.');  // Get domain part before any path
-				// Check if the last part (TLD) is at least 2 characters and not a common file extension
-				const lastPart = parts[parts.length - 1];
-				const commonFileExtensions = ['txt', 'json', 'xml', 'yml', 'yaml', 'conf', 'cfg', 'ini', 'log', 'md', 'csv'];
-				
-				// If it's a common file extension or less than 2 chars, don't treat as domain
-				if (commonFileExtensions.includes(lastPart.toLowerCase()) || lastPart.length < 2) {
-					return false;
-				}
-				
-				// Must have at least 2 parts (subdomain.tld or domain.tld)
-				if (parts.length >= 2) {
-					return true;
-				}
-			}
-		}
-		
 		return false;
 	}
-
 	// Parsing Helpers
 	function parseLink(val: any): { kind: LinkKind; data: any } | null {
 		if (typeof val === 'string') {
@@ -111,12 +81,6 @@
 			if (val.startsWith('ftp://') || val.startsWith('ftps://')) {
 				return { kind: 'http', data: val };
 			}
-			
-			// Handle domain-like strings as HTTP
-			const domainLikePattern = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/;
-			if (domainLikePattern.test(val)) {
-				return { kind: 'http', data: val.startsWith('http') ? val : `http://${val}` };
-			}
 		}
 		return null;
 	}
@@ -134,6 +98,14 @@
 	// Derived State
 	let linkState = $derived(parseLink(value));
 	let isLink = $derived(linkState !== null);
+	
+	// Editor mode control
+	let editorMode = $state<'reference' | 'inline'>('inline');
+	let linkMode = $state<LinkKind>('storage');
+
+	// Input Cache
+	let linkCache = $state<string>('');
+	let inlineCache = $state<any>(null);
 
 	// UI State
 	let isSelectingStorage = $state(false);
@@ -160,10 +132,43 @@
 		}
 	});
 
+	// Sync editor mode based on current value
+	$effect(() => {
+		editorMode = isLink ? 'reference' : 'inline';
+		if (linkState) {
+			linkMode = linkState.kind;
+		}
+	});
+
 	// Actions
+	function setEditorMode(mode: 'reference' | 'inline') {
+		if (mode === 'reference' && !isLink) {
+			// Switching to reference - try to use cache first, then default to storage
+			if (linkCache) {
+				inlineCache = value;  // Save current inline value
+				value = linkCache;
+			} else {
+				inlineCache = value;  // Save current inline value
+				value = formatLink('storage', { id: '', revision: '' });
+				linkMode = 'storage';
+			}
+		} else if (mode === 'inline' && isLink) {
+			// Switching to inline - only use cache, never fetch from server
+			linkCache = value;  // Save current link
+			if (inlineCache !== null) {
+				value = inlineCache;
+			} else {
+				value = defaultValue();
+			}
+		}
+		editorMode = mode;
+	}
+
 	function setLinkMode(kind: string) {
+		const linkKind = kind as LinkKind;
+		linkMode = linkKind;
 		// When switching, use the stored temp value if available, otherwise default
-		if (kind === 'storage') {
+		if (linkKind === 'storage') {
 			// Try to restore storage link if we have temp values
 			if (tempStorageId) {
 				value = formatLink('storage', { id: tempStorageId, revision: tempStorageRev || 'latest' });
@@ -172,9 +177,9 @@
 				// isSelectingStorage = true; // Removed auto-trigger for consistent input UI
 				value = formatLink('storage', { id: '', revision: '' });
 			}
-		} else if (kind === 'file') {
+		} else if (linkKind === 'file') {
 			value = `file://${tempFileValue}`;
-		} else if (kind === 'http') {
+		} else if (linkKind === 'http') {
 			// Default to http:// if empty, but respect existing temp value
 			const prefix = tempHttpValue.startsWith('http') ? '' : 'http://';
 			value = tempHttpValue ? tempHttpValue : 'http://';
@@ -207,18 +212,45 @@
 
 	async function switchToInline() {
 		if (!linkState) return;
+		if (isLink) {
+			loading = true;
+			linkCache = value;
+			value = inlineCache;
+			// try {
+			// 	let resolvedValue;
+			// 	if (dataFormat === 'object') {
+			// 		resolvedValue = await api.resolve.link_to_object(value);
+			// 	} else if (dataFormat === 'string'){
+			// 		resolvedValue = await api.resolve.link_to_string(value);
+			// 	}
+			// 	linkCache = value;
+			// 	value = resolvedValue;
+			// } catch (e) {
+			// 	console.error('Failed to resolve link to inline value', e);
+			// 	alert('Failed to resolve link: ' + e);
+			// } finally {
+			// 	loading = false;
+			// }
+		}
+	}
+
+	async function convertToInlineValue() {
+		if (!linkState) return;
 		loading = true;
 		try {
-			if (linkState.kind === 'storage') {
-				const descriptor = linkState.data;
-				const response = await api.storage.get(descriptor);
-				value = response;
-			} else {
-				alert('Cannot convert File or HTTP links to inline value automatically yet.');
+			let resolvedValue;
+			if (dataFormat === 'object') {
+				resolvedValue = await api.resolve.link_to_object(value);
+			} else if (dataFormat === 'string'){
+				resolvedValue = await api.resolve.link_to_string(value);
 			}
+			linkCache = value;  // Save current link
+			inlineCache = resolvedValue;  // Update cache with server value
+			value = resolvedValue;  // Set as current value
+			editorMode = 'inline';
 		} catch (e) {
-			console.error('Failed to fetch linked object', e);
-			alert('Failed to load object content: ' + e);
+			console.error('Failed to convert reference to inline value', e);
+			alert('Failed to convert reference: ' + e);
 		} finally {
 			loading = false;
 		}
@@ -262,7 +294,10 @@
 	function switchToReferenceMode() {
 		// Default to storage:// format to trigger link mode
 		if (!isLink) {
+			inlineCache = value;
 			value = 'storage://#';
+			editorMode = 'reference';
+			linkMode = 'storage';
 		}
 		// Open the storage selector
 		isSelectingStorage = true;
@@ -270,55 +305,85 @@
 </script>
 
 <div
-	class="variant-soft-surface space-y-4 card border border-surface-300 p-4 dark:border-surface-600"
+	class="space-y-4 card border border-surface-300 p-4 dark:border-surface-600"
 >
-	<!-- Header Controls -->
-	<div
-		class="mb-2 flex items-center justify-between border-b border-surface-300 pb-2 dark:border-surface-600"
-	>
-		<div class="flex items-center gap-2">
-			{#if isLink || isSelectingStorage}
-				<LinkIcon size={16} class="text-tertiary-500" />
-				<span class="font-bold text-tertiary-600 dark:text-tertiary-400">Reference (Link)</span>
-			{:else}
-				<PenSquare size={16} class="text-secondary-500" />
-				<span class="font-bold text-secondary-600 dark:text-secondary-400">Inline Value</span>
-			{/if}
-		</div>
+<!-- Header Controls -->
+	<div class="flex flex-row items-center gap-4 space-x-2">
+		<!-- Main Mode Selector -->
+		<SegmentedControl 
+			value={editorMode} 
+			orientation="horizontal"
+			onValueChange={(details) => {
+				if (details.value) setEditorMode(details.value as 'reference' | 'inline');
+			}}
+		>
+			<SegmentedControl.Label class="text-sm font-medium mb-2 block">Editor Mode</SegmentedControl.Label>
+			<SegmentedControl.Control>
+				<SegmentedControl.Indicator />
+				<SegmentedControl.Item value="reference">
+					<SegmentedControl.ItemText>
+						<LinkIcon size={16} class="inline-block" />
+						Reference
+					</SegmentedControl.ItemText>
+					<SegmentedControl.ItemHiddenInput />
+				</SegmentedControl.Item>
+				<SegmentedControl.Item value="inline">
+					<SegmentedControl.ItemText>
+						<PenSquare size={16} class="inline-block" />
+						Inline
+					</SegmentedControl.ItemText>
+					<SegmentedControl.ItemHiddenInput />
+				</SegmentedControl.Item>
+			</SegmentedControl.Control>
+		</SegmentedControl>
 
-		<div class="flex gap-2">
-			{#if isLink}
-				{#if linkState?.kind === 'storage'}
-					<button
-						class="variant-filled-secondary btn btn-sm"
-						onclick={switchToInline}
-						disabled={loading}
-					>
-						<ArrowRightLeft size={14} class="mr-1" /> Convert to Inline
-					</button>
-				{/if}
-				<button class="variant-ghost-surface btn btn-sm" onclick={switchToDefaultValue}>
-					Switch to Inline (Reset)
-				</button>
-			{:else if !isSelectingStorage && !isLink}
-				<button
-					class="variant-filled-tertiary btn btn-sm"
-					onclick={startPromote}
-					disabled={loading}
-				>
-					<Upload size={14} class="mr-1" /> Save as Link
-				</button>
-				<button class="variant-ghost-surface btn btn-sm" onclick={switchToReferenceMode}>
-					Switch to Reference
-				</button>
-			{/if}
+		<!-- Link Type Selector (only shown in reference mode) -->
+		{#if editorMode === 'reference'}
+			<SegmentedControl 
+				value={linkMode} 
+				orientation="horizontal"
+				onValueChange={(details) => {
+					if (details.value) setLinkMode(details.value);
+				}}
+			>
+				<SegmentedControl.Label class="text-sm font-medium mb-2 block">Link Type</SegmentedControl.Label>
+				<SegmentedControl.Control>
+					<SegmentedControl.Indicator />
+					<SegmentedControl.Item value="storage">
+						<SegmentedControl.ItemText>
+							<Database size={14} class="mr-1 inline-block" />
+							Storage
+						</SegmentedControl.ItemText>
+						<SegmentedControl.ItemHiddenInput />
+					</SegmentedControl.Item>
+					<SegmentedControl.Item value="file">
+						<SegmentedControl.ItemText>
+							<FileText size={14} class="mr-1 inline-block" />
+							File
+						</SegmentedControl.ItemText>
+						<SegmentedControl.ItemHiddenInput />
+					</SegmentedControl.Item>
+					<SegmentedControl.Item value="http">
+						<SegmentedControl.ItemText>
+							<Globe size={14} class="mr-1 inline-block" />
+							HTTP
+						</SegmentedControl.ItemText>
+						<SegmentedControl.ItemHiddenInput />
+					</SegmentedControl.Item>
+				</SegmentedControl.Control>
+			</SegmentedControl>
+		{/if}
+
+		<!-- Action Buttons -->
+		<div class="flex justify-between items-center">
+
 		</div>
 	</div>
 
 	<!-- Content Area -->
 	{#if isPromoting}
 		<!-- Promote Dialog -->
-		<div class="alert variant-filled-surface animate-fade-in flex flex-col gap-4">
+		<div class="alert preset-filled-surface animate-fade-in flex flex-col gap-4">
 			<div class="flex items-center justify-between">
 				<span class="font-bold">Save current value as shared object</span>
 				<button class="btn-icon btn-icon-sm" onclick={() => (isPromoting = false)}
@@ -335,11 +400,11 @@
 				/>
 			</label>
 			<div class="flex justify-end gap-2">
-				<button class="variant-ghost btn btn-sm" onclick={() => (isPromoting = false)}
-					>Cancel</button
-				>
-				<button
-					class="variant-filled-primary btn btn-sm"
+			<button class="preset-ghost btn btn-sm" onclick={() => (isPromoting = false)}
+				>Cancel</button
+			>
+			<button
+				class="preset-filled-primary btn btn-sm"
 					onclick={confirmPromote}
 					disabled={!promoteId || loading}
 				>
@@ -347,148 +412,123 @@
 				</button>
 			</div>
 		</div>
-		<!-- Storage Selector -->
-		<!-- Removed inline storage selector since we use popover now -->
-	{:else if isLink && linkState}
-		<!-- Link Type Selector & Editor -->
-		<Tabs value={linkState.kind} onValueChange={(e) => setLinkMode(e.value)}>
-			<Tabs.List class="w-full">
-				<Tabs.Trigger value="storage" class="flex-1">
-					<Database size={14} class="mr-1 inline-block" /> Storage
-				</Tabs.Trigger>
-				<Tabs.Trigger value="file" class="flex-1">
-					<FileText size={14} class="mr-1 inline-block" /> File
-				</Tabs.Trigger>
-				<Tabs.Trigger value="http" class="flex-1">
-					<Globe size={14} class="mr-1 inline-block" /> HTTP
-				</Tabs.Trigger>
-				<Tabs.Indicator />
-			</Tabs.List>
-			<Tabs.Content value="storage">
-				<div class="input-group-divider input-group grid-cols-[auto_1fr_auto_auto_auto]">
-					<div class="ig-cell preset-tonal">storage://</div>
-					<input
-						class="ig-input"
-						type="text"
-						value={tempStorageId}
-						oninput={(e) => updateLinkString('storage', e.currentTarget.value)}
-						placeholder="object-id"
-					/>
-					<div class="ig-cell border-l border-surface-400/20">#</div>
-					<input
-						class="ig-input w-24 border-l-0"
-						type="text"
-						value={tempStorageRev}
-						oninput={(e) => updateLinkString('storage', tempStorageId, e.currentTarget.value)}
-						placeholder="rev"
-					/>
-					<FloatingPanel
-						open={isSelectingStorage}
-						onOpenChange={(e) => (isSelectingStorage = e.open)}
-                        minSize={{ width: 900, height: 600 }}
-                        defaultSize={{ width: 900, height: 600 }}
+	{:else if editorMode === 'reference'}
+		<!-- Reference Mode Content -->
+		{#if linkMode === 'storage'}
+			<div class="input-group-divider input-group grid-cols-[auto_1fr_auto_auto_auto]">
+				<div class="ig-cell preset-tonal">storage://</div>
+				<input
+					class="ig-input"
+					type="text"
+					value={tempStorageId}
+					oninput={(e) => updateLinkString('storage', e.currentTarget.value)}
+					placeholder="object-id"
+				/>
+				<div class="ig-cell border-l border-surface-400/20">#</div>
+				<input
+					class="ig-input w-24 border-l-0"
+					type="text"
+					value={tempStorageRev}
+					oninput={(e) => updateLinkString('storage', tempStorageId, e.currentTarget.value)}
+					placeholder="rev"
+				/>
+				<FloatingPanel
+					open={isSelectingStorage}
+					onOpenChange={(e) => (isSelectingStorage = e.open)}
+                    minSize={{ width: 900, height: 600 }}
+                    defaultSize={{ width: 900, height: 600 }}
+				>
+					<FloatingPanel.Trigger
+						class="preset-filled-surface btn rounded-none btn-sm"
+						title="Open Selector"
 					>
-						<FloatingPanel.Trigger
-							class="variant-filled-surface btn rounded-none btn-sm"
-							title="Open Selector"
-						>
-							<Search size={16} />
-						</FloatingPanel.Trigger>
-						<Portal>
-							<FloatingPanel.Positioner class="z-50">
-								<FloatingPanel.Content >
-									<FloatingPanel.DragTrigger>
-                                        <FloatingPanel.DragTrigger>
-                                            <FloatingPanel.Header>
-                                                <FloatingPanel.Title>
-                                                    <GripVerticalIcon class="size-4" />
-                                                    Select {dataType} from storage
-                                                </FloatingPanel.Title>
-                                                <FloatingPanel.Control>
-                                                    <FloatingPanel.StageTrigger stage="minimized">
-                                                        <MinusIcon class="size-4" />
-                                                    </FloatingPanel.StageTrigger>
-                                                    <FloatingPanel.StageTrigger stage="maximized">
-                                                        <MaximizeIcon class="size-4" />
-                                                    </FloatingPanel.StageTrigger>
-                                                    <FloatingPanel.StageTrigger stage="default">
-                                                        <MinimizeIcon class="size-4" />
-                                                    </FloatingPanel.StageTrigger>
-                                                    <FloatingPanel.CloseTrigger>
-                                                        <XIcon class="size-4" />
-                                                    </FloatingPanel.CloseTrigger>
-                                                </FloatingPanel.Control>
-                                            </FloatingPanel.Header>
-                                        </FloatingPanel.DragTrigger>
-									</FloatingPanel.DragTrigger>
-									<FloatingPanel.Body class="overflow-y-auto">
-										<ObjectPages
-											pageSize={5}
-											filter={{
-												data_type: dataType,
-												latest_only: true,
-												lockedFields: ['dataType']
-											}}
-											selectionMode="single"
-											onSelect={selectStorageLink}
-											showViewDetails={false}
-											showEdit={false}
-											showDelete={false}
-										/>
-									</FloatingPanel.Body>
-									<FloatingPanel.ResizeTrigger axis="se" />
-								</FloatingPanel.Content>
-							</FloatingPanel.Positioner>
-						</Portal>
-					</FloatingPanel>
-				</div>
-				<!-- 
-                {#if tempStorageId}
-                     <div class="mt-2 flex items-center gap-2 text-xs text-success-500">
-                        <CheckCircle size={12}/> Valid object reference
-                     </div>
-                {/if}
-                -->
-			</Tabs.Content>
-			<Tabs.Content value="file">
-				<div class="input-group-divider input-group grid-cols-[auto_1fr]">
-					<div class="ig-cell preset-tonal">file://</div>
-					<input
-						class="ig-input"
-						type="text"
-						value={tempFileValue}
-						oninput={(e) => updateLinkString('file', e.currentTarget.value)}
-						placeholder="/path/to/config.json"
-					/>
-				</div>
-			</Tabs.Content>
-			<Tabs.Content value="http">
-				<div class="input-group-divider input-group grid-cols-[auto_1fr]">
-					<select
-						class="ig-select preset-tonal"
-						value={tempHttpValue.startsWith('https') ? 'https://' : 'http://'}
-						onchange={(e) => {
-							const scheme = e.currentTarget.value;
-							const current = tempHttpValue.replace(/^https?:\/\//, '');
-							updateLinkString('http', scheme + current);
-						}}
-					>
-						<option value="http://">http://</option>
-						<option value="https://">https://</option>
-					</select>
-					<input
-						class="ig-input"
-						type="text"
-						value={tempHttpValue.replace(/^https?:\/\//, '')}
-						oninput={(e) => {
-							const scheme = tempHttpValue.startsWith('https') ? 'https://' : 'http://';
-							updateLinkString('http', scheme + e.currentTarget.value);
-						}}
-						placeholder="example.com/config.json"
-					/>
-				</div>
-			</Tabs.Content>
-		</Tabs>
+						<Search size={16} />
+					</FloatingPanel.Trigger>
+					<Portal>
+						<FloatingPanel.Positioner class="z-50">
+							<FloatingPanel.Content >
+								<FloatingPanel.DragTrigger>
+                                    <FloatingPanel.DragTrigger>
+                                        <FloatingPanel.Header>
+                                            <FloatingPanel.Title>
+                                                <GripVerticalIcon class="size-4" />
+                                                Select {dataType} from storage
+                                            </FloatingPanel.Title>
+                                            <FloatingPanel.Control>
+                                                <FloatingPanel.StageTrigger stage="minimized">
+                                                    <MinusIcon class="size-4" />
+                                                </FloatingPanel.StageTrigger>
+                                                <FloatingPanel.StageTrigger stage="maximized">
+                                                    <MaximizeIcon class="size-4" />
+                                                </FloatingPanel.StageTrigger>
+                                                <FloatingPanel.StageTrigger stage="default">
+                                                    <MinimizeIcon class="size-4" />
+                                                </FloatingPanel.StageTrigger>
+                                                <FloatingPanel.CloseTrigger>
+                                                    <XIcon class="size-4" />
+                                                </FloatingPanel.CloseTrigger>
+                                            </FloatingPanel.Control>
+                                        </FloatingPanel.Header>
+                                    </FloatingPanel.DragTrigger>
+								</FloatingPanel.DragTrigger>
+								<FloatingPanel.Body class="overflow-y-auto">
+									<ObjectPages
+										pageSize={5}
+										filter={{
+											data_type: dataType,
+											latest_only: true,
+											lockedFields: ['dataType']
+										}}
+										selectionMode="single"
+										onSelect={selectStorageLink}
+										showViewDetails={false}
+										showEdit={false}
+										showDelete={false}
+									/>
+								</FloatingPanel.Body>
+								<FloatingPanel.ResizeTrigger axis="se" />
+							</FloatingPanel.Content>
+						</FloatingPanel.Positioner>
+					</Portal>
+				</FloatingPanel>
+			</div>
+		{:else if linkMode === 'file'}
+			<div class="input-group-divider input-group grid-cols-[auto_1fr]">
+				<div class="ig-cell preset-tonal">file://</div>
+				<input
+					class="ig-input"
+					type="text"
+					value={tempFileValue}
+					oninput={(e) => updateLinkString('file', e.currentTarget.value)}
+					placeholder="/path/to/config.json"
+				/>
+			</div>
+		{:else if linkMode === 'http'}
+			<div class="input-group-divider input-group grid-cols-[auto_1fr]">
+				<select
+					class="ig-select preset-tonal"
+					value={tempHttpValue.startsWith('https') ? 'https://' : 'http://'}
+					onchange={(e) => {
+						const scheme = e.currentTarget.value;
+						const current = tempHttpValue.replace(/^https?:\/\//, '');
+						updateLinkString('http', scheme + current);
+					}}
+				>
+					<option value="http://">http://</option>
+					<option value="https://">https://</option>
+				</select>
+				<input
+					class="ig-input"
+					type="text"
+					value={tempHttpValue.replace(/^https?:\/\//, '')}
+					oninput={(e) => {
+						const scheme = tempHttpValue.startsWith('https') ? 'https://' : 'http://';
+						updateLinkString('http', scheme + e.currentTarget.value);
+					}}
+					placeholder="example.com/config.json"
+				/>
+			</div>
+		{/if}
 	{:else}
 		<!-- Inline Value Editor -->
 		{@render renderValue()}

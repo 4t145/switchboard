@@ -5,6 +5,8 @@ To assist AI agents in writing Skeleton UI related code, please refer to the fol
 - **URL**: https://www.skeleton.dev/llms.txt
 
 This file contains the documentation structure for both React and Svelte versions of Skeleton UI components. During development, if specific component usage needs to be consulted, Opencode can use the `webfetch` tool to retrieve the latest documentation index from this URL, or lookup specific component documentation based on the index.
+### Styling
+You should look up the "presets" sector of skeleton document to know how to use skeleton style classes, instead of use "variant-xx" classes.
 
 ## Language Guidelines
 

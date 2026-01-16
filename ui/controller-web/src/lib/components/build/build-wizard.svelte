@@ -1,10 +1,16 @@
 <script lang="ts">
-	import { Check, ChevronRight, Save } from 'lucide-svelte';
+	import { Save } from 'lucide-svelte';
+	import { Steps } from '@skeletonlabs/skeleton-svelte';
 	import StepSourceSelection from './step-source-selection.svelte';
 	import StepConfigEditor from './step-config-editor.svelte';
 	import type { HumanReadableServiceConfig } from '$lib/api/types';
 
-	let currentStep = $state<number>(1);
+	const stepDefinitions = [
+		{ title: 'Select Source', description: 'Choose configuration source' },
+		{ title: 'Edit Configuration', description: 'Customize your settings' }
+	];
+
+	let currentStep = $state<number>(0);
 	let config = $state<HumanReadableServiceConfig | null>(null);
 	let sourceSummary = $state<string>('');
 	let saveAs = $state<string | undefined>(undefined);
@@ -17,12 +23,7 @@
 		config = loadedConfig as HumanReadableServiceConfig;
 		sourceSummary = summary;
 		saveAs = saveAsVal;
-		currentStep = 2;
-	}
-
-	function goToStep(step: number) {
-		if (currentStep < step) return; // Prevent jumping forward
-		currentStep = step;
+		currentStep = 1;
 	}
 
 	function handleSave() {
@@ -32,76 +33,50 @@
 	}
 </script>
 
-<div class="flex h-full flex-col">
-	<!-- Top Bar Stepper -->
+<Steps
+	step={currentStep}
+	onStepChange={(details) => (currentStep = details.step)}
+	count={stepDefinitions.length}
+	linear
+	class="flex h-full flex-col"
+>
+	<!-- Top Bar with Steps Navigation -->
 	<div
 		class="flex flex-none items-center justify-between border-b border-surface-200 bg-surface-50 p-4 dark:border-surface-700 dark:bg-surface-900"
 	>
-		<div class="flex items-center gap-2 overflow-x-auto">
-			<!-- Step 1 Indicator -->
-			<button
-				class="flex items-center gap-2 rounded px-3 py-2 transition-colors
-                {currentStep === 1
-					? 'bg-primary-100 font-bold text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
-					: currentStep > 1
-						? 'text-surface-600 hover:bg-surface-200 dark:text-surface-300 dark:hover:bg-surface-800'
-						: 'opacity-50'}"
-				onclick={() => goToStep(1)}
-			>
-				<div
-					class="flex h-6 w-6 items-center justify-center rounded-full border text-xs
-                    {currentStep >= 1
-						? 'border-primary-500 bg-primary-500 text-white'
-						: 'border-surface-400'}"
-				>
-					{#if currentStep > 1}
-						<Check size={14} />
-					{:else}
-						1
+		<Steps.List class="flex items-center gap-2 overflow-x-auto">
+			{#each stepDefinitions as step, index}
+				<Steps.Item {index}>
+					<Steps.Trigger
+						class="flex items-center gap-2 rounded px-3 py-2 transition-colors data-[current]:bg-primary-100 data-[current]:font-bold data-[current]:text-primary-700 data-[complete]:text-surface-600 data-[complete]:hover:bg-surface-200 data-[incomplete]:cursor-not-allowed data-[incomplete]:opacity-50 dark:data-[current]:bg-primary-900/30 dark:data-[current]:text-primary-300 dark:data-[complete]:text-surface-300 dark:data-[complete]:hover:bg-surface-800 dark:data-[incomplete]:text-surface-500"
+					>
+						<Steps.Indicator
+							class="flex h-6 w-6 items-center justify-center rounded-full border text-xs data-[current]:border-primary-500 data-[current]:bg-primary-500 data-[current]:text-white data-[complete]:border-primary-500 data-[complete]:bg-primary-500 data-[complete]:text-white data-[incomplete]:border-surface-400"
+						>
+							{index + 1}
+						</Steps.Indicator>
+						<span class="whitespace-nowrap">{step.title}</span>
+					</Steps.Trigger>
+					{#if index < stepDefinitions.length - 1}
+						<Steps.Separator class="mx-2 h-px w-8 bg-surface-300 dark:bg-surface-600" />
 					{/if}
-				</div>
-				<span class="whitespace-nowrap">Select Source</span>
-			</button>
+				</Steps.Item>
+			{/each}
+		</Steps.List>
 
-			<ChevronRight size={16} class="text-surface-400" />
-
-			<!-- Step 2 Indicator -->
-			<button
-				class="flex items-center gap-2 rounded px-3 py-2 transition-colors
-                {currentStep === 2
-					? 'bg-primary-100 font-bold text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
-					: currentStep > 2
-						? 'text-surface-600 hover:bg-surface-200 dark:text-surface-300 dark:hover:bg-surface-800'
-						: 'cursor-not-allowed text-surface-400 dark:text-surface-500'}"
-				onclick={() => goToStep(2)}
-				disabled={currentStep < 2}
-			>
+		<!-- Optional Summary and Actions -->
+		<div class="flex items-center ">
+			{#if currentStep > 0 && sourceSummary}
 				<div
-					class="flex h-6 w-6 items-center justify-center rounded-full border text-xs
-                    {currentStep >= 2
-						? 'border-primary-500 bg-primary-500 text-white'
-						: 'border-surface-400'}"
-				>
-					2
-				</div>
-				<span class="whitespace-nowrap">Edit Configuration</span>
-			</button>
-
-			<!-- Optional Summary in Header -->
-			{#if currentStep > 1 && sourceSummary}
-				<div
-					class="ml-4 hidden items-center border-l border-surface-300 pl-4 md:flex dark:border-surface-600"
+					class="hidden items-center border-l border-surface-300 pl-4 md:flex dark:border-surface-600"
 				>
 					<span class="mr-2 text-xs text-surface-500">Source:</span>
-					<span class="variant-soft-secondary badge text-xs">{sourceSummary}</span>
+					<span class="preset-tonal-secondary badge text-xs">{sourceSummary}</span>
 				</div>
 			{/if}
-		</div>
 
-		<!-- Right Actions -->
-		<div class="flex items-center gap-2">
-			{#if currentStep === 2}
-				<button class="variant-filled-primary btn btn-sm" onclick={handleSave}>
+			{#if currentStep === 1 && config}
+				<button class="preset-filled-primary btn btn-sm" onclick={handleSave}>
 					<Save size={16} class="mr-2" />
 					Save / Deploy
 				</button>
@@ -111,12 +86,8 @@
 
 	<!-- Main Content Area -->
 	<div class="relative flex-1 overflow-hidden">
-		<!-- Step 1 Content -->
-		<!-- Using visibility/display toggling via absolute positioning to preserve state -->
-		<div
-			class="absolute inset-0 overflow-auto bg-surface-50 p-6 transition-opacity duration-300 dark:bg-surface-900"
-			class:hidden={currentStep !== 1}
-		>
+		<!-- Step 0: Source Selection -->
+		<Steps.Content index={0} class="absolute inset-0 overflow-auto bg-surface-50 p-6 dark:bg-surface-900">
 			<div class="mx-auto flex h-full max-w-6xl flex-col justify-center">
 				<div class="mb-8 text-center">
 					<h2 class="mb-2 h2 font-bold">How would you like to start?</h2>
@@ -124,14 +95,17 @@
 				</div>
 				<StepSourceSelection onNext={onSourceSelected} />
 			</div>
-		</div>
+		</Steps.Content>
 
-		<!-- Step 2 Content -->
-		<!-- Conditional rendering for Step 2 is fine as it depends on config loaded in Step 1 -->
-		{#if currentStep === 2 && config}
-			<div class="absolute inset-0 overflow-hidden bg-surface-50 p-4 dark:bg-surface-900">
+		<!-- Step 1: Config Editor -->
+		<Steps.Content index={1} class="absolute inset-0 overflow-hidden bg-surface-50 p-4 dark:bg-surface-900">
+			{#if config}
 				<StepConfigEditor bind:config />
-			</div>
-		{/if}
+			{:else}
+				<div class="flex h-full items-center justify-center">
+					<p class="text-surface-500">Loading configuration...</p>
+				</div>
+			{/if}
+		</Steps.Content>
 	</div>
-</div>
+</Steps>
