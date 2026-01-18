@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { settingsStore } from '$lib/stores/settings.svelte';
+	import { m } from '$lib/paraglide/messages';
 	import { Moon, Sun } from 'lucide-svelte';
+	
+	const msg = m as any;
 	
 	function toggle() {
 		settingsStore.darkMode = !settingsStore.darkMode;
@@ -10,8 +13,8 @@
 <div class="card border border-surface-300 p-5 dark:border-surface-600">
 	<div class="flex items-center justify-between gap-4">
 		<div class="flex-1">
-			<div class="mb-1 font-semibold">深色模式</div>
-			<div class="text-sm opacity-75">切换界面的明暗显示</div>
+			<div class="mb-1 font-semibold">{msg.settings_darkmode_label()}</div>
+			<div class="text-sm opacity-75">{msg.settings_darkmode_desc()}</div>
 		</div>
 
 		<!-- Custom Toggle Switch -->

@@ -3,6 +3,8 @@
  * Uses Svelte 5 runes for reactive state management
  */
 
+import { setLocale } from '$lib/paraglide/runtime';
+
 // Type definitions
 export type ThemeName = 'vintage' | 'modern' | 'rocket' | 'seafoam' | 'skeleton' | 'sahara';
 export type LanguageCode = 'zh' | 'en';
@@ -115,6 +117,9 @@ class SettingsStore {
 		} else {
 			document.documentElement.classList.remove('dark');
 		}
+
+		// Apply language
+		setLocale(this.settings.language);
 	}
 
 	/**
@@ -159,7 +164,7 @@ class SettingsStore {
 	set language(value: LanguageCode) {
 		this.settings.language = value;
 		this.save();
-		// Language application will be handled by Paraglide integration
+		setLocale(value); // Update Paraglide language
 	}
 
 	/**

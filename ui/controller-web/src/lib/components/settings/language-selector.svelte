@@ -1,15 +1,18 @@
 <script lang="ts">
 	import { settingsStore, type LanguageCode } from '$lib/stores/settings.svelte';
+	import { m } from '$lib/paraglide/messages';
+
+	const msg = m as any;
 
 	const languages: { code: LanguageCode; name: string; flag: string; nativeName: string }[] = [
-		{ code: 'zh', name: 'Chinese', flag: '🇨🇳', nativeName: '中文' },
-		{ code: 'en', name: 'English', flag: '🇺🇸', nativeName: 'English' }
+		{ code: 'zh', name: msg.settings_language_zh(), flag: '🇨🇳', nativeName: '中文' },
+		{ code: 'en', name: msg.settings_language_en(), flag: '🇺🇸', nativeName: 'English' }
 	];
 </script>
 
 <div class="space-y-3">
 	<label class="label mb-2">
-		<span class="text-base font-semibold">界面语言</span>
+		<span class="text-base font-semibold">{msg.settings_language_label()}</span>
 	</label>
 
 	<div class="space-y-2">
