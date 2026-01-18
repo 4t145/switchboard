@@ -80,15 +80,16 @@
 		onValueChange={(e) => {
 			activeTab = e.value as 'services' | 'tls';
 		}}
+		class="flex h-full flex-col"
 	>
-		<Tabs.List class="mb-4">
+		<Tabs.List class="mb-4 flex-none">
 			<Tabs.Trigger value="services">Services</Tabs.Trigger>
 			<Tabs.Trigger value="tls">TLS</Tabs.Trigger>
 			<Tabs.Indicator />
 		</Tabs.List>
 
-		<Tabs.Content value="services">
-			<div class="h-[calc(100vh-12rem)]">
+		<Tabs.Content value="services" class="flex-1 overflow-hidden">
+			<div class="h-full">
 				<ListEditor
 					bind:items={config.tcp_services}
 					title="TCP Services"
@@ -108,8 +109,8 @@
 			</div>
 		</Tabs.Content>
 
-		<Tabs.Content value="tls">
-			<div class="h-[calc(100vh-12rem)]">
+		<Tabs.Content value="tls" class="flex-1 overflow-hidden">
+			<div class="h-full">
 				<ListEditor
 					bind:items={config.tls}
 					title="TLS Configurations"

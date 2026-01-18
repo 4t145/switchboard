@@ -4,7 +4,14 @@
 
 @import '@skeletonlabs/skeleton';
 @import '@skeletonlabs/skeleton-svelte';
+
+/* Import all available themes */
 @import '@skeletonlabs/skeleton/themes/vintage';
+@import '@skeletonlabs/skeleton/themes/modern';
+@import '@skeletonlabs/skeleton/themes/rocket';
+@import '@skeletonlabs/skeleton/themes/seafoam';
+@import '@skeletonlabs/skeleton/themes/skeleton';
+@import '@skeletonlabs/skeleton/themes/sahara';
 
 input::placeholder {
 	font-style: italic;

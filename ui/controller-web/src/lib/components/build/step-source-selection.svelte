@@ -5,19 +5,20 @@
 	import { shortRev } from '$lib/utils';
 
 	let {
+		mode = $bindable('select'),
+		canProceed = $bindable(false),
+		isLoading = $bindable(false),
 		onNext,
-		initialMode = 'select',
 		initialResolver = 'fs',
 		initialFsPath = ''
 	} = $props<{
+		mode?: 'select' | 'load-saved' | 'from-source';
+		canProceed?: boolean;
+		isLoading?: boolean;
 		onNext: (config: Record<string, any>, summary: string, saveAs?: string) => void;
-		initialMode?: 'select' | 'load-saved' | 'from-source';
 		initialResolver?: 'k8s' | 'fs';
 		initialFsPath?: string;
 	}>();
-
-	let mode = $state(initialMode);
-	let isLoading = $state(false);
 
 	// --- Load Saved State ---
 	let selectedConfigId = $state<string | null>(null);
@@ -27,6 +28,17 @@
 	let resolver = $state(initialResolver);
 	let fsPath = $state(initialFsPath);
 	let saveAs = $state<string>(''); // For from-source save_as parameter
+
+	// Update canProceed based on current mode and form state
+	$effect(() => {
+		if (mode === 'select') {
+			canProceed = false;
+		} else if (mode === 'load-saved') {
+			canProceed = !!selectedConfigId;
+		} else if (mode === 'from-source') {
+			canProceed = resolver === 'fs' ? !!fsPath : true;
+		}
+	});
 
 	// --- Actions ---
 
@@ -60,6 +72,7 @@
 			);
 		} catch (e) {
 			console.error('Failed to fetch config details', e);
+			alert('Failed to load configuration: ' + e);
 		} finally {
 			isLoading = false;
 		}
@@ -88,6 +101,9 @@
 			isLoading = false;
 		}
 	}
+
+	// Expose functions for parent to call
+	export { confirmLoadSaved, confirmFromSource };
 
 	function goBack() {
 		mode = 'select';
@@ -147,22 +163,7 @@
 	</div>
 {:else if mode === 'load-saved'}
 	<div class="animate-fade-in space-y-4">
-		<div class="flex items-center justify-between">
-			<h4 class="h4">Select Saved Configuration</h4>
-			<div class="flex gap-2">
-				<button class="preset-ghost-surface btn btn-sm" onclick={goBack}>Back</button>
-				<button
-					class="preset-filled-secondary btn btn-sm"
-					disabled={!selectedConfigId || isLoading}
-					onclick={confirmLoadSaved}
-				>
-					{#if isLoading}
-						<Loader2 class="mr-2 animate-spin" size={16} />
-					{/if}
-					Load Selected
-				</button>
-			</div>
-		</div>
+		<h4 class="h4">选择已保存的配置</h4>
 
 		<!-- Reusing ObjectPages Component -->
 		<div
@@ -185,7 +186,7 @@
 	</div>
 {:else if mode === 'from-source'}
 	<div class="animate-fade-in space-y-4">
-		<h4 class="h4">Configure Source</h4>
+		<h4 class="h4">配置源</h4>
 
 		<label class="label">
 			<span>Resolver Type</span>
@@ -217,19 +218,5 @@
 				If provided, the resolved configuration will be saved to storage with this ID.
 			</p>
 		</label>
-
-		<div class="flex justify-end gap-2 border-t border-surface-200 pt-4 dark:border-surface-700">
-			<button class="preset-ghost-surface btn" onclick={goBack}>Back</button>
-			<button
-				class="preset-filled-tertiary btn"
-				disabled={(resolver === 'fs' && !fsPath) || isLoading}
-				onclick={confirmFromSource}
-			>
-				{#if isLoading}
-					<Loader2 class="mr-2 animate-spin" size={16} />
-				{/if}
-				Resolve & Build
-			</button>
-		</div>
 	</div>
 {/if}

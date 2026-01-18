@@ -2,6 +2,7 @@
 	import { Navigation } from '@skeletonlabs/skeleton-svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import {
 		ChevronLeft,
 		ChevronDown,
@@ -20,22 +21,18 @@
 		Factory
 	} from 'lucide-svelte';
 	import Logo from '$lib/components/logo.svelte';
+	import { settingsStore } from '$lib/stores/settings.svelte';
+	
 	let { children } = $props();
 
 	let isLayoutRail = $state(false);
 	let isMobileMenuOpen = $state(false);
-	let isDarkMode = $state(false);
-	let showLangMenu = $state(false);
-	let showUserMenu = $state(false);
-	let currentLanguage = $state('zh');
 
-	// 语言选项
-	const languages = [
-		{ code: 'zh', name: '中文', flag: '🇨🇳' },
-		{ code: 'en', name: 'English', flag: '🇺🇸' },
-		{ code: 'ja', name: '日本語', flag: '🇯🇵' },
-		{ code: 'ko', name: '한국어', flag: '🇰🇷' }
-	];
+	// Initialize settings on mount
+	onMount(() => {
+		settingsStore.load();
+		settingsStore.apply();
+	});
 
 	// 图标组件映射
 	const iconComponents = {
@@ -89,22 +86,6 @@
 
 	function isActive(href: string): boolean {
 		return currentPath === href || currentPath.startsWith(href + '/');
-	}
-
-	function toggleDarkMode() {
-		isDarkMode = !isDarkMode;
-		// 这里可以添加实际的主题切换逻辑
-		if (isDarkMode) {
-			document.documentElement.classList.add('dark');
-		} else {
-			document.documentElement.classList.remove('dark');
-		}
-	}
-
-	function changeLanguage(langCode: string) {
-		currentLanguage = langCode;
-		// 这里可以添加实际的语言切换逻辑
-		console.log('Language changed to:', langCode);
 	}
 </script>
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Save } from 'lucide-svelte';
+	import { Save, Loader2 } from 'lucide-svelte';
 	import { Steps } from '@skeletonlabs/skeleton-svelte';
 	import StepSourceSelection from './step-source-selection.svelte';
 	import StepConfigEditor from './step-config-editor.svelte';
@@ -15,6 +15,14 @@
 	let sourceSummary = $state<string>('');
 	let saveAs = $state<string | undefined>(undefined);
 
+	// Source selection sub-step states
+	let sourceMode = $state<'select' | 'load-saved' | 'from-source'>('select');
+	let canProceed = $state(false);
+	let isLoadingSource = $state(false);
+
+	// Reference to child component
+	let stepSourceSelectionRef: any;
+
 	function onSourceSelected(
 		loadedConfig: Record<string, any>,
 		summary: string,
@@ -24,6 +32,28 @@
 		sourceSummary = summary;
 		saveAs = saveAsVal;
 		currentStep = 1;
+		// Reset source mode when moving to next step
+		sourceMode = 'select';
+	}
+
+	function handleGoBackToSource() {
+		currentStep = 0;
+		config = null;
+		sourceSummary = '';
+		saveAs = undefined;
+		sourceMode = 'select';
+	}
+
+	function handleCancelSubStep() {
+		sourceMode = 'select';
+	}
+
+	async function handleConfirmSubStep() {
+		if (sourceMode === 'load-saved' && stepSourceSelectionRef) {
+			await stepSourceSelectionRef.confirmLoadSaved();
+		} else if (sourceMode === 'from-source' && stepSourceSelectionRef) {
+			await stepSourceSelectionRef.confirmFromSource();
+		}
 	}
 
 	function handleSave() {
@@ -64,8 +94,8 @@
 			{/each}
 		</Steps.List>
 
-		<!-- Optional Summary and Actions -->
-		<div class="flex items-center ">
+		<!-- Optional Summary -->
+		<div class="flex items-center">
 			{#if currentStep > 0 && sourceSummary}
 				<div
 					class="hidden items-center border-l border-surface-300 pl-4 md:flex dark:border-surface-600"
@@ -74,31 +104,30 @@
 					<span class="preset-tonal-secondary badge text-xs">{sourceSummary}</span>
 				</div>
 			{/if}
-
-			{#if currentStep === 1 && config}
-				<button class="preset-filled-primary btn btn-sm" onclick={handleSave}>
-					<Save size={16} class="mr-2" />
-					Save / Deploy
-				</button>
-			{/if}
 		</div>
 	</div>
 
 	<!-- Main Content Area -->
 	<div class="relative flex-1 overflow-hidden">
 		<!-- Step 0: Source Selection -->
-		<Steps.Content index={0} class="absolute inset-0 overflow-auto bg-surface-50 p-6 dark:bg-surface-900">
-			<div class="mx-auto flex h-full max-w-6xl flex-col justify-center">
+		<Steps.Content index={0} class="absolute inset-0 overflow-auto">
+			<div class="mx-auto flex min-h-full max-w-6xl flex-col justify-center p-6">
 				<div class="mb-8 text-center">
 					<h2 class="mb-2 h2 font-bold">How would you like to start?</h2>
 					<p class="text-surface-500">Select a source to load your initial configuration from.</p>
 				</div>
-				<StepSourceSelection onNext={onSourceSelected} />
+				<StepSourceSelection
+					bind:this={stepSourceSelectionRef}
+					bind:mode={sourceMode}
+					bind:canProceed
+					bind:isLoading={isLoadingSource}
+					onNext={onSourceSelected}
+				/>
 			</div>
 		</Steps.Content>
 
 		<!-- Step 1: Config Editor -->
-		<Steps.Content index={1} class="absolute inset-0 overflow-hidden bg-surface-50 p-4 dark:bg-surface-900">
+		<Steps.Content index={1} class="absolute inset-0 overflow-auto">
 			{#if config}
 				<StepConfigEditor bind:config />
 			{:else}
@@ -107,5 +136,59 @@
 				</div>
 			{/if}
 		</Steps.Content>
+	</div>
+
+	<!-- Bottom Navigation Bar -->
+	<div
+		class="flex-none border-t border-surface-200 bg-surface-50 p-4 dark:border-surface-700 dark:bg-surface-900"
+	>
+		<div class="flex items-center justify-between">
+			<div>
+				{#if currentStep === 0 && sourceMode !== 'select'}
+					<!-- In a sub-step: show Cancel button -->
+					<button class="preset-ghost-surface btn" onclick={handleCancelSubStep} disabled={isLoadingSource}>
+						取消
+					</button>
+				{:else if currentStep > 0}
+					<!-- In step 2: show Back to source button -->
+					<button class="preset-ghost-surface btn" onclick={handleGoBackToSource}>
+						← 返回选择源
+					</button>
+				{/if}
+			</div>
+			<div class="flex gap-2">
+				{#if currentStep === 0 && sourceMode === 'load-saved'}
+					<!-- Load Saved sub-step: show Load button -->
+					<button
+						class="preset-filled-secondary btn"
+						disabled={!canProceed || isLoadingSource}
+						onclick={handleConfirmSubStep}
+					>
+						{#if isLoadingSource}
+							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+						{/if}
+						加载所选配置 →
+					</button>
+				{:else if currentStep === 0 && sourceMode === 'from-source'}
+					<!-- From Source sub-step: show Resolve button -->
+					<button
+						class="preset-filled-tertiary btn"
+						disabled={!canProceed || isLoadingSource}
+						onclick={handleConfirmSubStep}
+					>
+						{#if isLoadingSource}
+							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+						{/if}
+						解析并构建 →
+					</button>
+				{:else if currentStep === 1 && config}
+					<!-- Step 2: show Save/Deploy button -->
+					<button class="preset-filled-primary btn" onclick={handleSave}>
+						<Save size={16} class="mr-2" />
+						保存并部署
+					</button>
+				{/if}
+			</div>
+		</div>
 	</div>
 </Steps>
