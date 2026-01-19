@@ -1,6 +1,5 @@
 <script lang="ts" module>
 	import type { KernelInfo, KernelInfoAndState, KernelConnectionAndState } from '$lib/api/types';
-	import Kernel from './kernel.svelte';
 	import { api } from '$lib/api/routes';
 	interface Props {
 		// kernels: Record<string, KernelConnectionAndState>;
@@ -16,7 +15,7 @@
 		<div>Loading...</div>
 	{:then kernels}
 		{#each Object.entries(kernels) as [addr, kernel]}
-			<Kernel {addr} {kernel} />
+			
 		{/each}
 	{/await}
 </div>

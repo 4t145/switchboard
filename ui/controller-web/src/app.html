@@ -1,9 +1,39 @@
 <!doctype html>
-<html lang="%paraglide.lang%" data-theme="vintage">
+<html lang="%paraglide.lang%" data-theme="vintage" data-mode="light">
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		
+		<!-- Prevent dark mode flash on page load -->
+		<script>
+			(function() {
+				try {
+					const stored = localStorage.getItem('switchboard-settings');
+					let mode = 'light'; // default
+					
+					if (stored) {
+						const settings = JSON.parse(stored);
+						const colorMode = settings.colorMode || 'auto';
+						
+						if (colorMode === 'auto') {
+							// Use system preference
+							mode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+						} else {
+							mode = colorMode;
+						}
+					} else {
+						// First time user, use system preference for auto mode
+						mode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+					}
+					
+					document.documentElement.setAttribute('data-mode', mode);
+				} catch (e) {
+					console.error('Failed to apply color mode from localStorage:', e);
+				}
+			})();
+		</script>
+		
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

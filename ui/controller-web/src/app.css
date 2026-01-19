@@ -5,13 +5,17 @@
 @import '@skeletonlabs/skeleton';
 @import '@skeletonlabs/skeleton-svelte';
 
+/* Dark mode variant for Skeleton UI */
+@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
+
 /* Import all available themes */
 @import '@skeletonlabs/skeleton/themes/vintage';
 @import '@skeletonlabs/skeleton/themes/modern';
 @import '@skeletonlabs/skeleton/themes/rocket';
 @import '@skeletonlabs/skeleton/themes/seafoam';
-@import '@skeletonlabs/skeleton/themes/skeleton';
+@import '@skeletonlabs/skeleton/themes/cerberus';
 @import '@skeletonlabs/skeleton/themes/sahara';
+@import './themes/astro.css';
 
 input::placeholder {
 	font-style: italic;

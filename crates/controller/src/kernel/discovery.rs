@@ -87,15 +87,22 @@ impl ControllerContext {
     pub async fn update_config(
         &self,
         new_config: switchboard_model::ServiceConfig,
-    ) -> Result<
+    ) -> 
         Vec<(
             KernelAddr,
             std::result::Result<(), crate::kernel::KernelGrpcConnectionError>,
-        )>,
-        crate::Error,
-    > {
-        let kernel_manager = self.kernel_manager.read().await;
-        let results = kernel_manager.update_config(new_config).await;
-        Ok(results)
+        )>
+    {
+        {
+            let mut current_config_lock = self.current_config.write().await;
+            *current_config_lock = Some(new_config.clone());
+        }
+        let results = self
+            .kernel_manager
+            .read()
+            .await
+            .update_config(new_config)
+            .await;
+        results
     }
 }

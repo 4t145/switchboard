@@ -1,10 +1,12 @@
 mod kernel_manager;
 mod resolve;
+mod state;
 mod storage;
 
 use std::net::SocketAddr;
 
 use axum::response::IntoResponse as _;
+use http::HeaderValue;
 use serde::{Deserialize, Serialize};
 use tokio_util::sync::CancellationToken;
 
@@ -47,7 +49,8 @@ impl ControllerContext {
                 axum::Router::new()
                     .nest("/kernel_manager", kernel_manager::router())
                     .nest("/resolve", resolve::router())
-                    .nest("/storage", storage::router()),
+                    .nest("/storage", storage::router())
+                    .nest("/state", state::router()),
             )
             .with_state(self.http_state())
     }
@@ -87,6 +90,9 @@ fn result_to_json_response<T: Serialize, E: std::error::Error + 'static>(
             tracing::warn!("Internal server error: {}", e);
             let error_response = switchboard_model::error::ErrorStack::from_std(e);
             let mut response = axum::Json(error_response).into_response();
+            response
+                .headers_mut()
+                .append("x-error-stack", HeaderValue::from_static(""));
             *response.status_mut() = axum::http::StatusCode::INTERNAL_SERVER_ERROR;
             response
         }
@@ -108,6 +114,9 @@ fn result_to_plaintext_response<T: ToString, E: std::error::Error + 'static>(
             tracing::warn!("Internal server error: {}", e);
             let error_response = switchboard_model::error::ErrorStack::from_std(e);
             let mut response = axum::Json(error_response).into_response();
+            response
+                .headers_mut()
+                .append("x-error-stack", HeaderValue::from_static(""));
             *response.status_mut() = axum::http::StatusCode::INTERNAL_SERVER_ERROR;
             response
         }

@@ -17,6 +17,7 @@ pub struct ControllerContext {
     pub interface_manager: Arc<RwLock<interface::InterfaceManager>>,
     pub storage: storage::SharedStorage,
     pub resolve: Arc<resolve::ServiceConfigResolverRegistry>,
+    pub current_config: Arc<RwLock<Option<switchboard_model::ServiceConfig>>>,
 }
 
 impl ControllerContext {
@@ -27,6 +28,7 @@ impl ControllerContext {
             interface_manager: Arc::new(RwLock::new(interface::InterfaceManager::default())),
             controller_config: controller_config.into(),
             resolve: resolve::ServiceConfigResolverRegistry::prelude().into(),
+            current_config: Arc::new(RwLock::new(None)),
         };
         Ok(this)
     }

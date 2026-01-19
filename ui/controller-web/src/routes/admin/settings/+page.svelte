@@ -3,6 +3,8 @@
 	import ThemeSelector from '$lib/components/settings/theme-selector.svelte';
 	import DarkModeToggle from '$lib/components/settings/dark-mode-toggle.svelte';
 	import LanguageSelector from '$lib/components/settings/language-selector.svelte';
+	import CustomThemeUploader from '$lib/components/settings/custom-theme-uploader.svelte';
+	import CustomThemeManager from '$lib/components/settings/custom-theme-manager.svelte';
 	import { RotateCcw, Settings as SettingsIcon } from 'lucide-svelte';
 	import { m } from '$lib/paraglide/messages';
 
@@ -39,6 +41,21 @@
 
 			<!-- Dark Mode Toggle -->
 			<DarkModeToggle />
+		</div>
+	</section>
+
+	<!-- Custom Themes Section -->
+	<section class="mb-6">
+		<div class="mb-4 flex items-center gap-2 border-b border-surface-200 pb-2 dark:border-surface-700">
+			<h2 class="h2 text-xl font-semibold">✨ {msg.settings_custom_themes()}</h2>
+		</div>
+
+		<div class="space-y-6">
+			<!-- Theme Uploader -->
+			<CustomThemeUploader />
+
+			<!-- Theme Manager -->
+			<CustomThemeManager />
 		</div>
 	</section>
 

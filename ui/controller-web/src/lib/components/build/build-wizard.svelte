@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { Save, Loader2 } from 'lucide-svelte';
+	import { Save, Loader2, CheckCircle2, AlertCircle } from 'lucide-svelte';
 	import { Steps } from '@skeletonlabs/skeleton-svelte';
 	import StepSourceSelection from './step-source-selection.svelte';
 	import StepConfigEditor from './step-config-editor.svelte';
 	import type { HumanReadableServiceConfig } from '$lib/api/types';
+	import { api } from '$lib/api/routes';
 
 	const stepDefinitions = [
 		{ title: 'Select Source', description: 'Choose configuration source' },
@@ -19,6 +20,11 @@
 	let sourceMode = $state<'select' | 'load-saved' | 'from-source'>('select');
 	let canProceed = $state(false);
 	let isLoadingSource = $state(false);
+
+	// Deploy states
+	let isDeploying = $state(false);
+	let deploySuccess = $state(false);
+	let deployError = $state<string | null>(null);
 
 	// Reference to child component
 	let stepSourceSelectionRef: any;
@@ -42,6 +48,9 @@
 		sourceSummary = '';
 		saveAs = undefined;
 		sourceMode = 'select';
+		// Reset deploy states
+		deploySuccess = false;
+		deployError = null;
 	}
 
 	function handleCancelSubStep() {
@@ -56,10 +65,51 @@
 		}
 	}
 
-	function handleSave() {
-		console.log('Saving config...', config);
-		// TODO: Implement save logic
-		alert('Save/Deploy logic not implemented yet.\nCheck console for config object.');
+	async function handleSave() {
+		if (!config) {
+			deployError = 'No configuration to deploy';
+			return;
+		}
+
+		isDeploying = true;
+		deploySuccess = false;
+		deployError = null;
+
+		try {
+			// Call update_config API
+			const results = await api.kernelManager.updateConfig(
+				config as HumanReadableServiceConfig
+			);
+
+			// Check if all kernel updates succeeded
+			const failures = results.filter(([_, result]) => 'error' in result);
+
+			if (failures.length > 0) {
+				// Some kernels failed to update
+				const errorMessages = failures
+					.map(([addr, result]) => {
+						if ('error' in result) {
+							const frames = result.error.frames || [];
+							const errorMsg = frames.map((f: { error: string }) => f.error).join(' -> ');
+							return `${addr}: ${errorMsg}`;
+						}
+						return '';
+					})
+					.filter(Boolean);
+
+				deployError = `Failed to update ${failures.length} kernel(s):\n${errorMessages.join('\n')}`;
+				deploySuccess = false;
+			} else {
+				// All succeeded
+				deploySuccess = true;
+				deployError = null;
+			}
+		} catch (err) {
+			deployError = err instanceof Error ? err.message : 'Failed to deploy configuration';
+			deploySuccess = false;
+		} finally {
+			isDeploying = false;
+		}
 	}
 </script>
 
@@ -142,6 +192,22 @@
 	<div
 		class="flex-none border-t border-surface-200 bg-surface-50 p-4 dark:border-surface-700 dark:bg-surface-900"
 	>
+		<!-- Deploy Status Messages -->
+		{#if deploySuccess}
+			<div class="mb-3 flex items-center gap-2 rounded bg-success-100 p-3 text-success-700 dark:bg-success-900 dark:text-success-300">
+				<CheckCircle2 class="h-5 w-5 flex-shrink-0" />
+				<span>配置已成功部署到所有 kernels！</span>
+			</div>
+		{:else if deployError}
+			<div class="mb-3 flex items-start gap-2 rounded bg-error-100 p-3 text-error-700 dark:bg-error-900 dark:text-error-300">
+				<AlertCircle class="h-5 w-5 flex-shrink-0 mt-0.5" />
+				<div class="text-sm">
+					<div class="font-semibold">部署失败</div>
+					<pre class="mt-1 text-xs whitespace-pre-wrap">{deployError}</pre>
+				</div>
+			</div>
+		{/if}
+
 		<div class="flex items-center justify-between">
 			<div>
 				{#if currentStep === 0 && sourceMode !== 'select'}
@@ -151,7 +217,7 @@
 					</button>
 				{:else if currentStep > 0}
 					<!-- In step 2: show Back to source button -->
-					<button class="preset-ghost-surface btn" onclick={handleGoBackToSource}>
+					<button class="preset-ghost-surface btn" onclick={handleGoBackToSource} disabled={isDeploying}>
 						← 返回选择源
 					</button>
 				{/if}
@@ -183,9 +249,14 @@
 					</button>
 				{:else if currentStep === 1 && config}
 					<!-- Step 2: show Save/Deploy button -->
-					<button class="preset-filled-primary btn" onclick={handleSave}>
-						<Save size={16} class="mr-2" />
-						保存并部署
+					<button class="preset-filled-primary btn" onclick={handleSave} disabled={isDeploying}>
+						{#if isDeploying}
+							<Loader2 size={16} class="mr-2 animate-spin" />
+							部署中...
+						{:else}
+							<Save size={16} class="mr-2" />
+							保存并部署
+						{/if}
 					</button>
 				{/if}
 			</div>

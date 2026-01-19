@@ -1,42 +1,56 @@
 <script lang="ts">
 	import { settingsStore } from '$lib/stores/settings.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import { Moon, Sun } from 'lucide-svelte';
+	import { Moon, Sun, Monitor } from 'lucide-svelte';
+	import type { ColorMode } from '$lib/stores/settings.svelte';
 	
 	const msg = m as any;
 	
-	function toggle() {
-		settingsStore.darkMode = !settingsStore.darkMode;
+	const modes: { value: ColorMode; icon: any; label: () => string }[] = [
+		{ value: 'light', icon: Sun, label: () => msg.settings_darkmode_light() },
+		{ value: 'dark', icon: Moon, label: () => msg.settings_darkmode_dark() },
+		{ value: 'auto', icon: Monitor, label: () => msg.settings_darkmode_auto() }
+	];
+	
+	function selectMode(mode: ColorMode) {
+		settingsStore.colorMode = mode;
 	}
 </script>
 
 <div class="card border border-surface-300 p-5 dark:border-surface-600">
-	<div class="flex items-center justify-between gap-4">
-		<div class="flex-1">
+	<div class="space-y-4">
+		<div>
 			<div class="mb-1 font-semibold">{msg.settings_darkmode_label()}</div>
 			<div class="text-sm opacity-75">{msg.settings_darkmode_desc()}</div>
 		</div>
 
-		<!-- Custom Toggle Switch -->
-		<button
-			class="relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {settingsStore.darkMode
-				? 'bg-primary-600'
-				: 'bg-surface-300 dark:bg-surface-600'}"
-			onclick={toggle}
-			role="switch"
-			aria-checked={settingsStore.darkMode}
-		>
-			<span
-				class="inline-flex h-6 w-6 transform items-center justify-center rounded-full bg-white shadow-lg transition-transform {settingsStore.darkMode
-					? 'translate-x-7'
-					: 'translate-x-1'}"
-			>
-				{#if settingsStore.darkMode}
-					<Moon size={14} class="text-primary-600" />
-				{:else}
-					<Sun size={14} class="text-amber-500" />
-				{/if}
-			</span>
-		</button>
+		<!-- Mode Selection Buttons -->
+		<div class="grid grid-cols-3 gap-2">
+			{#each modes as mode}
+				<button
+					class="flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-all hover:bg-surface-100 dark:hover:bg-surface-800 {settingsStore.colorMode ===
+					mode.value
+						? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
+						: 'border-surface-300 dark:border-surface-600'}"
+					onclick={() => selectMode(mode.value)}
+					type="button"
+				>
+					<svelte:component
+						this={mode.icon}
+						size={24}
+						class={settingsStore.colorMode === mode.value
+							? 'text-primary-600 dark:text-primary-400'
+							: 'text-surface-600 dark:text-surface-400'}
+					/>
+					<span
+						class="text-sm font-medium {settingsStore.colorMode === mode.value
+							? 'text-primary-700 dark:text-primary-300'
+							: 'text-surface-700 dark:text-surface-300'}"
+					>
+						{mode.label()}
+					</span>
+				</button>
+			{/each}
+		</div>
 	</div>
 </div>
