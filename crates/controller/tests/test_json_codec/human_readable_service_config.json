@@ -1,0 +1,63 @@
+{
+    "tcp_services": [
+        {
+            "binds": [
+                {
+                    "bind": "127.0.0.1:8080",
+                    "description": null,
+                    "tls": null
+                },
+                {
+                    "bind": "[::1]:8443",
+                    "description": null,
+                    "tls": "single-example"
+                },
+                {
+                    "bind": "[::1]:8444",
+                    "description": null,
+                    "tls": "sni-example"
+                }
+            ],
+            "config": "file://examples/config/tcp/http-gateway.toml",
+            "description": null,
+            "name": "http-gateway",
+            "provider": "http"
+        }
+    ],
+    "tls": [
+        {
+            "certs": "file://examples/config/tls/single.crt",
+            "key": "file://examples/config/tls/single.key",
+            "name": "single-example",
+            "options": {
+                "alpn_protocols": [
+                    "h2",
+                    "http/1.1"
+                ],
+                "enable_secret_extraction": false,
+                "ignore_client_order": false,
+                "max_early_data_size": 0,
+                "max_fragment_size": null,
+                "require_ems": true,
+                "send_half_rtt_data": false,
+                "send_tls13_tickets": 0
+            }
+        },
+        {
+            "name": "sni-example",
+            "options": null,
+            "sni": [
+                {
+                    "certs": "file://examples/config/tls/sni-a.crt",
+                    "hostname": "sni-a.test.local",
+                    "key": "file://examples/config/tls/sni-a.key"
+                },
+                {
+                    "certs": "file://examples/config/tls/sni-b.crt",
+                    "hostname": "sni-b.test.local",
+                    "key": "file://examples/config/tls/sni-b.key"
+                }
+            ]
+        }
+    ]
+}

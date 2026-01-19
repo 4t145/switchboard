@@ -22,15 +22,12 @@ export const kernelManagerApi = {
 	 * @param config - The configuration (can be HumanReadableServiceConfig or ServiceConfig)
 	 * @returns Results for each kernel update
 	 */
-	updateConfig: (config: HumanReadableServiceConfig | ServiceConfig) =>
+	updateConfig: (config: HumanReadableServiceConfig | string) =>
 		fetchJson<ConfigUpdateResults>('/api/kernel_manager/kernels', {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				new_config: {
-					type: 'value',
-					value: config
-				}
+				new_config: config
 			} as UpdateConfigRequest)
 		}),
 

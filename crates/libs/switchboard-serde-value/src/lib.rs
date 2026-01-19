@@ -536,6 +536,7 @@ impl<'de> Deserializer<'de> for SerdeValue {
                 Some(value) => visitor.visit_some(*value),
                 None => visitor.visit_none(),
             },
+            SerdeValue::Unit => visitor.visit_none(),
             v => visitor.visit_some(v),
         }
     }

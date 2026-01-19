@@ -22,11 +22,7 @@ pub async fn get_current_config(
         .read()
         .await
         .as_ref()
-        .map(|config| {
-            let human_readable_config =
-                <HumanReadableServiceConfig<Link>>::from_standard(config.clone());
-            human_readable_config
-        });
+        .map(|config| <HumanReadableServiceConfig<Link>>::from_standard(config.clone()));
     Json(config)
 }
 

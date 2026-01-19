@@ -258,7 +258,7 @@ impl<L> FileStyleConfig<L> {
                     name.clone(),
                     Tls {
                         resolver: resolved_tls_resolver,
-                        options: options,
+                        options,
                     },
                 ))
             });
