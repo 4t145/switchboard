@@ -73,7 +73,7 @@ where
     ConfigValue: Send + Sync + 'static,
     TlsResolver: Send + Sync + 'static,
 {
-    async fn resolve_with<R: Resolver<L, ConfigValue> + ?Sized>(
+    async fn resolve_with<R: Resolver<L, ConfigValue>>(
         self,
         resolver: &R,
     ) -> Result<ServiceConfig<ConfigValue, TlsResolver>, R::Error> {

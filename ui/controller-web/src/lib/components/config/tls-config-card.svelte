@@ -4,6 +4,7 @@
 	import { Accordion } from '@skeletonlabs/skeleton-svelte';
 	import { Lock, Shield, ChevronDown, Calendar, User, Key } from 'lucide-svelte';
 	import LinkOrValueDisplay from './link-or-value-display.svelte';
+	import TlsOptionsDisplay from './tls-options-display.svelte';
 	import { X509Certificate } from '@peculiar/x509';
 
 	interface Props {
@@ -373,15 +374,8 @@
 
 	<!-- TLS Options (if present) -->
 	{#if tls.options}
-		<div class="pt-2 border-t border-surface-300 dark:border-surface-700">
-			<div class="text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-				TLS Options:
-			</div>
-			<code
-				class="text-xs bg-surface-200 dark:bg-surface-700 px-2 py-1 rounded block overflow-x-auto"
-			>
-				{JSON.stringify(tls.options, null, 2)}
-			</code>
+		<div class="pt-2 border-t border-surface-200 dark:border-surface-700">
+			<TlsOptionsDisplay options={tls.options} />
 		</div>
 	{/if}
 </div>

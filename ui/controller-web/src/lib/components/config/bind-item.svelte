@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { FileBind } from '$lib/api/types/human_readable';
-	import { Lock } from 'lucide-svelte';
+	import { Lock, Unlock } from 'lucide-svelte';
 
 	interface Props {
 		bind: FileBind;
@@ -12,7 +12,9 @@
 
 <div class="flex items-center gap-2 text-sm">
 	{#if bind.tls}
-		<Lock class="w-4 h-4 text-primary-500 flex-shrink-0" />
+		<Lock class="w-4 h-4 text-success-500 flex-shrink-0" />
+	{:else}
+		<Unlock class="w-4 h-4 text-warning-500 flex-shrink-0" />
 	{/if}
 	<code class="font-mono bg-surface-200 dark:bg-surface-700 px-2 py-0.5 rounded"
 		>{bind.bind}</code

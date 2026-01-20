@@ -58,7 +58,7 @@
 				Configuration:
 			</div>
 			<div class="pl-2">
-				<LinkOrValueDisplay value={service.config} resolveContent={true} />
+				<LinkOrValueDisplay value={service.config} resolveContent={"string"} />
 			</div>
 		</div>
 	{/if}

@@ -19,7 +19,6 @@
 	let { id, data }: NodeProps<LayerNodeType> = $props();
 	const isConnectableEnd = $derived(data.connection.source === null);
 	const isConnectableStart = $derived(data.connection.target === null);
-	let { updateNodeData } = useSvelteFlow();
 </script>
 
 <div class="rounded border bg-white px-1 shadow-sm transition-shadow duration-200 hover:shadow-md">

@@ -441,7 +441,7 @@ impl<L> UnresolvedFileStyleTlsResolver<L> {
                 let tls_params = TlsCertParams::from_resolved_pem_files(certs, key);
                 let resolver = crate::tls::TlsResolver::Single(tls_params);
 
-                return Ok(resolver);
+                Ok(resolver)
             }
             FileStyleTlsResolver::Sni { sni } => {
                 let mut sni_map = BTreeMap::new();
@@ -466,7 +466,7 @@ impl<L> UnresolvedFileStyleTlsResolver<L> {
                     sni_map.insert(item.hostname.clone(), tls_params);
                 }
                 let resolver = crate::tls::TlsResolver::Sni(sni_map);
-                return Ok(resolver);
+                Ok(resolver)
             }
         }
     }
