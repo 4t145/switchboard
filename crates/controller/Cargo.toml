@@ -23,6 +23,8 @@ anyhow = { version = "1" }
 rand = { version  = "0.9" }
 tokio-util = { workspace = true }
 dirs = { version = "6" }
+
+rustls = { workspace = true }
 # user interface
 ## http
 http = { workspace = true }

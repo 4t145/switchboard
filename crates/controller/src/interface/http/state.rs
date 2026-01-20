@@ -1,17 +1,8 @@
-use std::collections::BTreeMap;
+use axum::{Json, extract::State};
 
-use axum::{Json, extract::State, response::Response};
-use switchboard_link_or_value::LinkOrValue;
-use switchboard_model::{
-    HumanReadableServiceConfig, SerdeValue, error::ResultObject, kernel::KernelConnectionAndState,
-    resolve::file_style::ResolveConfigFileError,
-};
+use switchboard_model::HumanReadableServiceConfig;
 
-use crate::{
-    interface::http::HttpState,
-    kernel::{KernelAddr, KernelGrpcConnectionError},
-    link_resolver::Link,
-};
+use crate::{interface::http::HttpState, link_resolver::Link};
 
 pub async fn get_current_config(
     State(state): State<HttpState>,

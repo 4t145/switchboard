@@ -4,9 +4,10 @@
 
 	interface Props {
 		bind: FileBind;
+		jumpToTls?: ((tlsName: string) => void) | null;
 	}
 
-	let { bind }: Props = $props();
+	let { bind, jumpToTls = null }: Props = $props();
 </script>
 
 <div class="flex items-center gap-2 text-sm">
@@ -17,11 +18,20 @@
 		>{bind.bind}</code
 	>
 	{#if bind.tls}
-		<span
-			class="text-xs bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded"
-		>
-			{bind.tls}
-		</span>
+		{#if jumpToTls}
+			<button
+				class="text-xs bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-800 px-2 py-0.5 rounded transition-colors underline underline-offset-2"
+				onclick={() => jumpToTls(bind.tls!)}
+			>
+				{bind.tls}
+			</button>
+		{:else}
+			<span
+				class="text-xs bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 px-2 py-0.5 rounded"
+			>
+				{bind.tls}
+			</span>
+		{/if}
 	{/if}
 	{#if bind.description}
 		<span class="text-xs text-surface-500 dark:text-surface-400">- {bind.description}</span>

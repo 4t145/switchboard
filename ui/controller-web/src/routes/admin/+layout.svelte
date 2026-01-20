@@ -72,7 +72,7 @@
 		href: string;
 		subItems?: { label: string; href: string }[];
 	}[] = [
-		{ label: 'Dashboard', icon: 'home', href: '/admin' },
+		{ label: 'Dashboard', icon: 'home', href: '/admin/dashboard' },
 		{
 			label: 'Services',
 			icon: 'activity',
@@ -95,11 +95,7 @@
 	}
 
 	function isActive(href: string): boolean {
-		// Exact match for /admin
-		if (href === '/admin') {
-			return currentPath === '/admin';
-		}
-		// For other routes, match if starts with the href
+		// Exact match for specific routes
 		return currentPath === href || currentPath.startsWith(href + '/');
 	}
 </script>

@@ -27,7 +27,7 @@
 	};
 	
 	const getModeText = (): string => {
-		return settingsStore.darkMode ? msg.settings_darkmode_dark() : msg.settings_darkmode_light();
+		return settingsStore.isDarkMode ? msg.settings_darkmode_dark() : msg.settings_darkmode_light();
 	};
 
 	// Get current preview data

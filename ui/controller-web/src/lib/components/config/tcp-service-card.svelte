@@ -1,17 +1,15 @@
 <script lang="ts">
 	import type { FileTcpServiceConfig } from '$lib/api/types/human_readable';
-	import { Collapsible } from 'bits-ui';
 	import { Server, Settings } from 'lucide-svelte';
 	import BindItem from './bind-item.svelte';
-	import LinkDisplay from './link-display.svelte';
+	import LinkOrValueDisplay from './link-or-value-display.svelte';
 
 	interface Props {
 		service: FileTcpServiceConfig;
+		jumpToTls?: ((tlsName: string) => void) | null;
 	}
 
-	let { service }: Props = $props();
-
-	let configOpen = $state(false);
+	let { service, jumpToTls = null }: Props = $props();
 </script>
 
 <div class="card p-4 space-y-3">
@@ -46,7 +44,7 @@
 			</div>
 			<div class="space-y-1.5 pl-2">
 				{#each service.binds as bind}
-					<BindItem {bind} />
+					<BindItem {bind} {jumpToTls} />
 				{/each}
 			</div>
 		</div>
@@ -60,7 +58,7 @@
 				Configuration:
 			</div>
 			<div class="pl-2">
-				<LinkDisplay value={service.config} resolveContent={true} />
+				<LinkOrValueDisplay value={service.config} resolveContent={true} />
 			</div>
 		</div>
 	{/if}

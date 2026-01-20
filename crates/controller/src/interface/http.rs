@@ -2,6 +2,7 @@ mod kernel_manager;
 mod resolve;
 mod state;
 mod storage;
+mod utils;
 
 use std::net::SocketAddr;
 
