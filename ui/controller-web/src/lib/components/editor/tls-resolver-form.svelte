@@ -94,7 +94,7 @@
 			<LinkOrValueEditor
 				bind:value={params.certs}
 				dataType="PemsFile"
-				dataFormat="object"
+				dataFormat="string"
 				defaultValue={() => []}
 			>
 				{#snippet renderValue()}

@@ -1,16 +1,19 @@
 <script lang="ts">
-	import LinkOrValueEditor from './link-or-value-editor.svelte';
+	import ProviderConfigEditor from './provider-config-editor.svelte';
 	import { Code, Plus, Trash2 } from 'lucide-svelte';
 	import type { FileTcpServiceConfig, FileBind } from '$lib/api/types';
-
-	let { value = $bindable(), tlsKeys = [] } = $props<{
+	import { onMount } from 'svelte';
+	type Props = {
 		value: FileTcpServiceConfig;
 		tlsKeys: string[];
-	}>();
+	};
+	let { value = $bindable(), tlsKeys = [] }: Props = $props();
 
 	// Mock provider list for now
 	const providers = ['Static', 'Kubernetes', 'Consul', 'Custom'];
-
+	onMount(() => {
+		console.log('📝 TCP Service Form initialized with value:', value);
+	});
 	function addBind() {
 		value.binds = [...value.binds, { bind: '', tls: undefined, description: '' }];
 	}
@@ -19,31 +22,6 @@
 		value.binds = value.binds.filter((_: unknown, i: number) => i !== index);
 	}
 </script>
-
-{#snippet jsonConfigSnippet()}
-	<!-- Simple JSON editor for the generic 'config' field -->
-	<div class="form-control">
-		<label class="label">
-			<span class="label-text">Configuration (JSON)</span>
-		</label>
-		<textarea
-			class="textarea-bordered textarea h-48 font-mono text-xs"
-			value={JSON.stringify(value.config, null, 2)}
-			oninput={(e) => {
-				try {
-					value.config = JSON.parse(e.currentTarget.value);
-				} catch (err) {
-					// Ignore parse errors while typing
-				}
-			}}
-		></textarea>
-		<div class="label">
-			<span class="label-text-alt opacity-75"
-				>Enter valid JSON configuration for this provider.</span
-			>
-		</div>
-	</div>
-{/snippet}
 
 <div class="space-y-6 p-4">
 	<!-- Basic Info -->
@@ -137,12 +115,10 @@
 		<h4 class="mb-2 flex items-center gap-2 h4 font-bold">
 			<Code size={16} /> Provider Config
 		</h4>
-		<LinkOrValueEditor
+		<ProviderConfigEditor
 			bind:value={value.config}
+			provider={value.provider}
 			dataType="TcpServiceConfig"
-			dataFormat="object"
-			renderValue={jsonConfigSnippet}
-			defaultValue={() => ({})}
 		/>
 	</div>
 </div>

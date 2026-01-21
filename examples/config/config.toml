@@ -8,6 +8,16 @@ binds = [
     "[::1]:8444, tls=sni-example"
 ]
 
+[[tcp_services]]
+name = "ssh-port-forward"
+provider = "pf"
+config = "127.0.0.1:22"
+binds = [
+    "[::]:10022"
+]
+
+
+
 [[tls]]
 name = "single-example"
 cert = "file://examples/config/tls/single.crt"

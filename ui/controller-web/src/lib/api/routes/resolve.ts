@@ -20,7 +20,7 @@ export const resolveApi = {
 			body: JSON.stringify(request)
 		}),
 	link_to_string: (link: string) =>
-		fetchText('/api/resolve/link/string', {}, new URLSearchParams({ link })),
+		fetchText('/api/resolve/string', {}, new URLSearchParams({ link })),
 	link_to_object: (link: string) =>
-		fetchJson<unknown>('/api/resolve/link/object', {}, new URLSearchParams({ link }))
+		fetchJson<unknown>('/api/resolve/value', {}, new URLSearchParams({ link }))
 };

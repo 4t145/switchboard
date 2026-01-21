@@ -16,12 +16,15 @@
 		MinusIcon,
 		MinimizeIcon,
 		XIcon,
-		MaximizeIcon
+		MaximizeIcon,
+		Eye,
+		Download
 	} from 'lucide-svelte';
 	import ObjectPages from '$lib/components/object-pages.svelte';
+	import LinkOrValueDisplay from '$lib/components/config/link-or-value-display.svelte';
 	import type { StorageObjectDescriptor } from '$lib/api/types';
 	import { shortRev } from '$lib/utils';
-	import { FloatingPanel, Portal, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
+	import { FloatingPanel, Portal, SegmentedControl, Dialog } from '@skeletonlabs/skeleton-svelte';
 
 	// Define types matching Rust Link variants
 	type LinkKind = 'storage' | 'file' | 'http';
@@ -112,6 +115,12 @@
 	let isPromoting = $state(false);
 	let promoteId = $state('');
 	let loading = $state(false);
+
+	// Preview and conversion state
+	let isPreviewOpen = $state(false);
+	let isConvertDialogOpen = $state(false);
+	let previewedValue = $state<any>(null);
+	let loadError = $state<string | null>(null);
 
 	// For File/Http inputs when in link mode - Local state to preserve input across switches
 	let tempFileValue = $state('');
@@ -302,6 +311,80 @@
 		// Open the storage selector
 		isSelectingStorage = true;
 	}
+
+	// Preview link content
+	async function previewLink() {
+		if (!isLink || !value) return;
+		
+		loading = true;
+		loadError = null;
+		previewedValue = null;
+		try {
+			console.log('[Preview] Loading link:', value, 'dataFormat:', dataFormat);
+			let resolvedValue;
+			if (dataFormat === 'object') {
+				resolvedValue = await api.resolve.link_to_object(value);
+			} else if (dataFormat === 'string') {
+				resolvedValue = await api.resolve.link_to_string(value);
+			}
+			console.log('[Preview] Loaded successfully:', resolvedValue);
+			previewedValue = resolvedValue;
+			isPreviewOpen = true;
+		} catch (e) {
+			console.error('[Preview] Failed to preview link', e);
+			loadError = e instanceof Error ? e.message : String(e);
+			alert('Failed to preview: ' + loadError);
+		} finally {
+			loading = false;
+		}
+	}
+
+	// Open convert to inline dialog
+	async function openConvertDialog() {
+		if (!isLink || !value) return;
+		
+		loading = true;
+		loadError = null;
+		previewedValue = null;
+		console.log('[Convert] Loading link:', value, 'dataFormat:', dataFormat);
+		try {
+			let resolvedValue;
+			if (dataFormat === 'object') {
+				resolvedValue = await api.resolve.link_to_object(value);
+			} else if (dataFormat === 'string') {
+				resolvedValue = await api.resolve.link_to_string(value);
+			}
+			console.log('[Convert] Loaded successfully:', resolvedValue);
+			previewedValue = resolvedValue;
+			isConvertDialogOpen = true;
+		} catch (e) {
+			console.error('[Convert] Failed to load content for conversion', e);
+			loadError = e instanceof Error ? e.message : String(e);
+			// Still open dialog to show error
+			isConvertDialogOpen = true;
+		} finally {
+			loading = false;
+		}
+	}
+
+	// Confirm conversion to inline
+	function confirmConvertToInline() {
+		if (previewedValue !== null) {
+			linkCache = value;  // Save current link
+			inlineCache = previewedValue;  // Update cache with server value
+			value = previewedValue;  // Set as current value
+			editorMode = 'inline';
+			isConvertDialogOpen = false;
+			previewedValue = null;
+		}
+	}
+
+	// Cancel conversion
+	function cancelConvert() {
+		isConvertDialogOpen = false;
+		previewedValue = null;
+	}
+
 </script>
 
 <div
@@ -374,10 +457,29 @@
 			</SegmentedControl>
 		{/if}
 
-		<!-- Action Buttons -->
-		<div class="flex justify-between items-center">
-
-		</div>
+		<!-- Action Buttons (only shown in reference mode with valid link) -->
+		{#if editorMode === 'reference' && isLink}
+			<div class="flex gap-2 ml-auto">
+				<button 
+					class="btn btn-sm preset-ghost-primary"
+					onclick={previewLink}
+					disabled={loading}
+					title="Preview link content"
+				>
+					<Eye size={16} />
+					<span>Browse</span>
+				</button>
+				<button 
+					class="btn btn-sm preset-filled-primary"
+					onclick={openConvertDialog}
+					disabled={loading}
+					title="Convert reference to inline value"
+				>
+					<Download size={16} />
+					<span>Convert to Inline</span>
+				</button>
+			</div>
+		{/if}
 	</div>
 
 	<!-- Content Area -->
@@ -534,3 +636,152 @@
 		{@render renderValue()}
 	{/if}
 </div>
+
+<!-- Preview Link Content Floating Panel -->
+<FloatingPanel
+	open={isPreviewOpen}
+	onOpenChange={(e) => (isPreviewOpen = e.open)}
+	minSize={{ width: 700, height: 500 }}
+	defaultSize={{ width: 900, height: 600 }}
+>
+	<Portal>
+		<FloatingPanel.Positioner class="z-50">
+			<FloatingPanel.Content>
+				<FloatingPanel.DragTrigger>
+					<FloatingPanel.Header>
+						<FloatingPanel.Title>
+							<GripVerticalIcon class="size-4" />
+							Preview: {value}
+						</FloatingPanel.Title>
+						<FloatingPanel.Control>
+							<FloatingPanel.StageTrigger stage="minimized">
+								<MinusIcon class="size-4" />
+							</FloatingPanel.StageTrigger>
+							<FloatingPanel.StageTrigger stage="maximized">
+								<MaximizeIcon class="size-4" />
+							</FloatingPanel.StageTrigger>
+							<FloatingPanel.StageTrigger stage="default">
+								<MinimizeIcon class="size-4" />
+							</FloatingPanel.StageTrigger>
+							<FloatingPanel.CloseTrigger>
+								<XIcon class="size-4" />
+							</FloatingPanel.CloseTrigger>
+						</FloatingPanel.Control>
+					</FloatingPanel.Header>
+				</FloatingPanel.DragTrigger>
+				<FloatingPanel.Body class="overflow-y-auto p-4">
+					{#if loadError}
+						<!-- Show error message -->
+						<div class="p-4 bg-error-100 dark:bg-error-900 text-error-700 dark:text-error-300 rounded">
+							<div class="flex items-start gap-2">
+								<AlertCircle size={16} class="mt-0.5 flex-shrink-0" />
+								<div>
+									<div class="font-semibold">Failed to load content</div>
+									<div class="text-xs mt-1">{loadError}</div>
+								</div>
+							</div>
+						</div>
+					{:else if previewedValue !== null}
+						<!-- Display previewed content based on data format -->
+						<div class="space-y-2">
+							<div class="text-sm font-medium text-surface-600 dark:text-surface-400">
+								Resolved from: <code class="text-xs bg-surface-200 dark:bg-surface-700 px-1 py-0.5 rounded">{value}</code>
+							</div>
+							<div class="bg-surface-100 dark:bg-surface-800 rounded-lg border border-surface-300 dark:border-surface-600 p-4">
+								{#if dataFormat === 'string'}
+									<pre class="text-xs font-mono whitespace-pre-wrap break-words">{previewedValue}</pre>
+								{:else}
+									<pre class="text-xs font-mono whitespace-pre-wrap break-words">{JSON.stringify(previewedValue, null, 2)}</pre>
+								{/if}
+							</div>
+						</div>
+					{:else if loading}
+						<div class="flex items-center justify-center p-8 text-surface-500">
+							<div class="flex items-center gap-2">
+								<div class="animate-spin">⏳</div>
+								<span>Loading content...</span>
+							</div>
+						</div>
+					{:else}
+						<div class="flex items-center justify-center p-8 text-surface-500">
+							No content to preview
+						</div>
+					{/if}
+				</FloatingPanel.Body>
+				<FloatingPanel.ResizeTrigger axis="se" />
+			</FloatingPanel.Content>
+		</FloatingPanel.Positioner>
+	</Portal>
+</FloatingPanel>
+
+<!-- Convert to Inline Confirmation Dialog -->
+<Dialog open={isConvertDialogOpen} onOpenChange={(e) => (isConvertDialogOpen = e.open)} closeOnInteractOutside={false}>
+	<Portal>
+		<Dialog.Backdrop class="fixed inset-0 z-40 bg-surface-50-950/50" />
+		<Dialog.Positioner class="fixed inset-0 z-50 flex justify-center items-center p-4">
+			<Dialog.Content class="card bg-surface-100-900 p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-xl 
+			                       transition transition-discrete opacity-0 translate-y-[100px] 
+			                       starting:data-[state=open]:opacity-0 starting:data-[state=open]:translate-y-[100px] 
+			                       data-[state=open]:opacity-100 data-[state=open]:translate-y-0">
+				<Dialog.Title class="text-xl font-bold mb-4">
+					Convert Reference to Inline Value
+				</Dialog.Title>
+				<Dialog.Description class="text-sm text-surface-600 dark:text-surface-400 mb-4">
+					This will replace the reference <code class="bg-surface-200 dark:bg-surface-700 px-1 py-0.5 rounded text-xs">{value}</code> with its actual content. 
+					Please review the content below before confirming.
+				</Dialog.Description>
+
+				<!-- Preview of the content that will be converted -->
+				<div class="mb-6 p-4 bg-surface-100 dark:bg-surface-800 rounded-lg border border-surface-300 dark:border-surface-600">
+					<div class="text-sm font-medium mb-2 text-surface-700 dark:text-surface-300">
+						Content to be inserted:
+					</div>
+					{#if loadError}
+						<!-- Show error message -->
+						<div class="p-4 bg-error-100 dark:bg-error-900 text-error-700 dark:text-error-300 rounded">
+							<div class="flex items-start gap-2">
+								<AlertCircle size={16} class="mt-0.5 flex-shrink-0" />
+								<div>
+									<div class="font-semibold">Failed to load content</div>
+									<div class="text-xs mt-1">{loadError}</div>
+								</div>
+							</div>
+						</div>
+					{:else if previewedValue !== null}
+						<div class="max-h-96 overflow-y-auto bg-surface-50 dark:bg-surface-900 rounded p-3">
+							{#if dataFormat === 'string'}
+								<pre class="text-xs font-mono whitespace-pre-wrap break-words">{previewedValue}</pre>
+							{:else}
+								<pre class="text-xs font-mono whitespace-pre-wrap break-words">{JSON.stringify(previewedValue, null, 2)}</pre>
+							{/if}
+						</div>
+					{:else if loading}
+						<div class="flex items-center justify-center p-8 text-surface-500">
+							<div class="flex items-center gap-2">
+								<div class="animate-spin">⏳</div>
+								<span>Loading content...</span>
+							</div>
+						</div>
+					{:else}
+						<div class="text-surface-500 text-sm">No content loaded</div>
+					{/if}
+				</div>
+
+				<!-- Action Buttons -->
+				<div class="flex justify-end gap-3">
+					<Dialog.CloseTrigger class="btn btn-sm preset-ghost">
+						Cancel
+					</Dialog.CloseTrigger>
+					<button 
+						class="btn btn-sm preset-filled-primary"
+						onclick={confirmConvertToInline}
+						disabled={previewedValue === null}
+					>
+						<CheckCircle size={16} />
+						Confirm Conversion
+					</button>
+				</div>
+			</Dialog.Content>
+		</Dialog.Positioner>
+	</Portal>
+</Dialog>

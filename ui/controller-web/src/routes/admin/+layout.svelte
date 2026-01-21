@@ -14,16 +14,33 @@
 	} from 'lucide-svelte';
 	import Logo from '$lib/components/logo.svelte';
 	import { settingsStore } from '$lib/stores/settings.svelte';
+	import { initializeGlobalAPI } from '$lib/plugins/global-api';
+	import { registerAllPlugins } from '$lib/plugins/register';
+	import { loadPluginsFromServer } from '$lib/plugins/loader';
 	
 	let { children } = $props();
 
 	let isLayoutRail = $state(false);
 	let isMobileMenuOpen = $state(false);
 
-	// Initialize settings on mount
+	// Initialize settings and plugins on mount
 	onMount(() => {
 		settingsStore.load();
 		settingsStore.apply();
+
+		// Initialize plugin system (async but not blocking)
+		(async () => {
+			console.log('🔌 Initializing plugin system...');
+			
+			// 1. Initialize global API for third-party plugins
+			initializeGlobalAPI();
+			
+			// 2. Register built-in plugins
+			registerAllPlugins();
+			
+			// 3. Load third-party plugins from server (if available)
+			await loadPluginsFromServer();
+		})();
 
 		// Setup responsive rail/sidebar detection
 		const xlMediaQuery = window.matchMedia('(min-width: 1280px)'); // xl breakpoint
