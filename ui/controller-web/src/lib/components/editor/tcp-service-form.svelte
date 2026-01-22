@@ -12,7 +12,7 @@
 	// Mock provider list for now
 	const providers = ['Static', 'Kubernetes', 'Consul', 'Custom'];
 	onMount(() => {
-		console.log('📝 TCP Service Form initialized with value:', value);
+		$inspect('TCP Service Form initialized with value:', value);
 	});
 	function addBind() {
 		value.binds = [...value.binds, { bind: '', tls: undefined, description: '' }];

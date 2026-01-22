@@ -1,5 +1,4 @@
 <script lang="ts">
-	import LinkOrValueEditor from './link-or-value-editor.svelte';
 	import TlsResolverForm from './tls-resolver-form.svelte';
 	import { TagsInput, Collapsible } from '@skeletonlabs/skeleton-svelte';
 	import { ChevronDown } from 'lucide-svelte';

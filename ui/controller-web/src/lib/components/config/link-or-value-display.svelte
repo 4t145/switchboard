@@ -3,6 +3,7 @@
 	import { resolveLink, resolveLinkAsString } from '$lib/api/resolve';
 	import { Accordion } from '@skeletonlabs/skeleton-svelte';
 	import { Link as LinkIcon, AlertCircle, Loader2, ChevronDown } from 'lucide-svelte';
+	import DataTypeRenderer from '$lib/data-types/components/data-type-renderer.svelte';
 
 	interface Props<T> {
 		value: T;
@@ -11,9 +12,15 @@
 
 		/** Custom snippet for displaying content (works for both direct values and resolved link content) */
 		customDisplay?: Snippet<[{ content: T }]>;
+
+		/** Data type for rendering with the data type system */
+		dataType?: string;
+
+		/** Additional props to pass to the data type renderer */
+		editorProps?: Record<string, any>;
 	}
 
-	let { value, resolveContent = false, customDisplay }: Props<T> = $props();
+	let { value, resolveContent = false, customDisplay, dataType, editorProps = {} }: Props<T> = $props();
 
 	let loading = $state(false);
 	let error = $state<string | null>(null);
@@ -123,6 +130,14 @@
 						{#if customDisplay}
 							<!-- Custom content display -->
 							{@render customDisplay({ content: resolvedContent })}
+						{:else if dataType}
+							<!-- Use data type renderer for view mode -->
+							<DataTypeRenderer
+								type={dataType}
+								mode="view"
+								value={resolvedContent}
+								{...editorProps}
+							/>
 						{:else}
 							<!-- Default content display -->
 							<div class="bg-surface-100 dark:bg-surface-800 rounded p-4 overflow-x-auto">
@@ -138,6 +153,14 @@
 	<!-- Regular value display -->
 	{#if customDisplay}
 		{@render customDisplay({ content: value })}
+	{:else if dataType}
+		<!-- Use data type renderer for view mode -->
+		<DataTypeRenderer
+			type={dataType}
+			mode="view"
+			{value}
+			{...editorProps}
+		/>
 	{:else}
 		<!-- Default value display -->
 		<code class="text-sm bg-surface-200 dark:bg-surface-700 px-2 py-0.5 rounded font-mono">

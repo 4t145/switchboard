@@ -25,19 +25,24 @@
 	import type { StorageObjectDescriptor } from '$lib/api/types';
 	import { shortRev } from '$lib/utils';
 	import { FloatingPanel, Portal, SegmentedControl, Dialog } from '@skeletonlabs/skeleton-svelte';
+	import DataTypeRenderer from '$lib/data-types/components/data-type-renderer.svelte';
+	import { dataTypeRegistry } from '$lib/data-types/registry';
 
 	// Define types matching Rust Link variants
 	type LinkKind = 'storage' | 'file' | 'http';
 
 	type Props = {
 		value: any;
-		dataFormat: 'string' | 'object'
 		dataType: string;
-		renderValue: any; // RenderSnippet
-		defaultValue: () => any;
+		editorProps?: Record<string, any>;
 	};
 
-	let { value = $bindable(), dataType, renderValue, dataFormat, defaultValue }: Props = $props();
+	let { value = $bindable(), dataType, editorProps = {} }: Props = $props();
+
+	// 从注册表获取类型元信息
+	const typeMetadata = $derived(dataTypeRegistry.get(dataType));
+	const dataFormat = $derived(typeMetadata?.dataFormat || 'object');
+	const defaultValue = $derived(() => typeMetadata?.defaultValue() ?? {});
 
 	// Helper function to check if a string is a valid URI
 	function isValidURI(str: string): boolean {
@@ -103,7 +108,10 @@
 	let isLink = $derived(linkState !== null);
 	
 	// Editor mode control
-	let editorMode = $state<'reference' | 'inline'>('inline');
+	let editorMode = $state<'reference' | 'inline'>((() => {
+        const linkState = parseLink(value);
+        return linkState !== null ? 'reference' : 'inline';
+    })());
 	let linkMode = $state<LinkKind>('storage');
 
 	// Input Cache
@@ -219,58 +227,6 @@
 		isSelectingStorage = false;
 	}
 
-	async function switchToInline() {
-		if (!linkState) return;
-		if (isLink) {
-			loading = true;
-			linkCache = value;
-			value = inlineCache;
-			// try {
-			// 	let resolvedValue;
-			// 	if (dataFormat === 'object') {
-			// 		resolvedValue = await api.resolve.link_to_object(value);
-			// 	} else if (dataFormat === 'string'){
-			// 		resolvedValue = await api.resolve.link_to_string(value);
-			// 	}
-			// 	linkCache = value;
-			// 	value = resolvedValue;
-			// } catch (e) {
-			// 	console.error('Failed to resolve link to inline value', e);
-			// 	alert('Failed to resolve link: ' + e);
-			// } finally {
-			// 	loading = false;
-			// }
-		}
-	}
-
-	async function convertToInlineValue() {
-		if (!linkState) return;
-		loading = true;
-		try {
-			let resolvedValue;
-			if (dataFormat === 'object') {
-				resolvedValue = await api.resolve.link_to_object(value);
-			} else if (dataFormat === 'string'){
-				resolvedValue = await api.resolve.link_to_string(value);
-			}
-			linkCache = value;  // Save current link
-			inlineCache = resolvedValue;  // Update cache with server value
-			value = resolvedValue;  // Set as current value
-			editorMode = 'inline';
-		} catch (e) {
-			console.error('Failed to convert reference to inline value', e);
-			alert('Failed to convert reference: ' + e);
-		} finally {
-			loading = false;
-		}
-	}
-
-	// Promote (Save as Link)
-	function startPromote() {
-		isPromoting = true;
-		promoteId = '';
-	}
-
 	async function confirmPromote() {
 		if (!promoteId) return;
 		loading = true;
@@ -299,19 +255,6 @@
 			value = {}; // Fallback
 		}
 	}
-
-	function switchToReferenceMode() {
-		// Default to storage:// format to trigger link mode
-		if (!isLink) {
-			inlineCache = value;
-			value = 'storage://#';
-			editorMode = 'reference';
-			linkMode = 'storage';
-		}
-		// Open the storage selector
-		isSelectingStorage = true;
-	}
-
 	// Preview link content
 	async function previewLink() {
 		if (!isLink || !value) return;
@@ -632,8 +575,13 @@
 			</div>
 		{/if}
 	{:else}
-		<!-- Inline Value Editor -->
-		{@render renderValue()}
+		<!-- Inline Value Editor - 使用数据类型渲染器 -->
+		<DataTypeRenderer
+			type={dataType}
+			mode="edit"
+			bind:value
+			{...editorProps}
+		/>
 	{/if}
 </div>
 
@@ -682,17 +630,18 @@
 							</div>
 						</div>
 					{:else if previewedValue !== null}
-						<!-- Display previewed content based on data format -->
+						<!-- Display previewed content using data type renderer -->
 						<div class="space-y-2">
 							<div class="text-sm font-medium text-surface-600 dark:text-surface-400">
 								Resolved from: <code class="text-xs bg-surface-200 dark:bg-surface-700 px-1 py-0.5 rounded">{value}</code>
 							</div>
 							<div class="bg-surface-100 dark:bg-surface-800 rounded-lg border border-surface-300 dark:border-surface-600 p-4">
-								{#if dataFormat === 'string'}
-									<pre class="text-xs font-mono whitespace-pre-wrap break-words">{previewedValue}</pre>
-								{:else}
-									<pre class="text-xs font-mono whitespace-pre-wrap break-words">{JSON.stringify(previewedValue, null, 2)}</pre>
-								{/if}
+								<DataTypeRenderer
+									type={dataType}
+									mode="view"
+									value={previewedValue}
+									{...editorProps}
+								/>
 							</div>
 						</div>
 					{:else if loading}
@@ -749,11 +698,12 @@
 						</div>
 					{:else if previewedValue !== null}
 						<div class="max-h-96 overflow-y-auto bg-surface-50 dark:bg-surface-900 rounded p-3">
-							{#if dataFormat === 'string'}
-								<pre class="text-xs font-mono whitespace-pre-wrap break-words">{previewedValue}</pre>
-							{:else}
-								<pre class="text-xs font-mono whitespace-pre-wrap break-words">{JSON.stringify(previewedValue, null, 2)}</pre>
-							{/if}
+							<DataTypeRenderer
+								type={dataType}
+								mode="view"
+								value={previewedValue}
+								{...editorProps}
+							/>
 						</div>
 					{:else if loading}
 						<div class="flex items-center justify-center p-8 text-surface-500">

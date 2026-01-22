@@ -1,5 +1,65 @@
-import type { HttpClassEditorPlugin } from '$lib/plugins/types';
+import type { HttpClassEditorPlugin, OutputInfo } from '$lib/plugins/types';
 import ReverseProxyEditor from './reverse-proxy-editor.svelte';
+import RouterEditor from './router-editor.svelte';
+
+/**
+ * Router Node Editor Plugin
+ */
+export const routerEditorPlugin: HttpClassEditorPlugin = {
+	classId: 'router',
+	type: 'node',
+	displayName: 'Router',
+	icon: 'GitBranch',
+	description: 'Route requests based on hostname and path patterns',
+	component: RouterEditor,
+
+	createDefaultConfig() {
+		return {
+			hostname: {},
+			path: {},
+			output: {}
+		};
+	},
+
+	extractOutputs(config: any): OutputInfo[] {
+		if (!config.output || typeof config.output !== 'object') {
+			return [];
+		}
+
+		return Object.entries(config.output).map(([port, outputDef]: [string, any]) => ({
+			port,
+			target: outputDef?.target || '',
+			filters: outputDef?.filters || [],
+			label: port === '$default' ? 'Default' : port
+		}));
+	},
+
+	validate(config: any) {
+		const errors: string[] = [];
+		const warnings: string[] = [];
+
+		if (!config.output || Object.keys(config.output).length === 0) {
+			errors.push('At least one output port must be defined');
+		}
+
+		// Check if routes reference valid output ports
+		const outputPorts = new Set(Object.keys(config.output || {}));
+		const hostnameRoutes = Object.values(config.hostname || {});
+		const pathRoutes = Object.values(config.path || {});
+
+		[...hostnameRoutes, ...pathRoutes].forEach((port: any) => {
+			if (port && !outputPorts.has(port) && port !== '$default') {
+				warnings.push(`Route references undefined output port: ${port}`);
+			}
+		});
+
+		return {
+			valid: errors.length === 0,
+			errors,
+			warnings
+		};
+	}
+};
 
 /**
  * Reverse Proxy Node Editor Plugin
@@ -21,6 +81,11 @@ export const reverseProxyEditorPlugin: HttpClassEditorPlugin = {
 		};
 	},
 
+	// Reverse proxy is a terminal node (no outputs)
+	extractOutputs(): OutputInfo[] {
+		return [];
+	},
+
 	validate(config: any) {
 		const errors: string[] = [];
 
@@ -38,5 +103,54 @@ export const reverseProxyEditorPlugin: HttpClassEditorPlugin = {
 			valid: errors.length === 0,
 			errors
 		};
+	}
+};
+
+/**
+ * Direct Response Node Editor Plugin
+ */
+export const directResponseEditorPlugin: HttpClassEditorPlugin = {
+	classId: 'direct-response',
+	type: 'node',
+	displayName: 'Direct Response',
+	icon: 'FileText',
+	description: 'Return a static HTTP response',
+	component: ReverseProxyEditor, // TODO: Create dedicated editor
+
+	createDefaultConfig() {
+		return {
+			status: 200,
+			headers: {},
+			body: ''
+		};
+	},
+
+	// Direct response is a terminal node
+	extractOutputs(): OutputInfo[] {
+		return [];
+	}
+};
+
+/**
+ * Static Response Node Editor Plugin (alias for direct-response)
+ */
+export const staticResponseEditorPlugin: HttpClassEditorPlugin = {
+	classId: 'static-response',
+	type: 'node',
+	displayName: 'Static Response',
+	icon: 'FileText',
+	description: 'Return a static HTTP response',
+	component: ReverseProxyEditor, // TODO: Create dedicated editor
+
+	createDefaultConfig() {
+		return {
+			status: 200,
+			headers: {},
+			body: ''
+		};
+	},
+
+	extractOutputs(): OutputInfo[] {
+		return [];
 	}
 };

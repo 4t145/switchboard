@@ -30,16 +30,28 @@
 
 		// Initialize plugin system (async but not blocking)
 		(async () => {
-			console.log('🔌 Initializing plugin system...');
+			console.log('🔌 [PluginSystem] Initializing plugin system...');
+			const startTime = performance.now();
 			
-			// 1. Initialize global API for third-party plugins
-			initializeGlobalAPI();
-			
-			// 2. Register built-in plugins
-			registerAllPlugins();
-			
-			// 3. Load third-party plugins from server (if available)
-			await loadPluginsFromServer();
+			try {
+				// 1. Initialize global API for third-party plugins
+				console.log('🔌 [PluginSystem] Step 1/3: Initializing global API...');
+				initializeGlobalAPI();
+				
+				// 2. Register built-in plugins
+				console.log('🔌 [PluginSystem] Step 2/3: Registering built-in plugins...');
+				registerAllPlugins();
+				
+				// 3. Load third-party plugins from server (if available)
+				console.log('🔌 [PluginSystem] Step 3/3: Loading third-party plugins...');
+				await loadPluginsFromServer();
+				
+				const elapsed = (performance.now() - startTime).toFixed(2);
+				console.log(`🔌 [PluginSystem] ✅ Plugin system initialized successfully (${elapsed}ms)`);
+			} catch (error) {
+				console.error('🔌 [PluginSystem] ❌ Plugin initialization failed:', error);
+				// Don't block app startup on plugin errors
+			}
 		})();
 
 		// Setup responsive rail/sidebar detection

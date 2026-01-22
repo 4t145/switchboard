@@ -4,7 +4,7 @@ use std::{
 };
 
 use ::serde::de::DeserializeOwned;
-use switchboard_link_or_value::{Resolver, resolver::string_parse::StringParseResolver};
+use switchboard_link_or_value::{Resolver, Writer, resolver::string_parse::StringParseResolver};
 use switchboard_serde_value::SerdeValue;
 #[derive(Debug, Clone, Copy, Default)]
 pub struct FileResolver;
@@ -22,6 +22,38 @@ impl FileResolver {
         <Self as Resolver<PathBuf, SerdeValue>>::resolve(&self, path).await
     }
 }
+
+impl Writer<PathBuf, SerdeValue> for FileResolver {
+    type Error = FileResolveError;
+    async fn write(&self, path: PathBuf, value: SerdeValue) -> Result<(), Self::Error> {
+        let ext = path
+            .extension()
+            .and_then(|s| s.to_str())
+            .ok_or(FileResolveError::UnsupportedFileExtension)?;
+        match ext {
+            "json" => {
+                let file = File::create(&path)?;
+                serde_json::to_writer_pretty(file, &value)
+                    .map_err(|e| FileResolveError::from_deserialization_error(e, "json"))?;
+                Ok(())
+            }
+            "toml" => {
+                let toml_string = toml::to_string_pretty(&value)
+                    .map_err(|e| FileResolveError::from_deserialization_error(e, "toml"))?;
+                tokio::fs::write(&path, toml_string).await?;
+                Ok(())
+            }
+            "toon" => {
+                let toon_string = serde_toon::to_string_pretty(&value)
+                    .map_err(|e| FileResolveError::from_deserialization_error(e, "toon"))?;
+                tokio::fs::write(&path, toon_string).await?;
+                Ok(())
+            }
+            _ => Err(FileResolveError::UnsupportedFileExtension),
+        }
+    }
+}
+
 impl Resolver<PathBuf, SerdeValue> for FileResolver {
     type Error = FileResolveError;
     async fn resolve(&self, path: PathBuf) -> Result<SerdeValue, Self::Error> {

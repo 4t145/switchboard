@@ -55,6 +55,23 @@ export interface HttpClassEditorProps {
 }
 
 /**
+ * Output information extracted from node config
+ */
+export interface OutputInfo {
+	/** Output port name (e.g., "api", "frontend", "$default") */
+	port: string;
+
+	/** Target node ID */
+	target: string;
+
+	/** Filters applied on this output (optional) */
+	filters?: string[];
+
+	/** Display label (optional, defaults to port name) */
+	label?: string;
+}
+
+/**
  * HTTP class (node/filter) editor plugin interface
  */
 export interface HttpClassEditorPlugin {
@@ -81,6 +98,14 @@ export interface HttpClassEditorPlugin {
 
 	/** Configuration validator (optional) */
 	validate?: (config: any) => ValidationResult;
+
+	/**
+	 * Extract output connections from node config
+	 * Used for visualizing node connections in Flow Editor
+	 * @param config - Node configuration object
+	 * @returns Array of output information
+	 */
+	extractOutputs?: (config: any) => OutputInfo[];
 }
 
 /**

@@ -75,17 +75,8 @@
 			<LinkOrValueEditor
 				bind:value={params.key}
 				dataType="PemFile"
-				dataFormat="string"
-				defaultValue={() => ''}
-			>
-				{#snippet renderValue()}
-					<PemInput
-						label="Private Key Content (PEM)"
-						bind:value={params.key}
-						helperText="Private key file content."
-					/>
-				{/snippet}
-			</LinkOrValueEditor>
+				editorProps={{ label: 'Private Key Content (PEM)' }}
+			/>
 		</div>
 
 		<!-- Certs: LinkOrValue<PemsFile> -->
@@ -94,17 +85,8 @@
 			<LinkOrValueEditor
 				bind:value={params.certs}
 				dataType="PemsFile"
-				dataFormat="string"
-				defaultValue={() => []}
-			>
-				{#snippet renderValue()}
-					<PemInput
-						label="Certificate Chain Content (PEM)"
-						bind:value={params.certs}
-						helperText="Certificate chain (server cert first, then intermediates)."
-					/>
-				{/snippet}
-			</LinkOrValueEditor>
+				editorProps={{ label: 'Certificate Chain Content (PEM)' }}
+			/>
 		</div>
 
 		<!-- OCSP (Optional, usually just bytes, keeping commented out as per original) -->

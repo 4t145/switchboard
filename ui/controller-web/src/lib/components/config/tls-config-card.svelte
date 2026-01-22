@@ -317,11 +317,11 @@
 								<div class="text-sm">
 									<span class="text-surface-600 dark:text-surface-400">Certs:</span>
 									<div class="mt-1">
-										<LinkOrValueDisplay value={domain.certs} resolveContent={'string'}>
-											{#snippet customDisplay({ content })}
-												{@render pemContentDisplay({ content })}
-											{/snippet}
-										</LinkOrValueDisplay>
+										<LinkOrValueDisplay 
+											value={domain.certs} 
+											resolveContent="string"
+											dataType="PemsFile"
+										/>
 									</div>
 								</div>
 							{/if}
@@ -329,11 +329,11 @@
 								<div class="text-sm">
 									<span class="text-surface-600 dark:text-surface-400">Key:</span>
 									<div class="mt-1">
-										<LinkOrValueDisplay value={domain.key} resolveContent={'string'}>
-											{#snippet customDisplay({ content })}
-												{@render pemContentDisplay({ content })}
-											{/snippet}
-										</LinkOrValueDisplay>
+										<LinkOrValueDisplay 
+											value={domain.key} 
+											resolveContent="string"
+											dataType="PemFile"
+										/>
 									</div>
 								</div>
 							{/if}
@@ -349,11 +349,11 @@
 				<div class="text-sm">
 					<span class="text-surface-600 dark:text-surface-400 font-medium">Certificate:</span>
 					<div class="mt-1 pl-2">
-						<LinkOrValueDisplay value={tls.certs} resolveContent={'string'}>
-							{#snippet customDisplay({ content })}
-								{@render pemContentDisplay({ content })}
-							{/snippet}
-						</LinkOrValueDisplay>
+						<LinkOrValueDisplay 
+							value={tls.certs} 
+							resolveContent="string"
+							dataType="PemsFile"
+						/>
 					</div>
 				</div>
 			{/if}
@@ -361,11 +361,11 @@
 				<div class="text-sm">
 					<span class="text-surface-600 dark:text-surface-400 font-medium">Private Key:</span>
 					<div class="mt-1 pl-2">
-						<LinkOrValueDisplay value={tls.key} resolveContent={'string'}>
-							{#snippet customDisplay({ content })}
-								{@render pemContentDisplay({ content })}
-							{/snippet}
-						</LinkOrValueDisplay>
+						<LinkOrValueDisplay 
+							value={tls.key} 
+							resolveContent="string"
+							dataType="PemFile"
+						/>
 					</div>
 				</div>
 			{/if}

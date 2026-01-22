@@ -58,7 +58,12 @@
 				Configuration:
 			</div>
 			<div class="pl-2">
-				<LinkOrValueDisplay value={service.config} resolveContent={"string"} />
+				<LinkOrValueDisplay 
+					value={service.config} 
+					resolveContent="value"
+					dataType="TcpServiceConfig"
+					editorProps={{ provider: service.provider }}
+				/>
 			</div>
 		</div>
 	{/if}

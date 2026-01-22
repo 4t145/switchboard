@@ -11,7 +11,7 @@ export interface ServerConfig {
 
 export interface HttpConfig {
 	flow: FlowConfig;
-	server: ServerConfig;
+	server?: ServerConfig;
 }
 
 export interface FlowConfig {
