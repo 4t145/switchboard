@@ -11,6 +11,16 @@ export type ResolveServiceConfigRequest = {
 	save_as?: string;
 };
 
+export type SaveToLinkRequest = {
+	link: string;
+	value: unknown;
+	data_type: string;
+};
+
+export type SaveToLinkResponse = {
+	link: string;
+};
+
 import { fetchJson, fetchText } from './index';
 
 export const resolveApi = {
@@ -22,5 +32,10 @@ export const resolveApi = {
 	link_to_string: (link: string) =>
 		fetchText('/api/resolve/string', {}, new URLSearchParams({ link })),
 	link_to_object: (link: string) =>
-		fetchJson<unknown>('/api/resolve/value', {}, new URLSearchParams({ link }))
+		fetchJson<unknown>('/api/resolve/value', {}, new URLSearchParams({ link })),
+	save_to_link: (request: SaveToLinkRequest) =>
+		fetchJson<SaveToLinkResponse>('/api/resolve/save_to_link', {
+			method: 'POST',
+			body: JSON.stringify(request)
+		})
 };

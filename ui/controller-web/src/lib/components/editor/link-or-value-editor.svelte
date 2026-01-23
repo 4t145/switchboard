@@ -5,7 +5,6 @@
 		PenSquare,
 		X,
 		ArrowRightLeft,
-		Upload,
 		Database,
 		FileText,
 		Globe,
@@ -16,15 +15,13 @@
 		MinusIcon,
 		MinimizeIcon,
 		XIcon,
-		MaximizeIcon,
-		Eye,
-		Download
+		MaximizeIcon
 	} from 'lucide-svelte';
 	import ObjectPages from '$lib/components/object-pages.svelte';
 	import LinkOrValueDisplay from '$lib/components/config/link-or-value-display.svelte';
 	import type { StorageObjectDescriptor } from '$lib/api/types';
 	import { shortRev } from '$lib/utils';
-	import { FloatingPanel, Portal, SegmentedControl, Dialog } from '@skeletonlabs/skeleton-svelte';
+	import { FloatingPanel, Portal, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import DataTypeRenderer from '$lib/data-types/components/data-type-renderer.svelte';
 	import { dataTypeRegistry } from '$lib/data-types/registry';
 
@@ -120,15 +117,19 @@
 
 	// UI State
 	let isSelectingStorage = $state(false);
-	let isPromoting = $state(false);
-	let promoteId = $state('');
-	let loading = $state(false);
 
-	// Preview and conversion state
-	let isPreviewOpen = $state(false);
-	let isConvertDialogOpen = $state(false);
-	let previewedValue = $state<any>(null);
-	let loadError = $state<string | null>(null);
+	// Reference Tab state
+	let referenceTab = $state<'edit' | 'convert'>('edit');
+	
+	// Edit content state
+	let loadedValue = $state<any>(null);        // Value loaded from link
+	let editedValue = $state<any>(null);        // User-edited value
+	let isLoadingContent = $state(false);       // Loading state
+	let loadContentError = $state<string | null>(null);  // Load error
+	
+	// Save state
+	let isSaving = $state(false);               // Saving in progress
+	let saveError = $state<string | null>(null); // Save error
 
 	// For File/Http inputs when in link mode - Local state to preserve input across switches
 	let tempFileValue = $state('');
@@ -154,6 +155,13 @@
 		editorMode = isLink ? 'reference' : 'inline';
 		if (linkState) {
 			linkMode = linkState.kind;
+		}
+	});
+	
+	// Auto-load link content when in reference/edit mode (NEW)
+	$effect(() => {
+		if (editorMode === 'reference' && referenceTab === 'edit' && isLink && value) {
+			loadLinkContent();
 		}
 	});
 
@@ -227,27 +235,6 @@
 		isSelectingStorage = false;
 	}
 
-	async function confirmPromote() {
-		if (!promoteId) return;
-		loading = true;
-		try {
-			const req = {
-				resolver: 'static',
-				config: value,
-				save_as: promoteId ? promoteId : undefined
-			};
-
-			const descriptor = await api.storage.save(req);
-			value = formatLink('storage', descriptor);
-			isPromoting = false;
-		} catch (e) {
-			console.error('Failed to save object', e);
-			alert('Failed to save object: ' + e);
-		} finally {
-			loading = false;
-		}
-	}
-
 	function switchToDefaultValue() {
 		if (defaultValue) {
 			value = defaultValue();
@@ -255,86 +242,82 @@
 			value = {}; // Fallback
 		}
 	}
-	// Preview link content
-	async function previewLink() {
-		if (!isLink || !value) return;
+	
+	// Load link content (NEW - replaces previewLink for edit mode)
+	async function loadLinkContent() {
+		if (!value || !isLink) return;
 		
-		loading = true;
-		loadError = null;
-		previewedValue = null;
-		try {
-			console.log('[Preview] Loading link:', value, 'dataFormat:', dataFormat);
-			let resolvedValue;
-			if (dataFormat === 'object') {
-				resolvedValue = await api.resolve.link_to_object(value);
-			} else if (dataFormat === 'string') {
-				resolvedValue = await api.resolve.link_to_string(value);
-			}
-			console.log('[Preview] Loaded successfully:', resolvedValue);
-			previewedValue = resolvedValue;
-			isPreviewOpen = true;
-		} catch (e) {
-			console.error('[Preview] Failed to preview link', e);
-			loadError = e instanceof Error ? e.message : String(e);
-			alert('Failed to preview: ' + loadError);
-		} finally {
-			loading = false;
-		}
-	}
-
-	// Open convert to inline dialog
-	async function openConvertDialog() {
-		if (!isLink || !value) return;
+		isLoadingContent = true;
+		loadContentError = null;
+		loadedValue = null;
+		editedValue = null;
 		
-		loading = true;
-		loadError = null;
-		previewedValue = null;
-		console.log('[Convert] Loading link:', value, 'dataFormat:', dataFormat);
 		try {
-			let resolvedValue;
+			console.log('[LoadContent] Loading link:', value, 'dataFormat:', dataFormat);
+			let resolved;
 			if (dataFormat === 'object') {
-				resolvedValue = await api.resolve.link_to_object(value);
+				resolved = await api.resolve.link_to_object(value);
 			} else if (dataFormat === 'string') {
-				resolvedValue = await api.resolve.link_to_string(value);
+				resolved = await api.resolve.link_to_string(value);
 			}
-			console.log('[Convert] Loaded successfully:', resolvedValue);
-			previewedValue = resolvedValue;
-			isConvertDialogOpen = true;
+			console.log('[LoadContent] Loaded successfully:', resolved);
+			
+			loadedValue = resolved;
+			editedValue = resolved;  // Initialize edited value
 		} catch (e) {
-			console.error('[Convert] Failed to load content for conversion', e);
-			loadError = e instanceof Error ? e.message : String(e);
-			// Still open dialog to show error
-			isConvertDialogOpen = true;
+			loadContentError = e instanceof Error ? e.message : String(e);
+			console.error('[LoadContent] Failed to load link content', e);
 		} finally {
-			loading = false;
+			isLoadingContent = false;
 		}
 	}
-
-	// Confirm conversion to inline
-	function confirmConvertToInline() {
-		if (previewedValue !== null) {
-			linkCache = value;  // Save current link
-			inlineCache = previewedValue;  // Update cache with server value
-			value = previewedValue;  // Set as current value
-			editorMode = 'inline';
-			isConvertDialogOpen = false;
-			previewedValue = null;
+	
+	// Save changes to link (NEW)
+	async function saveChanges() {
+		if (!isLink || !editedValue) return;
+		
+		isSaving = true;
+		saveError = null;
+		
+		try {
+			console.log('[Save] Saving to link:', value, 'dataType:', dataType);
+			const response = await api.resolve.save_to_link({
+				link: value,
+				value: editedValue,
+				data_type: dataType,
+			});
+			
+			console.log('[Save] Saved successfully, new link:', response.link);
+			// Update link (for storage, this will be a new revision)
+			value = response.link;
+			
+			// Reload content to show saved data
+			await loadLinkContent();
+		} catch (e) {
+			saveError = e instanceof Error ? e.message : String(e);
+			console.error('[Save] Failed to save changes', e);
+		} finally {
+			isSaving = false;
 		}
 	}
-
-	// Cancel conversion
-	function cancelConvert() {
-		isConvertDialogOpen = false;
-		previewedValue = null;
+	
+	// Simplified convert to inline (NEW - uses loaded value from tab)
+	function convertToInline() {
+		if (loadedValue !== null) {
+			linkCache = value;           // Save current link
+			inlineCache = loadedValue;   // Update cache
+			value = loadedValue;         // Set as current value
+			editorMode = 'inline';       // Switch mode
+		}
 	}
 
 </script>
 
 <div
-	class="space-y-4 card border border-surface-300 p-4 dark:border-surface-600"
+	class="@container space-y-4 card border border-surface-300 p-4 dark:border-surface-600"
 >
 <!-- Header Controls -->
-	<div class="flex flex-row items-center gap-4 space-x-2">
+	<div class="flex flex-wrap items-center gap-4 mb-4">
 		<!-- Main Mode Selector -->
 		<SegmentedControl 
 			value={editorMode} 
@@ -343,123 +326,99 @@
 				if (details.value) setEditorMode(details.value as 'reference' | 'inline');
 			}}
 		>
-			<SegmentedControl.Label class="text-sm font-medium mb-2 block">Editor Mode</SegmentedControl.Label>
 			<SegmentedControl.Control>
 				<SegmentedControl.Indicator />
-				<SegmentedControl.Item value="reference">
+				<SegmentedControl.Item value="reference" title="Reference" aria-label="Reference">
 					<SegmentedControl.ItemText>
-						<LinkIcon size={16} class="inline-block" />
-						Reference
+						<LinkIcon class="inline-block size-4" />
+						<span class="hidden @md:inline">Reference</span>
 					</SegmentedControl.ItemText>
 					<SegmentedControl.ItemHiddenInput />
 				</SegmentedControl.Item>
-				<SegmentedControl.Item value="inline">
+				<SegmentedControl.Item value="inline" title="Inline Value" aria-label="Inline">
 					<SegmentedControl.ItemText>
-						<PenSquare size={16} class="inline-block" />
-						Inline
+						<PenSquare class="inline-block size-4" />
+						<span class="hidden @md:inline">Inline</span>
 					</SegmentedControl.ItemText>
 					<SegmentedControl.ItemHiddenInput />
 				</SegmentedControl.Item>
 			</SegmentedControl.Control>
 		</SegmentedControl>
 
-		<!-- Link Type Selector (only shown in reference mode) -->
+		<!-- Reference Action Selector (shown in same row when in reference mode) -->
 		{#if editorMode === 'reference'}
-			<SegmentedControl 
-				value={linkMode} 
-				orientation="horizontal"
-				onValueChange={(details) => {
-					if (details.value) setLinkMode(details.value);
-				}}
-			>
-				<SegmentedControl.Label class="text-sm font-medium mb-2 block">Link Type</SegmentedControl.Label>
-				<SegmentedControl.Control>
-					<SegmentedControl.Indicator />
-					<SegmentedControl.Item value="storage">
-						<SegmentedControl.ItemText>
-							<Database size={14} class="mr-1 inline-block" />
-							Storage
-						</SegmentedControl.ItemText>
-						<SegmentedControl.ItemHiddenInput />
-					</SegmentedControl.Item>
-					<SegmentedControl.Item value="file">
-						<SegmentedControl.ItemText>
-							<FileText size={14} class="mr-1 inline-block" />
-							File
-						</SegmentedControl.ItemText>
-						<SegmentedControl.ItemHiddenInput />
-					</SegmentedControl.Item>
-					<SegmentedControl.Item value="http">
-						<SegmentedControl.ItemText>
-							<Globe size={14} class="mr-1 inline-block" />
-							HTTP
-						</SegmentedControl.ItemText>
-						<SegmentedControl.ItemHiddenInput />
-					</SegmentedControl.Item>
-				</SegmentedControl.Control>
-			</SegmentedControl>
-		{/if}
-
-		<!-- Action Buttons (only shown in reference mode with valid link) -->
-		{#if editorMode === 'reference' && isLink}
-			<div class="flex gap-2 ml-auto">
-				<button 
-					class="btn btn-sm preset-ghost-primary"
-					onclick={previewLink}
-					disabled={loading}
-					title="Preview link content"
+			<div class="flex items-center gap-2 border-l pl-4 border-surface-300 dark:border-surface-600">
+				<SegmentedControl 
+					value={referenceTab} 
+					orientation="horizontal"
+					onValueChange={(details) => {
+						if (details.value) referenceTab = details.value as 'edit' | 'convert';
+					}}
 				>
-					<Eye size={16} />
-					<span>Browse</span>
-				</button>
-				<button 
-					class="btn btn-sm preset-filled-primary"
-					onclick={openConvertDialog}
-					disabled={loading}
-					title="Convert reference to inline value"
-				>
-					<Download size={16} />
-					<span>Convert to Inline</span>
-				</button>
+					<SegmentedControl.Control>
+						<SegmentedControl.Indicator />
+						<SegmentedControl.Item value="edit" title="Edit" aria-label="Edit">
+							<SegmentedControl.ItemText>
+								<PenSquare class="inline-block size-4" />
+								<span class="hidden @md:inline">Edit</span>
+							</SegmentedControl.ItemText>
+							<SegmentedControl.ItemHiddenInput />
+						</SegmentedControl.Item>
+						<SegmentedControl.Item value="convert" title="Convert to Inline" aria-label="Convert">
+							<SegmentedControl.ItemText>
+								<ArrowRightLeft class="inline-block size-4" />
+								<span class="hidden @md:inline">Convert to Inline</span>
+							</SegmentedControl.ItemText>
+							<SegmentedControl.ItemHiddenInput />
+						</SegmentedControl.Item>
+					</SegmentedControl.Control>
+				</SegmentedControl>
 			</div>
 		{/if}
 	</div>
 
 	<!-- Content Area -->
-	{#if isPromoting}
-		<!-- Promote Dialog -->
-		<div class="alert preset-filled-surface animate-fade-in flex flex-col gap-4">
-			<div class="flex items-center justify-between">
-				<span class="font-bold">Save current value as shared object</span>
-				<button class="btn-icon btn-icon-sm" onclick={() => (isPromoting = false)}
-					><X size={16} /></button
+	{#if editorMode === 'reference'}
+		<!-- Link Configuration Card -->
+		<div class="card border border-surface-300 dark:border-surface-600 p-4 space-y-3 mb-4">
+			<!-- Link Type Selector -->
+			<div class="flex items-center gap-2">
+				<SegmentedControl 
+					value={linkMode} 
+					orientation="horizontal"
+					onValueChange={(details) => {
+						if (details.value) setLinkMode(details.value);
+					}}
 				>
+					<SegmentedControl.Control>
+						<SegmentedControl.Indicator />
+						<SegmentedControl.Item value="storage" title="Storage" aria-label="Storage">
+							<SegmentedControl.ItemText>
+								<Database class="inline-block size-4" />
+								<span class="hidden @md:inline">Storage</span>
+							</SegmentedControl.ItemText>
+							<SegmentedControl.ItemHiddenInput />
+						</SegmentedControl.Item>
+						<SegmentedControl.Item value="file" title="File" aria-label="File">
+							<SegmentedControl.ItemText>
+								<FileText class="inline-block size-4" />
+								<span class="hidden @md:inline">File</span>
+							</SegmentedControl.ItemText>
+							<SegmentedControl.ItemHiddenInput />
+						</SegmentedControl.Item>
+						<SegmentedControl.Item value="http" title="HTTP" aria-label="HTTP">
+							<SegmentedControl.ItemText>
+								<Globe class="inline-block size-4" />
+								<span class="hidden @md:inline">HTTP</span>
+							</SegmentedControl.ItemText>
+							<SegmentedControl.ItemHiddenInput />
+						</SegmentedControl.Item>
+					</SegmentedControl.Control>
+				</SegmentedControl>
 			</div>
-			<label class="label">
-				<span>New Object ID</span>
-				<input
-					class="input"
-					type="text"
-					bind:value={promoteId}
-					placeholder="e.g. my-shared-config"
-				/>
-			</label>
-			<div class="flex justify-end gap-2">
-			<button class="preset-ghost btn btn-sm" onclick={() => (isPromoting = false)}
-				>Cancel</button
-			>
-			<button
-				class="preset-filled-primary btn btn-sm"
-					onclick={confirmPromote}
-					disabled={!promoteId || loading}
-				>
-					Save & Link
-				</button>
-			</div>
-		</div>
-	{:else if editorMode === 'reference'}
-		<!-- Reference Mode Content -->
-		{#if linkMode === 'storage'}
+			
+			<!-- Link Input Fields -->
+			{#if linkMode === 'storage'}
 			<div class="input-group-divider input-group grid-cols-[auto_1fr_auto_auto_auto]">
 				<div class="ig-cell preset-tonal">storage://</div>
 				<input
@@ -574,164 +533,144 @@
 				/>
 			</div>
 		{/if}
+		</div>  <!-- Close Link Configuration Card -->
+		
+		<!-- Content Area Card -->
+		<div class="card border border-surface-300 dark:border-surface-600 p-4 min-h-[400px]">
+		{#if referenceTab === 'edit'}
+			<!-- Edit Tab Content -->
+			<div class="space-y-4">
+				{#if isLoadingContent}
+					<div class="flex items-center justify-center h-[360px] text-surface-500">
+						<div class="flex items-center gap-2">
+							<div class="animate-spin">⏳</div>
+							<span>Loading content...</span>
+						</div>
+					</div>
+				{:else if loadContentError}
+					<div class="p-4 bg-error-100 dark:bg-error-900 text-error-700 dark:text-error-300 rounded h-[360px] flex items-center justify-center">
+						<div class="flex items-start gap-2">
+							<AlertCircle size={16} class="mt-0.5 flex-shrink-0" />
+							<div>
+								<div class="font-semibold">Failed to load content</div>
+								<div class="text-xs mt-1">{loadContentError}</div>
+							</div>
+						</div>
+					</div>
+				{:else if editedValue !== null}
+					<!-- Editable content area -->
+					<div class="space-y-4">
+						{#if linkState?.kind === 'http'}
+							<!-- HTTP links are read-only for now -->
+							<div class="alert preset-filled-warning mb-4">
+								<AlertCircle size={16} />
+								<span>HTTP PUT is not yet supported. This content is read-only.</span>
+							</div>
+							<DataTypeRenderer
+								type={dataType}
+								mode="view"
+								value={editedValue}
+								{...editorProps}
+							/>
+						{:else}
+							<DataTypeRenderer
+								type={dataType}
+								mode="edit"
+								bind:value={editedValue}
+								{...editorProps}
+							/>
+							
+							<!-- Save button -->
+							<div class="flex justify-end gap-2 items-center">
+								{#if saveError}
+									<span class="text-error-700 dark:text-error-300 text-sm">{saveError}</span>
+								{/if}
+								<button 
+									class="btn btn-sm preset-filled-primary transition-all duration-200 cursor-pointer"
+									onclick={saveChanges}
+									disabled={isSaving}
+								>
+									{#if isSaving}
+										<div class="animate-spin">⏳</div>
+										<span>Saving...</span>
+									{:else}
+										<CheckCircle size={16} />
+										<span>Save Changes</span>
+									{/if}
+								</button>
+							</div>
+						{/if}
+					</div>
+				{:else}
+					<div class="flex items-center justify-center p-8 text-surface-500">
+						No content to display
+					</div>
+				{/if}
+			</div>
+		{:else if referenceTab === 'convert'}
+			<!-- Convert to Inline Tab Content -->
+			<div class="space-y-4">
+				{#if isLoadingContent}
+					<div class="flex items-center justify-center h-[360px] text-surface-500">
+						<div class="flex items-center gap-2">
+							<div class="animate-spin">⏳</div>
+							<span>Loading content...</span>
+						</div>
+					</div>
+				{:else if loadContentError}
+					<div class="p-4 bg-error-100 dark:bg-error-900 text-error-700 dark:text-error-300 rounded h-[360px] flex items-center justify-center">
+						<div class="flex items-start gap-2">
+							<AlertCircle size={16} class="mt-0.5 flex-shrink-0" />
+							<div>
+								<div class="font-semibold">Failed to load content</div>
+								<div class="text-xs mt-1">{loadContentError}</div>
+							</div>
+						</div>
+					</div>
+				{:else if loadedValue !== null}
+					<div class="space-y-4">
+						<div class="text-sm text-surface-600 dark:text-surface-400">
+							This will replace the reference <code class="bg-surface-200 dark:bg-surface-700 px-1 py-0.5 rounded text-xs">{value}</code> with its actual content.
+						</div>
+						
+						<!-- Preview content -->
+						<div class="bg-surface-100 dark:bg-surface-800 rounded-lg border border-surface-300 dark:border-surface-600 p-4">
+							<DataTypeRenderer
+								type={dataType}
+								mode="view"
+								value={loadedValue}
+								{...editorProps}
+							/>
+						</div>
+						
+						<!-- Confirm button -->
+						<div class="flex justify-end">
+							<button 
+								class="btn btn-sm preset-filled-primary transition-all duration-200 cursor-pointer"
+								onclick={convertToInline}
+							>
+								<CheckCircle size={16} />
+								<span>Confirm Conversion</span>
+							</button>
+						</div>
+					</div>
+				{:else}
+					<div class="flex items-center justify-center p-8 text-surface-500">
+						No content to convert
+					</div>
+				{/if}
+			</div>
+		{/if}
+		</div>  <!-- Close Content Area Card -->
 	{:else}
 		<!-- Inline Value Editor - 使用数据类型渲染器 -->
+		<div class="card border border-surface-300 dark:border-surface-600 p-4">
 		<DataTypeRenderer
 			type={dataType}
 			mode="edit"
 			bind:value
 			{...editorProps}
 		/>
+		</div>
 	{/if}
 </div>
-
-<!-- Preview Link Content Floating Panel -->
-<FloatingPanel
-	open={isPreviewOpen}
-	onOpenChange={(e) => (isPreviewOpen = e.open)}
-	minSize={{ width: 700, height: 500 }}
-	defaultSize={{ width: 900, height: 600 }}
->
-	<Portal>
-		<FloatingPanel.Positioner class="z-50">
-			<FloatingPanel.Content>
-				<FloatingPanel.DragTrigger>
-					<FloatingPanel.Header>
-						<FloatingPanel.Title>
-							<GripVerticalIcon class="size-4" />
-							Preview: {value}
-						</FloatingPanel.Title>
-						<FloatingPanel.Control>
-							<FloatingPanel.StageTrigger stage="minimized">
-								<MinusIcon class="size-4" />
-							</FloatingPanel.StageTrigger>
-							<FloatingPanel.StageTrigger stage="maximized">
-								<MaximizeIcon class="size-4" />
-							</FloatingPanel.StageTrigger>
-							<FloatingPanel.StageTrigger stage="default">
-								<MinimizeIcon class="size-4" />
-							</FloatingPanel.StageTrigger>
-							<FloatingPanel.CloseTrigger>
-								<XIcon class="size-4" />
-							</FloatingPanel.CloseTrigger>
-						</FloatingPanel.Control>
-					</FloatingPanel.Header>
-				</FloatingPanel.DragTrigger>
-				<FloatingPanel.Body class="overflow-y-auto p-4">
-					{#if loadError}
-						<!-- Show error message -->
-						<div class="p-4 bg-error-100 dark:bg-error-900 text-error-700 dark:text-error-300 rounded">
-							<div class="flex items-start gap-2">
-								<AlertCircle size={16} class="mt-0.5 flex-shrink-0" />
-								<div>
-									<div class="font-semibold">Failed to load content</div>
-									<div class="text-xs mt-1">{loadError}</div>
-								</div>
-							</div>
-						</div>
-					{:else if previewedValue !== null}
-						<!-- Display previewed content using data type renderer -->
-						<div class="space-y-2">
-							<div class="text-sm font-medium text-surface-600 dark:text-surface-400">
-								Resolved from: <code class="text-xs bg-surface-200 dark:bg-surface-700 px-1 py-0.5 rounded">{value}</code>
-							</div>
-							<div class="bg-surface-100 dark:bg-surface-800 rounded-lg border border-surface-300 dark:border-surface-600 p-4">
-								<DataTypeRenderer
-									type={dataType}
-									mode="view"
-									value={previewedValue}
-									{...editorProps}
-								/>
-							</div>
-						</div>
-					{:else if loading}
-						<div class="flex items-center justify-center p-8 text-surface-500">
-							<div class="flex items-center gap-2">
-								<div class="animate-spin">⏳</div>
-								<span>Loading content...</span>
-							</div>
-						</div>
-					{:else}
-						<div class="flex items-center justify-center p-8 text-surface-500">
-							No content to preview
-						</div>
-					{/if}
-				</FloatingPanel.Body>
-				<FloatingPanel.ResizeTrigger axis="se" />
-			</FloatingPanel.Content>
-		</FloatingPanel.Positioner>
-	</Portal>
-</FloatingPanel>
-
-<!-- Convert to Inline Confirmation Dialog -->
-<Dialog open={isConvertDialogOpen} onOpenChange={(e) => (isConvertDialogOpen = e.open)} closeOnInteractOutside={false}>
-	<Portal>
-		<Dialog.Backdrop class="fixed inset-0 z-40 bg-surface-50-950/50" />
-		<Dialog.Positioner class="fixed inset-0 z-50 flex justify-center items-center p-4">
-			<Dialog.Content class="card bg-surface-100-900 p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-xl 
-			                       transition transition-discrete opacity-0 translate-y-[100px] 
-			                       starting:data-[state=open]:opacity-0 starting:data-[state=open]:translate-y-[100px] 
-			                       data-[state=open]:opacity-100 data-[state=open]:translate-y-0">
-				<Dialog.Title class="text-xl font-bold mb-4">
-					Convert Reference to Inline Value
-				</Dialog.Title>
-				<Dialog.Description class="text-sm text-surface-600 dark:text-surface-400 mb-4">
-					This will replace the reference <code class="bg-surface-200 dark:bg-surface-700 px-1 py-0.5 rounded text-xs">{value}</code> with its actual content. 
-					Please review the content below before confirming.
-				</Dialog.Description>
-
-				<!-- Preview of the content that will be converted -->
-				<div class="mb-6 p-4 bg-surface-100 dark:bg-surface-800 rounded-lg border border-surface-300 dark:border-surface-600">
-					<div class="text-sm font-medium mb-2 text-surface-700 dark:text-surface-300">
-						Content to be inserted:
-					</div>
-					{#if loadError}
-						<!-- Show error message -->
-						<div class="p-4 bg-error-100 dark:bg-error-900 text-error-700 dark:text-error-300 rounded">
-							<div class="flex items-start gap-2">
-								<AlertCircle size={16} class="mt-0.5 flex-shrink-0" />
-								<div>
-									<div class="font-semibold">Failed to load content</div>
-									<div class="text-xs mt-1">{loadError}</div>
-								</div>
-							</div>
-						</div>
-					{:else if previewedValue !== null}
-						<div class="max-h-96 overflow-y-auto bg-surface-50 dark:bg-surface-900 rounded p-3">
-							<DataTypeRenderer
-								type={dataType}
-								mode="view"
-								value={previewedValue}
-								{...editorProps}
-							/>
-						</div>
-					{:else if loading}
-						<div class="flex items-center justify-center p-8 text-surface-500">
-							<div class="flex items-center gap-2">
-								<div class="animate-spin">⏳</div>
-								<span>Loading content...</span>
-							</div>
-						</div>
-					{:else}
-						<div class="text-surface-500 text-sm">No content loaded</div>
-					{/if}
-				</div>
-
-				<!-- Action Buttons -->
-				<div class="flex justify-end gap-3">
-					<Dialog.CloseTrigger class="btn btn-sm preset-ghost">
-						Cancel
-					</Dialog.CloseTrigger>
-					<button 
-						class="btn btn-sm preset-filled-primary"
-						onclick={confirmConvertToInline}
-						disabled={previewedValue === null}
-					>
-						<CheckCircle size={16} />
-						Confirm Conversion
-					</button>
-				</div>
-			</Dialog.Content>
-		</Dialog.Positioner>
-	</Portal>
-</Dialog>

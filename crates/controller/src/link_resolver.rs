@@ -20,6 +20,10 @@ impl ControllerLinkResolver {
     pub async fn resolve_link_to_string(&self, link: Link) -> Result<String, LinkResolveError> {
         <Self as Resolver<Link, String>>::resolve(self, link).await
     }
+    
+    pub fn file_resolver(&self) -> &FileResolver {
+        &self.file
+    }
 }
 
 impl crate::ControllerContext {

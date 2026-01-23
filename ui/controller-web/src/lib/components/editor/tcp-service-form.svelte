@@ -108,12 +108,11 @@
 		</div>
 	</div>
 
-	<!-- Provider Config -->
 	<div
 		class="card border border-surface-200 bg-surface-50 p-4 dark:border-surface-700 dark:bg-surface-900/50"
 	>
 		<h4 class="mb-2 flex items-center gap-2 h4 font-bold">
-			<Code size={16} /> Provider Config
+			<Code size={16} /> Config
 		</h4>
 		<ProviderConfigEditor
 			bind:value={value.config}

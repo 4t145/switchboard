@@ -95,6 +95,8 @@
 					title="TCP Services"
 					getItemName={getServiceName}
 					createItem={createService}
+					responsive={true}
+					mobileMode="stack"
 				>
 					{#snippet renderEditor(service: FileTcpServiceConfig, index: number)}
 						<!-- Key forces component recreation when switching items -->
@@ -116,6 +118,8 @@
 					title="TLS Configurations"
 					getItemName={getTlsName}
 					createItem={createTls}
+					responsive={true}
+					mobileMode="stack"
 				>
 					{#snippet renderEditor(tls: FileStyleTls, index: number)}
 						<!-- Key forces component recreation when switching items -->
