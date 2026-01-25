@@ -24,7 +24,7 @@
 	let selectedId = $state<string | undefined>(undefined);
 	let selectedType = $state<'node' | 'filter' | undefined>(undefined);
 
-	// Ensure flow structure
+ 	// Ensure flow structure
 	$effect(() => {
 		if (!value || typeof value !== 'object') {
 			value = {
@@ -134,9 +134,9 @@
 	}
 </script>
 
-<div class="flow-editor flex h-full">
-	<!-- Left: Tree View -->
-	<div class="tree-container flex-1 border-r bg-surface-100 dark:bg-surface-900 overflow-y-auto">
+<div class="flow-editor">
+	<!-- Left: Tree View (Fixed Sidebar) -->
+	<div class="tree-container">
 		<NodeTree
 			bind:nodes={value.nodes}
 			bind:filters={value.filters}
@@ -149,27 +149,91 @@
 		/>
 	</div>
 
-	<!-- Right: Config Panel (conditionally rendered) -->
-	{#if selectedId && selectedType && selectedData()}
-		<ConfigPanel
-			nodeId={selectedId}
-			nodeData={selectedData()!}
-			instanceType={selectedType}
-			onClose={handleClosePanel}
-			onUpdate={handleUpdate}
-			onDelete={readonly ? () => {} : handleDelete}
-		/>
-	{/if}
+	<!-- Right: Config Area (Flexible Main Area) -->
+	<div class="config-area">
+		{#if selectedId && selectedType && selectedData()}
+			<ConfigPanel
+				nodeId={selectedId}
+				nodeData={selectedData()!}
+				instanceType={selectedType}
+				onClose={handleClosePanel}
+				onUpdate={handleUpdate}
+				onDelete={readonly ? () => {} : handleDelete}
+			/>
+		{:else}
+			<div class="placeholder">
+				<div class="placeholder-title">Select a Node or Filter</div>
+				<div class="placeholder-description">
+					Click on any node or filter in the tree view to configure its properties.
+					You can also add new nodes or filters using the buttons above.
+				</div>
+			</div>
+		{/if}
+	</div>
 </div>
 
 <style>
 	.flow-editor {
-		position: relative;
+		flex: 1;
+		display: flex;
+		height: 100%;
 		overflow: hidden;
 	}
 
 	.tree-container {
+		width: 320px; /* w-80 equivalent */
 		min-width: 300px;
-		max-width: 600px;
+		max-width: 400px;
+		flex-shrink: 0;
+		border-right: 1px solid rgba(255, 255, 255, 0.1);
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+	}
+
+	.config-area {
+		flex: 1;
+		min-width: 0; /* Prevent content overflow */
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+	}
+
+	.placeholder {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		color: var(--color-surface-500);
+		padding: 2rem;
+		text-align: center;
+	}
+
+	.placeholder-icon {
+		margin-bottom: 1rem;
+		opacity: 0.5;
+	}
+
+	.placeholder-title {
+		font-size: 1.25rem;
+		font-weight: 600;
+		margin-bottom: 0.5rem;
+	}
+
+	.placeholder-description {
+		font-size: 0.875rem;
+		max-width: 400px;
+		line-height: 1.5;
+	}
+
+	.tree-container {
+		flex: 1;
+		min-width: 300px;
+		/* Removed max-width to allow tree to expand naturally */
+		border-right: 1px solid rgba(255, 255, 255, 0.1);
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
 	}
 </style>

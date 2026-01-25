@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { X, Settings, Trash2 } from 'lucide-svelte';
-	import { slide } from 'svelte/transition';
+	import { fade } from 'svelte/transition';
 	import { getHttpClassEditorPlugin, listHttpClassEditorPlugins } from '$lib/plugins/registry';
 	import HttpClassConfigEditor from '$lib/components/editor/http-class-config-editor.svelte';
 
@@ -72,8 +72,8 @@
 </script>
 
 <div
-	class="config-panel w-96 border-l bg-surface-50 dark:bg-surface-900 flex flex-col h-full"
-	transition:slide={{ axis: 'x', duration: 200 }}
+	class="config-panel border-l bg-surface-50 dark:bg-surface-900 flex flex-col h-full w-full"
+	transition:fade={{ duration: 150 }}
 >
 	<!-- Header -->
 	<div class="header flex items-center justify-between border-b p-4">

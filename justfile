@@ -31,3 +31,17 @@ test-start-kind:
 
 debug-surreal:
     surreal start rocksdb://tmp/data/controller_storage.db
+
+install-uipro:
+    npm install -g uipro-cli
+
+install-agent-browser:
+    npm install -g agent-browser
+
+install-skill-ui-ux-pro-max:
+    uipro install --ai opencode
+
+install-skill-agent-browser:
+    mkdir -p .opencode/skills/agent-browser
+    curl -o .opencode/skills/agent-browser/SKILL.md \
+        https://raw.githubusercontent.com/vercel-labs/agent-browser/main/skills/agent-browser/SKILL.md

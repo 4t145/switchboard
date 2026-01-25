@@ -1,5 +1,4 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "plugin": ["@nick-vi/opencode-type-inject", "@tarquinen/opencode-dcp"],
-  "skills": []
 }
