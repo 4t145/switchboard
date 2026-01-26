@@ -1,11 +1,23 @@
-import type { HttpClassEditorPlugin, OutputInfo } from '$lib/plugins/types';
+import type { OutputInterface } from '$lib/api/types/http';
+import type { HttpNodeClassPlugin, HttpClassEditorPlugin, OutputInfo } from '$lib/plugins/types';
 import ReverseProxyEditor from './reverse-proxy-editor.svelte';
 import RouterEditor from './router-editor.svelte';
 
+export type RuleSet = {
+	target: string;
+	rules: string[][];
+}
+export type PathRoute = {
+	[path: string]: string | RuleSet;
+}
+export type HttpRouterConfig = {
+	hostname: Record<string, PathRoute>;
+	output: Record<string, OutputInterface>;
+};
 /**
  * Router Node Editor Plugin
  */
-export const routerEditorPlugin: HttpClassEditorPlugin = {
+export const routerEditorPlugin: HttpNodeClassPlugin<HttpRouterConfig> = {
 	classId: 'router',
 	type: 'node',
 	displayName: 'Router',
@@ -21,20 +33,20 @@ export const routerEditorPlugin: HttpClassEditorPlugin = {
 		};
 	},
 
-	extractOutputs(config: any): OutputInfo[] {
+	extractOutputs(config: HttpRouterConfig): OutputInfo[] {
+		console.log('Extracting outputs from router config:', config);
 		if (!config.output || typeof config.output !== 'object') {
 			return [];
 		}
-
-		return Object.entries(config.output).map(([port, outputDef]: [string, any]) => ({
+		return Object.entries(config.output).map(([port, outputDef]: [string, OutputInterface]) => ({
 			port,
-			target: outputDef?.target || '',
-			filters: outputDef?.filters || [],
+			target: outputDef.target || '',
+			filters: outputDef.filters || [],
 			label: port === '$default' ? 'Default' : port
 		}));
 	},
 
-	validate(config: any) {
+	validate(config: HttpRouterConfig) {
 		const errors: string[] = [];
 		const warnings: string[] = [];
 
@@ -42,16 +54,16 @@ export const routerEditorPlugin: HttpClassEditorPlugin = {
 			errors.push('At least one output port must be defined');
 		}
 
-		// Check if routes reference valid output ports
-		const outputPorts = new Set(Object.keys(config.output || {}));
-		const hostnameRoutes = Object.values(config.hostname || {});
-		const pathRoutes = Object.values(config.path || {});
+		// // Check if routes reference valid output ports
+		// const outputPorts = new Set(Object.keys(config.output || {}));
+		// const hostnameRoutes = Object.values(config.hostname || {});
+		// const pathRoutes = Object.values(config.path || {});
 
-		[...hostnameRoutes, ...pathRoutes].forEach((port: any) => {
-			if (port && !outputPorts.has(port) && port !== '$default') {
-				warnings.push(`Route references undefined output port: ${port}`);
-			}
-		});
+		// [...hostnameRoutes, ...pathRoutes].forEach((port: HttpRouterConfig) => {
+		// 	if (port && !outputPorts.has(port) && port !== '$default') {
+		// 		warnings.push(`Route references undefined output port: ${port}`);
+		// 	}
+		// });
 
 		return {
 			valid: errors.length === 0,

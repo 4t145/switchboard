@@ -5,9 +5,6 @@
 		PenSquare,
 		X,
 		ArrowRightLeft,
-		Database,
-		FileText,
-		Globe,
 		Search,
 		CheckCircle,
 		AlertCircle,
@@ -15,18 +12,24 @@
 		MinusIcon,
 		MinimizeIcon,
 		XIcon,
-		MaximizeIcon
+		MaximizeIcon,
+		Database,
+		FileText,
+		Globe
 	} from 'lucide-svelte';
 	import ObjectPages from '$lib/components/object-pages.svelte';
 	import LinkOrValueDisplay from '$lib/components/config/link-or-value-display.svelte';
 	import type { StorageObjectDescriptor } from '$lib/api/types';
-	import { shortRev } from '$lib/utils';
 	import { FloatingPanel, Portal, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import DataTypeRenderer from '$lib/data-types/components/data-type-renderer.svelte';
 	import { dataTypeRegistry } from '$lib/data-types/registry';
+	import {
+		parseLink,
+		formatLink,
+		isLinkValue,
+		type LinkKind
+	} from '$lib/utils/link-parser';
 
-	// Define types matching Rust Link variants
-	type LinkKind = 'storage' | 'file' | 'http';
 
 	type Props = {
 		value: any;
@@ -40,65 +43,6 @@
 	const typeMetadata = $derived(dataTypeRegistry.get(dataType));
 	const dataFormat = $derived(typeMetadata?.dataFormat || 'object');
 	const defaultValue = $derived(() => typeMetadata?.defaultValue() ?? {});
-
-	// Helper function to check if a string is a valid URI
-	function isValidURI(str: string): boolean {
-		// Check for common URI schemes
-		const uriSchemes = [
-			'file://',
-			'http://',
-			'https://',
-			'ftp://',
-			'ftps://',
-			'storage://',
-		];
-		
-		// Check if string starts with any known URI scheme
-		for (const scheme of uriSchemes) {
-			if (str.startsWith(scheme)) {
-				return true;
-			}
-		}
-		
-		return false;
-	}
-	// Parsing Helpers
-	function parseLink(val: any): { kind: LinkKind; data: any } | null {
-		if (typeof val === 'string') {
-			// Only treat as link if it's actually a URI
-			if (!isValidURI(val)) {
-				return null;
-			}
-			
-			if (val.startsWith('file://')) return { kind: 'file', data: val.slice(7) };
-			if (val.startsWith('http://') || val.startsWith('https://'))
-				return { kind: 'http', data: val };
-			if (val.startsWith('storage://')) {
-				const parts = val.slice(10).split('#');
-				if (parts.length >= 2)
-					return {
-						kind: 'storage',
-						data: { id: parts[0], revision: parts[1] } as StorageObjectDescriptor
-					};
-			}
-			
-			// Handle other URI schemes as HTTP for now (could be extended later)
-			if (val.startsWith('ftp://') || val.startsWith('ftps://')) {
-				return { kind: 'http', data: val };
-			}
-		}
-		return null;
-	}
-
-	function formatLink(kind: LinkKind, data: any): string {
-		if (kind === 'file') {
-			const path = data.toString();
-			return path.startsWith('file://') ? path : `file://${path}`;
-		}
-		if (kind === 'http') return data.toString();
-		if (kind === 'storage') return `storage://${data.id}#${data.revision}`;
-		return '';
-	}
 
 	// Derived State
 	let linkState = $derived(parseLink(value));
@@ -168,18 +112,11 @@
 	// Actions
 	function setEditorMode(mode: 'reference' | 'inline') {
 		if (mode === 'reference' && !isLink) {
-			// Switching to reference - try to use cache first, then default to storage
-			if (linkCache) {
-				inlineCache = value;  // Save current inline value
-				value = linkCache;
-			} else {
-				inlineCache = value;  // Save current inline value
-				value = formatLink('storage', { id: '', revision: '' });
-				linkMode = 'storage';
-			}
+			inlineCache = value;
+			value = formatLink('storage', { id: '', revision: '' });
+			linkMode = 'storage';
 		} else if (mode === 'inline' && isLink) {
-			// Switching to inline - only use cache, never fetch from server
-			linkCache = value;  // Save current link
+			linkCache = value;
 			if (inlineCache !== null) {
 				value = inlineCache;
 			} else {
@@ -192,21 +129,15 @@
 	function setLinkMode(kind: string) {
 		const linkKind = kind as LinkKind;
 		linkMode = linkKind;
-		// When switching, use the stored temp value if available, otherwise default
 		if (linkKind === 'storage') {
-			// Try to restore storage link if we have temp values
 			if (tempStorageId) {
 				value = formatLink('storage', { id: tempStorageId, revision: tempStorageRev || 'latest' });
 			} else if (linkState?.kind !== 'storage') {
-				// No temp value, maybe trigger selector or just let them type
-				// isSelectingStorage = true; // Removed auto-trigger for consistent input UI
 				value = formatLink('storage', { id: '', revision: '' });
 			}
 		} else if (linkKind === 'file') {
 			value = `file://${tempFileValue}`;
 		} else if (linkKind === 'http') {
-			// Default to http:// if empty, but respect existing temp value
-			const prefix = tempHttpValue.startsWith('http') ? '' : 'http://';
 			value = tempHttpValue ? tempHttpValue : 'http://';
 		}
 	}
@@ -214,16 +145,13 @@
 	function updateLinkString(kind: 'file' | 'http' | 'storage', input: string, extra?: string) {
 		if (kind === 'file') {
 			tempFileValue = input;
-			// Ensure file:// prefix is not duplicated if user types it
 			if (input.startsWith('file://')) value = input;
 			else value = `file://${input}`;
 		} else if (kind === 'http') {
-			// Enforce http/https
 			let url = input;
 			tempHttpValue = url;
 			value = url;
 		} else if (kind === 'storage') {
-			// input is ID, extra is Revision
 			tempStorageId = input;
 			if (extra !== undefined) tempStorageRev = extra;
 			value = formatLink('storage', { id: tempStorageId, revision: tempStorageRev });
@@ -235,82 +163,71 @@
 		isSelectingStorage = false;
 	}
 
-	function switchToDefaultValue() {
-		if (defaultValue) {
-			value = defaultValue();
-		} else {
-			value = {}; // Fallback
-		}
-	}
-	
-	// Load link content (NEW - replaces previewLink for edit mode)
 	async function loadLinkContent() {
-		if (!value || !isLink) return;
-		
+		if (!isLink || !value) return;
+
 		isLoadingContent = true;
 		loadContentError = null;
 		loadedValue = null;
 		editedValue = null;
-		
+
 		try {
-			console.log('[LoadContent] Loading link:', value, 'dataFormat:', dataFormat);
-			let resolved;
+			console.log('[Load] Loading link:', value, 'dataFormat:', dataFormat);
+			let resolvedValue;
 			if (dataFormat === 'object') {
-				resolved = await api.resolve.link_to_object(value);
+				resolvedValue = await api.resolve.link_to_object(value);
 			} else if (dataFormat === 'string') {
-				resolved = await api.resolve.link_to_string(value);
+				resolvedValue = await api.resolve.link_to_string(value);
 			}
-			console.log('[LoadContent] Loaded successfully:', resolved);
-			
-			loadedValue = resolved;
-			editedValue = resolved;  // Initialize edited value
+			console.log('[Load] Loaded successfully:', resolvedValue);
+			loadedValue = resolvedValue;
+			editedValue = resolvedValue;
 		} catch (e) {
+			console.error('[Load] Failed to load link content', e);
 			loadContentError = e instanceof Error ? e.message : String(e);
-			console.error('[LoadContent] Failed to load link content', e);
 		} finally {
 			isLoadingContent = false;
 		}
 	}
-	
-	// Save changes to link (NEW)
+
 	async function saveChanges() {
-		if (!isLink || !editedValue) return;
-		
+		if (!editedValue || !linkState) return;
+
 		isSaving = true;
 		saveError = null;
-		
+
 		try {
-			console.log('[Save] Saving to link:', value, 'dataType:', dataType);
-			const response = await api.resolve.save_to_link({
-				link: value,
-				value: editedValue,
-				data_type: dataType,
-			});
-			
-			console.log('[Save] Saved successfully, new link:', response.link);
-			// Update link (for storage, this will be a new revision)
-			value = response.link;
-			
-			// Reload content to show saved data
-			await loadLinkContent();
+			console.log('[Save] Saving changes to:', value);
+			if (linkState.kind === 'storage') {
+				const descriptor = linkState.data as StorageObjectDescriptor;
+				const req = {
+					resolver: 'static',
+					config: editedValue,
+					overwrite: descriptor.id
+				};
+				const result = await api.storage.save(req);
+				value = formatLink('storage', result);
+				console.log('[Save] Saved successfully:', result);
+			} else {
+				console.error('[Save] Unsupported link kind:', linkState.kind);
+				saveError = 'Saving is only supported for storage links';
+			}
 		} catch (e) {
-			saveError = e instanceof Error ? e.message : String(e);
 			console.error('[Save] Failed to save changes', e);
+			saveError = e instanceof Error ? e.message : String(e);
 		} finally {
 			isSaving = false;
 		}
 	}
-	
-	// Simplified convert to inline (NEW - uses loaded value from tab)
-	function convertToInline() {
-		if (loadedValue !== null) {
-			linkCache = value;           // Save current link
-			inlineCache = loadedValue;   // Update cache
-			value = loadedValue;         // Set as current value
-			editorMode = 'inline';       // Switch mode
-		}
-	}
 
+	async function convertToInline() {
+		if (loadedValue === null) return;
+
+		linkCache = value;
+		inlineCache = loadedValue;
+		value = loadedValue;
+		editorMode = 'inline';
+	}
 </script>
 
 <div

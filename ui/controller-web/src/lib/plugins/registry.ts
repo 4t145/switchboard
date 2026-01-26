@@ -1,4 +1,9 @@
-import type { ProviderEditorPlugin, HttpClassEditorPlugin } from './types';
+import type {
+	ProviderEditorPlugin,
+	HttpClassEditorPlugin,
+	HttpNodeClassPlugin,
+	HttpFilterClassPlugin
+} from './types';
 import { writable } from 'svelte/store';
 
 /**
@@ -101,30 +106,32 @@ class HttpClassEditorRegistry {
 		}
 	}
 
-	/**
-	 * Get a plugin by class ID
-	 */
-	get(classId: string): HttpClassEditorPlugin | undefined {
-		const plugin = this.plugins.get(classId);
-		if (!plugin) {
-			console.debug(`[HttpClassEditorRegistry] Plugin not found for class: ${classId}`);
-		}
-		return plugin;
+/**
+ * Get a plugin by class ID
+ */
+get<T extends HttpClassEditorPlugin = HttpClassEditorPlugin>(
+	classId: string
+): T | undefined {
+	const plugin = this.plugins.get(classId) as T | undefined;
+	if (!plugin) {
+		console.debug(`[HttpClassEditorRegistry] Plugin not found for class: ${classId}`);
 	}
+	return plugin;
+}
 
-	/**
-	 * Get all registered node plugins
-	 */
-	getAllNodes(): HttpClassEditorPlugin[] {
-		return Array.from(this.plugins.values()).filter((p) => p.type === 'node');
-	}
+/**
+ * Get all registered node plugins
+ */
+getAllNodes(): HttpNodeClassPlugin[] {
+	return Array.from(this.plugins.values()).filter((p): p is HttpNodeClassPlugin => p.type === 'node');
+}
 
-	/**
-	 * Get all registered filter plugins
-	 */
-	getAllFilters(): HttpClassEditorPlugin[] {
-		return Array.from(this.plugins.values()).filter((p) => p.type === 'filter');
-	}
+/**
+ * Get all registered filter plugins
+ */
+getAllFilters(): HttpFilterClassPlugin[] {
+	return Array.from(this.plugins.values()).filter((p): p is HttpFilterClassPlugin => p.type === 'filter');
+}
 
 	/**
 	 * Get all class IDs
@@ -145,11 +152,11 @@ export function getProviderEditorPlugin(provider: string): ProviderEditorPlugin 
 	return providerEditorRegistry.get(provider);
 }
 
-export function getHttpClassEditorPlugin(
+export function getHttpClassEditorPlugin<T extends HttpClassEditorPlugin = HttpClassEditorPlugin>(
 	classId: string,
 	type?: 'node' | 'filter'
-): HttpClassEditorPlugin | undefined {
-	const plugin = httpClassEditorRegistry.get(classId);
+): T | undefined {
+	const plugin = httpClassEditorRegistry.get<T>(classId);
 	// Optionally validate type
 	if (plugin && type && plugin.type !== type) {
 		console.warn(

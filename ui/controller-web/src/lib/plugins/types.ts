@@ -12,9 +12,9 @@ export interface ValidationResult {
 /**
  * Props for provider editor components
  */
-export interface ProviderEditorProps {
+export type ProviderEditorProps<T = unknown> ={
 	/** Current configuration value (can be object or LinkOrValue string) */
-	value: any;
+	value: T;
 	/** Whether the editor is read-only */
 	readonly?: boolean;
 }
@@ -22,12 +22,12 @@ export interface ProviderEditorProps {
 /**
  * Provider editor plugin interface
  */
-export interface ProviderEditorPlugin {
+export type ProviderEditorPlugin<T = unknown> = {
 	/** Provider name (e.g., "http", "socks5") */
 	provider: string;
 
 	/** Editor component */
-	component: Component<ProviderEditorProps>;
+	component: Component<ProviderEditorProps<T>>;
 
 	/** Display name */
 	displayName: string;
@@ -36,18 +36,18 @@ export interface ProviderEditorPlugin {
 	description?: string;
 
 	/** Default configuration generator */
-	createDefaultConfig: () => any;
+	createDefaultConfig: () => T;
 
 	/** Configuration validator (optional) */
-	validate?: (config: any) => ValidationResult;
+	validate?: (config: T) => ValidationResult;
 }
 
 /**
  * Props for HTTP class editor components
  */
-export interface HttpClassEditorProps {
+export interface HttpClassEditorProps<T = unknown> {
 	/** Current configuration value */
-	value: any;
+	value: T;
 	/** Instance ID (for debugging/tracking) */
 	instanceId?: string;
 	/** Whether the editor is read-only */
@@ -71,42 +71,35 @@ export interface OutputInfo {
 	label?: string;
 }
 
+export interface HttpNodeClassPlugin<T = unknown> {
+	classId: string;
+	component: Component<HttpClassEditorProps<T>>;
+	type: 'node';
+	displayName: string;
+	icon?: string;
+	description?: string;
+	createDefaultConfig: () => T;
+	extractOutputs: (config: T) => OutputInfo[];
+	validate?: (config: T) => ValidationResult;
+}
+
+export interface HttpFilterClassPlugin<T = unknown> {
+	classId: string;
+	component: Component<HttpClassEditorProps<T>>;
+	type: 'filter';
+	displayName: string;
+	icon?: string;
+	description?: string;
+	createDefaultConfig: () => T;
+	validate?: (config: T) => ValidationResult;
+}
+
 /**
  * HTTP class (node/filter) editor plugin interface
  */
-export interface HttpClassEditorPlugin {
-	/** Class ID (e.g., "reverse-proxy", "balancer") */
-	classId: string;
+export type HttpClassPlugin<T = unknown> = HttpNodeClassPlugin<T> | HttpFilterClassPlugin<T>;
 
-	/** Type (node or filter) */
-	type: 'node' | 'filter';
-
-	/** Editor component */
-	component: Component<HttpClassEditorProps>;
-
-	/** Display name */
-	displayName: string;
-
-	/** Icon name (lucide-svelte icon name) */
-	icon?: string;
-
-	/** Description */
-	description?: string;
-
-	/** Default configuration generator */
-	createDefaultConfig: () => any;
-
-	/** Configuration validator (optional) */
-	validate?: (config: any) => ValidationResult;
-
-	/**
-	 * Extract output connections from node config
-	 * Used for visualizing node connections in Flow Editor
-	 * @param config - Node configuration object
-	 * @returns Array of output information
-	 */
-	extractOutputs?: (config: any) => OutputInfo[];
-}
+export type HttpClassEditorPlugin<T = unknown> = HttpClassPlugin<T>;
 
 /**
  * Plugin manifest (loaded from server)
