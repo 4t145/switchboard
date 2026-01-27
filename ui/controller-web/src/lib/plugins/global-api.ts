@@ -70,7 +70,7 @@ export const SwitchboardPluginAPI = {
 	 * Register a HTTP class editor plugin
 	 */
 	registerHttpClassEditor(plugin: HttpClassEditorPlugin) {
-		httpClassEditorRegistry.register(plugin);
+		httpClassEditorRegistry.register_node(plugin);
 	},
 
 	/**

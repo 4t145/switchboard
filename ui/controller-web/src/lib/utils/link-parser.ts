@@ -1,9 +1,18 @@
 export type LinkKind = 'storage' | 'file' | 'http';
 
 export type ParsedLink = {
-	kind: LinkKind;
-	data: any;
-};
+	kind: 'storage';
+	data: {
+		id: string;
+		revision: string;
+	}
+} | {
+	kind: 'file';
+	data: string;
+} | {
+	kind: 'http';
+	data: string;
+}
 
 export type StorageObjectDescriptor = {
 	id: string;
@@ -29,7 +38,7 @@ export function isValidURI(str: string): boolean {
 	return false;
 }
 
-export function parseLink(val: any): ParsedLink | null {
+export function parseLink(val: unknown): ParsedLink | null {
 	if (typeof val !== 'string') {
 		return null;
 	}
@@ -63,28 +72,28 @@ export function parseLink(val: any): ParsedLink | null {
 	return null;
 }
 
-export function formatLink(kind: LinkKind, data: any): string {
-	if (kind === 'file') {
-		const path = data.toString();
+export function formatLink(parsedLink: ParsedLink): string {
+	if (parsedLink.kind === 'file') {
+		const path = parsedLink.data.toString();
 		return path.startsWith('file://') ? path : `file://${path}`;
 	}
 
-	if (kind === 'http') {
-		return data.toString();
+	if (parsedLink.kind === 'http') {
+		return parsedLink.data.toString();
 	}
 
-	if (kind === 'storage') {
-		return `storage://${data.id}#${data.revision}`;
+	if (parsedLink.kind === 'storage') {
+		return `storage://${parsedLink.data.id}#${parsedLink.data.revision}`;
 	}
 
 	return '';
 }
 
-export function isLinkValue(value: any): boolean {
+export function isLinkValue(value: unknown): value is string {
 	return parseLink(value) !== null;
 }
 
-export function getLinkKind(value: any): LinkKind | null {
+export function getLinkKind(value: unknown): LinkKind | null {
 	const parsed = parseLink(value);
 	return parsed ? parsed.kind : null;
 }

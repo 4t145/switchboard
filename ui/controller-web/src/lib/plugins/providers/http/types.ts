@@ -11,7 +11,6 @@ export interface HttpConfig<Cfg = unknown> {
 
 export interface FlowConfig<Cfg = unknown> {
 	entrypoint: NodeTarget;
-	instances?: Record<string, InstanceData<Cfg>>;
 	nodes?: Record<string, InstanceDataWithoutType<Cfg>>;
 	filters?: Record<string, InstanceDataWithoutType<Cfg>>;
 	options?: FlowOptions;
@@ -27,7 +26,21 @@ export type NodeId = string;
 
 export type NodePort = string;
 
-export type NodeTarget = string | { id: NodeId; port: NodePort };
+export type NodeTarget = string;
+export type NodeTargetObject = {
+	nodeId: string;
+	port: string;
+}
+export const NodeTarget = {
+	parse(target: NodeTarget): NodeTargetObject {
+		if (!target.includes(':')) {
+			return { nodeId: target, port: '$default' };
+		} else {
+			const [nodeId, port] = target.split(':', 2);
+			return { nodeId, port };
+		}
+	}
+};
 
 export interface InstanceData<Cfg = unknown> {
 	name?: string;

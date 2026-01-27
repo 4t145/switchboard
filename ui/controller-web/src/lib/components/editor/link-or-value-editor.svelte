@@ -113,7 +113,7 @@
 	function setEditorMode(mode: 'reference' | 'inline') {
 		if (mode === 'reference' && !isLink) {
 			inlineCache = value;
-			value = formatLink('storage', { id: '', revision: '' });
+			value = formatLink({kind: 'storage', data: { id: '', revision: '' }});
 			linkMode = 'storage';
 		} else if (mode === 'inline' && isLink) {
 			linkCache = value;
@@ -131,9 +131,9 @@
 		linkMode = linkKind;
 		if (linkKind === 'storage') {
 			if (tempStorageId) {
-				value = formatLink('storage', { id: tempStorageId, revision: tempStorageRev || 'latest' });
+				value = formatLink({kind: 'storage', data: { id: tempStorageId, revision: tempStorageRev || 'latest' }});
 			} else if (linkState?.kind !== 'storage') {
-				value = formatLink('storage', { id: '', revision: '' });
+				value = formatLink({kind: 'storage', data: { id: '', revision: '' }});
 			}
 		} else if (linkKind === 'file') {
 			value = `file://${tempFileValue}`;
@@ -154,12 +154,12 @@
 		} else if (kind === 'storage') {
 			tempStorageId = input;
 			if (extra !== undefined) tempStorageRev = extra;
-			value = formatLink('storage', { id: tempStorageId, revision: tempStorageRev });
+			value = formatLink({kind: 'storage', data: { id: tempStorageId, revision: tempStorageRev }});
 		}
 	}
 
 	function selectStorageLink(item: any) {
-		value = formatLink('storage', item.descriptor);
+		value = formatLink({kind: 'storage', data: item.descriptor});
 		isSelectingStorage = false;
 	}
 
@@ -206,7 +206,7 @@
 					overwrite: descriptor.id
 				};
 				const result = await api.storage.save(req);
-				value = formatLink('storage', result);
+				value = formatLink({kind: 'storage', data: result});
 				console.log('[Save] Saved successfully:', result);
 			} else {
 				console.error('[Save] Unsupported link kind:', linkState.kind);

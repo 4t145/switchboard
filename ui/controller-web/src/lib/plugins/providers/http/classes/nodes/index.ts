@@ -1,19 +1,31 @@
 import type { OutputInterface } from '$lib/api/types/http';
-import type { HttpNodeClassPlugin, HttpClassEditorPlugin, OutputInfo } from '$lib/plugins/types';
+import type {
+	HttpNodeClassPlugin,
+	HttpClassEditorPlugin,
+	OutputInfo,
+	InputInfo
+} from '$lib/plugins/types';
+import { NodeTarget } from '../../types';
 import ReverseProxyEditor from './reverse-proxy-editor.svelte';
 import RouterEditor from './router-editor.svelte';
 
 export type RuleSet = {
 	target: string;
 	rules: string[][];
-}
+};
 export type PathRoute = {
 	[path: string]: string | RuleSet;
-}
+};
 export type HttpRouterConfig = {
 	hostname: Record<string, PathRoute>;
 	output: Record<string, OutputInterface>;
 };
+
+const DefaultInputInfo: InputInfo = {
+	port: '$default',
+	filters: []
+};
+
 /**
  * Router Node Editor Plugin
  */
@@ -38,14 +50,23 @@ export const routerEditorPlugin: HttpNodeClassPlugin<HttpRouterConfig> = {
 		if (!config.output || typeof config.output !== 'object') {
 			return [];
 		}
-		return Object.entries(config.output).map(([port, outputDef]: [string, OutputInterface]) => ({
-			port,
-			target: outputDef.target || '',
-			filters: outputDef.filters || [],
-			label: port === '$default' ? 'Default' : port
-		}));
+		return Object.entries(config.output).map(
+			([port, outputDef]: [string, OutputInterface]) =>
+				<OutputInfo>{
+					port,
+					target: NodeTarget.parse(outputDef.target),
+					filters: outputDef.filters || []
+				}
+		);
 	},
-
+	extractInputs(): InputInfo[] {
+		// Router has a single default input
+		return [
+			{
+				...DefaultInputInfo
+			}
+		];
+	},
 	validate(config: HttpRouterConfig) {
 		const errors: string[] = [];
 		const warnings: string[] = [];
@@ -98,6 +119,15 @@ export const reverseProxyEditorPlugin: HttpClassEditorPlugin = {
 		return [];
 	},
 
+	extractInputs(): InputInfo[] {
+		// Single default input
+		return [
+			{
+				...DefaultInputInfo
+			}
+		];
+	},
+
 	validate(config: any) {
 		const errors: string[] = [];
 
@@ -140,6 +170,15 @@ export const directResponseEditorPlugin: HttpClassEditorPlugin = {
 	// Direct response is a terminal node
 	extractOutputs(): OutputInfo[] {
 		return [];
+	},
+
+	extractInputs(): InputInfo[] {
+		// Single default input
+		return [
+			{
+				...DefaultInputInfo
+			}
+		];
 	}
 };
 
@@ -162,6 +201,14 @@ export const staticResponseEditorPlugin: HttpClassEditorPlugin = {
 		};
 	},
 
+	extractInputs(): InputInfo[] {
+		// Single default input
+		return [
+			{
+				...DefaultInputInfo
+			}
+		];
+	},
 	extractOutputs(): OutputInfo[] {
 		return [];
 	}

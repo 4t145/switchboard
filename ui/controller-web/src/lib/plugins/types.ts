@@ -1,4 +1,5 @@
 import type { Component } from 'svelte';
+import type { NodeTargetObject } from './providers/http/types';
 
 /**
  * Plugin validation result
@@ -12,12 +13,12 @@ export interface ValidationResult {
 /**
  * Props for provider editor components
  */
-export type ProviderEditorProps<T = unknown> ={
+export type ProviderEditorProps<T = unknown> = {
 	/** Current configuration value (can be object or LinkOrValue string) */
 	value: T;
 	/** Whether the editor is read-only */
 	readonly?: boolean;
-}
+};
 
 /**
  * Provider editor plugin interface
@@ -40,7 +41,7 @@ export type ProviderEditorPlugin<T = unknown> = {
 
 	/** Configuration validator (optional) */
 	validate?: (config: T) => ValidationResult;
-}
+};
 
 /**
  * Props for HTTP class editor components
@@ -62,15 +63,16 @@ export interface OutputInfo {
 	port: string;
 
 	/** Target node ID */
-	target: string;
+	target: NodeTargetObject;
 
 	/** Filters applied on this output (optional) */
-	filters?: string[];
-
-	/** Display label (optional, defaults to port name) */
-	label?: string;
+	filters: string[];
 }
 
+export interface InputInfo {
+	port: string;
+	filters: string[];
+}
 export interface HttpNodeClassPlugin<T = unknown> {
 	classId: string;
 	component: Component<HttpClassEditorProps<T>>;
@@ -80,6 +82,7 @@ export interface HttpNodeClassPlugin<T = unknown> {
 	description?: string;
 	createDefaultConfig: () => T;
 	extractOutputs: (config: T) => OutputInfo[];
+	extractInputs: (config: T) => InputInfo[];
 	validate?: (config: T) => ValidationResult;
 }
 

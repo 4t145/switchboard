@@ -1,7 +1,11 @@
 <script lang="ts">
-	import type { HttpConfig } from './types';
+	import type { FlowConfig, HttpConfig } from './types';
 	import FlowEditor from './flow-editor/flow-editor.svelte';
 	import { untrack } from 'svelte';
+	import { buildFlowGraph, FlowGraph } from './flow-editor/flow-view-builder';
+	import FlowTree from './flow-editor/flow-tree-view.svelte';
+	import FlowGraphView from './flow-editor/flow-graph-view.svelte';
+	import { ListIcon, NetworkIcon, WorkflowIcon } from 'lucide-svelte';
 
 	type Props = {
 		value: HttpConfig;
@@ -9,154 +13,51 @@
 
 	let { value = $bindable() }: Props = $props();
 
-	// FlowEditor 内部使用的简化数据结构
-	type FlowEditorData = {
-		entrypoint: string;
-		nodes: Record<string, { class?: string; config: any }>;
-		filters: Record<string, { class?: string; config: any }>;
-	};
+	type ViewMode = 'list' | 'tree' | 'graph';
+	type GraphState = {
+		readonly type: 'ready';
+		readonly graph: FlowGraph;
+	} | {
+		readonly type: 'error';
+		readonly error: Error;
+	} | {
+		readonly type: 'building';
+		readonly promise: Promise<FlowGraph>;
+	} | {
+		readonly type: 'uninitialized';
+	}
 
-	// Safe deep clone using JSON (works with Svelte proxies)
-	function deepClone<T>(obj: T): T {
+	let graphState = $state<GraphState>({ type: 'uninitialized' });
+	let viewMode = $state<ViewMode>('tree');
+	let selectedValue = $state(undefined as string | undefined);
+
+	async function updateGraphState(flow: FlowConfig) {
+		if (graphState.type === 'building') {
+			console.warn('Ignoring edits to flow while building graph');
+			return;
+		}
 		try {
-			return JSON.parse(JSON.stringify(obj));
-		} catch (e) {
-			console.warn('Failed to deep clone object:', e);
-			return obj;
-		}
-	}
-
-	// 将 FlowConfig 转换为 FlowEditorData
-	function toEditorFormat(flowConfig: any): FlowEditorData {
-		const result: FlowEditorData = {
-			entrypoint: '',
-			nodes: {},
-			filters: {}
-		};
-
-		// Convert entrypoint (NodeTarget -> string)
-		if (flowConfig?.entrypoint) {
-			if (typeof flowConfig.entrypoint === 'string') {
-				result.entrypoint = flowConfig.entrypoint;
-			} else if (flowConfig.entrypoint?.node) {
-				result.entrypoint = flowConfig.entrypoint.node;
-			}
-		}
-
-		// Convert nodes - handle both object and string (LinkOrValue) formats
-		if (flowConfig?.nodes) {
-			for (const [nodeId, nodeValue] of Object.entries(flowConfig.nodes)) {
-				if (typeof nodeValue === 'string') {
-					// This is a LinkOrValue reference (e.g., "file://...")
-					result.nodes[nodeId] = {
-						config: nodeValue
-					};
-				} else if (nodeValue && typeof nodeValue === 'object') {
-					// This is a full node definition - ensure it has a config field
-					const cloned = deepClone(nodeValue) as any;
-					result.nodes[nodeId] = {
-						class: cloned.class,
-						config: cloned.config || {}
-					};
-				} else {
-					// Fallback for undefined/null
-					result.nodes[nodeId] = {
-						config: {}
-					};
-				}
-			}
-		}
-
-		// Convert filters - handle both object and string (LinkOrValue) formats
-		if (flowConfig?.filters) {
-			for (const [filterId, filterValue] of Object.entries(flowConfig.filters)) {
-				if (typeof filterValue === 'string') {
-					// This is a LinkOrValue reference
-					result.filters[filterId] = {
-						config: filterValue
-					};
-				} else if (filterValue && typeof filterValue === 'object') {
-					// This is a full filter definition - ensure it has a config field
-					const cloned = deepClone(filterValue) as any;
-					result.filters[filterId] = {
-						class: cloned.class,
-						config: cloned.config || {}
-					};
-				} else {
-					// Fallback for undefined/null
-					result.filters[filterId] = {
-						config: {}
-					};
-				}
-			}
-		}
-
-		return result;
-	}
-
-	// 将 FlowEditorData 转换回 FlowConfig
-	function fromEditorFormat(editorData: FlowEditorData): any {
-		return {
-			entrypoint: editorData.entrypoint ? { node: editorData.entrypoint } : { node: '' },
-			nodes: deepClone(editorData.nodes),
-			filters: deepClone(editorData.filters)
-		};
-	}
-
-	// Reactive flow editor data
-	let flowEditorData = $state<FlowEditorData>(toEditorFormat(value.flow || {}));
-
-	// Use a flag to prevent circular updates
-	let isUpdatingFromEditor = false;
-	let isUpdatingFromValue = false;
-
-	// Initialize and sync from value.flow to flowEditorData when value changes externally
-	$effect(() => {
-		// Ensure basic structure
-		if (!value.server) {
-			value.server = {
-				version: 'auto'
+			const promise = buildFlowGraph(flow);
+			graphState = {
+				type: 'building',
+				promise
+			};
+			const graph = await promise;
+			graphState = {
+				type: 'ready',
+				graph
+			};
+		} catch (error) {
+			graphState = {
+				type: 'error',
+				error: error as Error
 			};
 		}
+	}
 
-		if (!value.flow) {
-			value.flow = {
-				entrypoint: { node: '' },
-				nodes: {},
-				filters: {}
-			};
-		}
-
-		// Skip if we're in the middle of updating from editor
-		if (isUpdatingFromEditor) return;
-
-		// Read value.flow and convert to editor format
-		// Use untrack to prevent this effect from re-running when we update flowEditorData
-		isUpdatingFromValue = true;
-		flowEditorData = toEditorFormat(untrack(() => value.flow));
-		isUpdatingFromValue = false;
-	});
-
-	// Sync changes back from flowEditorData to value.flow
 	$effect(() => {
-		// Skip if we're in the middle of updating from value
-		if (isUpdatingFromValue) return;
-
-		// Convert editor data back to flow config
-		isUpdatingFromEditor = true;
-		const newFlowConfig = fromEditorFormat(flowEditorData);
-		
-		// Use untrack to read current value without creating dependency
-		const currentFlow = untrack(() => value.flow);
-		
-		// Only update if there's an actual change
-		// Compare serialized versions to avoid reference comparison issues
-		if (JSON.stringify(newFlowConfig) !== JSON.stringify(currentFlow)) {
-			value.flow = newFlowConfig;
-		}
-		
-		isUpdatingFromEditor = false;
-	});
+		untrack(() => updateGraphState(value.flow));
+	})
 </script>
 
 <div class="space-y-4">
@@ -172,12 +73,68 @@
 		{/if}
 	</label>
 
-	<!-- Flow Editor (Tree-based Visual Editor) -->
+	<!-- Flow Editor (Visual Editor) -->
 	<div class="space-y-2">
-		<div class="label-text font-medium">Flow Configuration</div>
-		<div class="card border border-surface-200 dark:border-surface-700 h-[600px] overflow-hidden">
-			<FlowEditor bind:value={flowEditorData} />
+		<div class="flex items-center justify-between">
+			<div class="label-text font-medium">Flow Configuration</div>
+			<div class="flex gap-2">
+				<button
+					class="btn btn-sm {viewMode === 'list' ? 'btn-primary' : 'btn-ghost'}"
+					onclick={() => viewMode = 'list'}
+				>
+					<ListIcon class="size-4" />
+					List
+				</button>
+				<button
+					class="btn btn-sm {viewMode === 'tree' ? 'btn-primary' : 'btn-ghost'}"
+					onclick={() => viewMode = 'tree'}
+				>
+					<WorkflowIcon class="size-4" />
+					Tree
+				</button>
+				<button
+					class="btn btn-sm {viewMode === 'graph' ? 'btn-primary' : 'btn-ghost'}"
+					onclick={() => viewMode = 'graph'}
+				>
+					<NetworkIcon class="size-4" />
+					Graph
+				</button>
+			</div>
 		</div>
+
+		<div class="card border border-surface-200 dark:border-surface-700 h-[600px] overflow-hidden">
+			{#if graphState.type === 'building'}
+			<div>
+				<div class="flex flex-col items-center justify-center h-full">
+					<span class="loading loading-spinner loading-lg"></span>
+					<p class="mt-4 text-sm text-center">Building flow graph...</p>
+				</div>
+			</div>
+			{:else if graphState.type === 'error'}
+			<div>
+				<div class="flex flex-col items-center justify-center h-full p-4">
+					<p class="text-sm text-center text-error">Error building flow graph: {graphState.error.message}</p>
+				</div>
+			</div>
+			{:else if graphState.type === 'ready'}
+				{#if viewMode === 'list'}
+					<div class="flex flex-col items-center justify-center h-full">
+						<p class="text-sm text-center text-muted-foreground">List view coming soon...</p>
+					</div>
+				{:else if viewMode === 'tree'}
+					<FlowTree graph={graphState.graph} bind:selected={selectedValue} />
+				{:else if viewMode === 'graph'}
+					<FlowGraphView graph={graphState.graph} bind:selected={selectedValue} />
+				{/if}
+			{:else}
+			<div>
+				<div class="flex flex-col items-center justify-center h-full">
+					<p class="mt-4 text-sm text-center">Initialize flow graph...</p>
+				</div>
+			</div>
+			{/if}
+		</div>
+
 		<div class="label">
 			<span class="label-text-alt opacity-75">
 				Configure your HTTP request flow by adding nodes and filters. Select a node or filter from
