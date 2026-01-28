@@ -18,6 +18,6 @@
 
 <LinkOrValueEditor
 	bind:value
-	dataType="HttpClassConfig"
+	dataType="HttpInstanceConfig"
 	editorProps={{ classId, instanceType, readonly }}
 />

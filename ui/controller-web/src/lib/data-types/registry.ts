@@ -3,18 +3,17 @@ import type { Component } from 'svelte';
 /**
  * 数据类型组件通用 Props 接口
  */
-export interface DataTypeComponentProps<T = any> {
+export type DataTypeComponentProps<T, P extends Record<string, unknown>> = {
 	mode?: 'edit' | 'view';
 	value?: T;
 	disabled?: boolean;
 	readonly?: boolean;
-	[key: string]: any; // 允许传递额外的自定义属性
-}
+} & P	
 
 /**
  * 数据类型元信息
  */
-export interface DataTypeMetadata {
+export type DataTypeMetadata<T, P extends Record<string, unknown>> = {
 	/** 唯一类型标识符 */
 	type: string;
 
@@ -22,44 +21,44 @@ export interface DataTypeMetadata {
 	displayName: string;
 
 	/** 对应的 Svelte 组件（支持 edit/view 模式） */
-	component: Component<any>;
+	component: Component<DataTypeComponentProps<T, P>>;
 
 	/** 默认值生成器 */
-	defaultValue: () => any;
+	defaultValue: () => T;
 
 	/** 数据格式（用于 LinkOrValue 解析） */
 	dataFormat: 'string' | 'object';
 }
 
+export type UnknownDataTypeMetadata = DataTypeMetadata<unknown, Record<string, unknown>>;
 /**
  * 数据类型注册表实现
  */
 class DataTypeRegistryImpl {
-	private types = new Map<string, DataTypeMetadata>();
-
+	private types = new Map<string, UnknownDataTypeMetadata>();
 	/**
 	 * 注册一个数据类型
 	 */
-	register(metadata: DataTypeMetadata): void {
+	register<T, P extends Record<string, unknown>>(metadata: DataTypeMetadata<T, P>): void {
 		if (this.types.has(metadata.type)) {
 			console.warn(
 				`[DataTypeRegistry] Type "${metadata.type}" is already registered, overwriting...`
 			);
 		}
-		this.types.set(metadata.type, metadata);
+		this.types.set(metadata.type, metadata as UnknownDataTypeMetadata);
 	}
 
 	/**
 	 * 获取指定类型的元信息
 	 */
-	get(type: string): DataTypeMetadata | undefined {
+	get(type: string): UnknownDataTypeMetadata | undefined {
 		return this.types.get(type);
 	}
 
 	/**
 	 * 获取所有已注册的类型元信息
 	 */
-	getAll(): DataTypeMetadata[] {
+	getAll(): UnknownDataTypeMetadata[] {
 		return Array.from(this.types.values());
 	}
 

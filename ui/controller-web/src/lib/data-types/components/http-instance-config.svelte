@@ -2,21 +2,23 @@
 	import type { DataTypeComponentProps } from '../registry';
 	import { httpClassEditorRegistry } from '$lib/plugins/registry';
 	import FallbackConfigEditor from '$lib/components/editor/fallback-config-editor.svelte';
-
 	let {
 		mode = 'edit',
 		value = $bindable({}),
-		classId = '',
-		instanceType = 'node',
-		readonly = false
-	}: DataTypeComponentProps<any> & {
+		readonly = false,
+		classId,
+		instanceType
+	}: DataTypeComponentProps<unknown, {
 		classId: string;
-		instanceType?: 'node' | 'filter';
-		readonly?: boolean;
-	} = $props();
+		instanceType: 'node' | 'filter';
+	}>  = $props();
 
 	// 从插件注册表获取对应的编辑器
-	const plugin = $derived(httpClassEditorRegistry.get(classId));
+	const plugin = $derived(
+		instanceType === 'node'
+			? httpClassEditorRegistry.getNode(classId)
+			: httpClassEditorRegistry.getFilter(classId)
+	);
 
 	// 初始化默认值
 	$effect(() => {

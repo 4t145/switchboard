@@ -47,12 +47,8 @@ export function convertFlowGraphToSvelteFlow(graph: FlowGraph): FlowGraphLayoutD
 				y: nodeWithPosition.y - NODE_HEIGHT / 2
 			},
 			data: {
-				id: nodeId,
-				type: graphNode.data.class,
-				inputs: graphNode.inputs,
-				outputs: graphNode.outputs,
-				isEntrypoint: nodeId === graph.entrypoint,
-				config: graphNode.data.config
+				node: graphNode,
+				graphReference: graph
 			},
 			type: 'custom'
 		};

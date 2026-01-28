@@ -2,10 +2,12 @@
 	import type { FlowConfig, HttpConfig } from './types';
 	import FlowEditor from './flow-editor/flow-editor.svelte';
 	import { untrack } from 'svelte';
-	import { buildFlowGraph, FlowGraph } from './flow-editor/flow-view-builder';
+	import { buildFlowGraph, FlowGraph, FlowTreeViewInstanceSelection } from './flow-editor/flow-view-builder';
 	import FlowTree from './flow-editor/flow-tree-view.svelte';
 	import FlowGraphView from './flow-editor/flow-graph-view.svelte';
-	import { ListIcon, NetworkIcon, WorkflowIcon } from 'lucide-svelte';
+	import { EditIcon, GripVerticalIcon, ListIcon, MaximizeIcon, MinimizeIcon, MinusIcon, NetworkIcon, View, WorkflowIcon, XIcon } from 'lucide-svelte';
+	import { Dialog, FloatingPanel, Portal, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
+	import InstanceConfigEditor from './flow-editor/instance-config-editor.svelte';
 
 	type Props = {
 		value: HttpConfig;
@@ -30,7 +32,31 @@
 	let graphState = $state<GraphState>({ type: 'uninitialized' });
 	let viewMode = $state<ViewMode>('tree');
 	let selectedValue = $state(undefined as string | undefined);
-
+	let selectedInstance = $derived.by(() => {
+		if (graphState.type !== 'ready' || !selectedValue) {
+			return undefined;
+		}
+		const selection = FlowTreeViewInstanceSelection.fromString(selectedValue);
+		return selection;
+	});
+	let selectedInstanceData = $derived.by(() => {
+		if (graphState.type !== 'ready' || !selectedInstance) {
+			return undefined;
+		}
+		if (selectedInstance.type === 'node') {
+			const node = value.flow.nodes[selectedInstance.id];
+			if (node) {
+				return node;
+			}
+		} else if (selectedInstance.type === 'filter') {
+			const filter = value.flow.filters[selectedInstance.id];
+			if (filter) {
+				return filter;
+			}
+		}
+		return undefined;
+	})
+	let editDialogOpen = $state(false);
 	async function updateGraphState(flow: FlowConfig) {
 		if (graphState.type === 'building') {
 			console.warn('Ignoring edits to flow while building graph');
@@ -76,30 +102,38 @@
 	<!-- Flow Editor (Visual Editor) -->
 	<div class="space-y-2">
 		<div class="flex items-center justify-between">
-			<div class="label-text font-medium">Flow Configuration</div>
-			<div class="flex gap-2">
-				<button
-					class="btn btn-sm {viewMode === 'list' ? 'btn-primary' : 'btn-ghost'}"
-					onclick={() => viewMode = 'list'}
-				>
-					<ListIcon class="size-4" />
-					List
-				</button>
-				<button
-					class="btn btn-sm {viewMode === 'tree' ? 'btn-primary' : 'btn-ghost'}"
-					onclick={() => viewMode = 'tree'}
-				>
-					<WorkflowIcon class="size-4" />
-					Tree
-				</button>
-				<button
-					class="btn btn-sm {viewMode === 'graph' ? 'btn-primary' : 'btn-ghost'}"
-					onclick={() => viewMode = 'graph'}
-				>
-					<NetworkIcon class="size-4" />
-					Graph
+			<div class="label-text font-medium flex-grow">Flow Configuration</div>
+			<div class="btn-group">
+				<button class="btn btn-sm btn-primary" onclick={() => { editDialogOpen = true; }} disabled={selectedInstance === undefined}>
+					<EditIcon class="size-4 mr-2" />
 				</button>
 			</div>
+			<SegmentedControl value={viewMode} onValueChange={(details) => {  viewMode = details.value as ViewMode; }} defaultValue="tree" class="btn-group">
+				<SegmentedControl.Control>
+					<SegmentedControl.Indicator />
+					<SegmentedControl.Item
+						value="list"
+						aria-label="List View"
+						title="List View"
+					>
+						<SegmentedControl.ItemText>
+							<ListIcon class="size-4" />
+						</SegmentedControl.ItemText>
+						<SegmentedControl.ItemHiddenInput />
+					</SegmentedControl.Item>
+					<SegmentedControl.Item
+						value="tree"
+						aria-label="Tree View"
+						title="Tree View"
+					>
+
+						<SegmentedControl.ItemText>
+							<WorkflowIcon class="size-4" />
+						</SegmentedControl.ItemText>
+						<SegmentedControl.ItemHiddenInput />
+					</SegmentedControl.Item>
+				</SegmentedControl.Control>
+			</SegmentedControl>
 		</div>
 
 		<div class="card border border-surface-200 dark:border-surface-700 h-[600px] overflow-hidden">
@@ -123,8 +157,6 @@
 					</div>
 				{:else if viewMode === 'tree'}
 					<FlowTree graph={graphState.graph} bind:selected={selectedValue} />
-				{:else if viewMode === 'graph'}
-					<FlowGraphView graph={graphState.graph} bind:selected={selectedValue} />
 				{/if}
 			{:else}
 			<div>
@@ -134,7 +166,6 @@
 			</div>
 			{/if}
 		</div>
-
 		<div class="label">
 			<span class="label-text-alt opacity-75">
 				Configure your HTTP request flow by adding nodes and filters. Select a node or filter from
@@ -143,3 +174,41 @@
 		</div>
 	</div>
 </div>
+
+<FloatingPanel open={editDialogOpen}>
+	<Portal>
+		<FloatingPanel.Positioner class="z-50">
+			<FloatingPanel.Content>
+				<FloatingPanel.DragTrigger>
+					<FloatingPanel.Header>
+						<FloatingPanel.Title>
+							<GripVerticalIcon class="size-4" />
+							Floating Panel
+						</FloatingPanel.Title>
+						<FloatingPanel.Control>
+							<FloatingPanel.StageTrigger stage="minimized">
+								<MinusIcon class="size-4" />
+							</FloatingPanel.StageTrigger>
+							<FloatingPanel.StageTrigger stage="maximized">
+								<MaximizeIcon class="size-4" />
+							</FloatingPanel.StageTrigger>
+							<FloatingPanel.StageTrigger stage="default">
+								<MinimizeIcon class="size-4" />
+							</FloatingPanel.StageTrigger>
+							<FloatingPanel.CloseTrigger>
+								<XIcon className="size-4" />
+							</FloatingPanel.CloseTrigger>
+						</FloatingPanel.Control>
+					</FloatingPanel.Header>
+				</FloatingPanel.DragTrigger>
+				<FloatingPanel.Body>
+					{#if selectedInstanceData && selectedInstance}
+						<InstanceConfigEditor instanceId={selectedInstance.id} bind:config={selectedInstanceData} instanceType={selectedInstance.type}>
+						</InstanceConfigEditor>
+					{/if}
+				</FloatingPanel.Body>
+				<FloatingPanel.ResizeTrigger axis="se" />
+			</FloatingPanel.Content>
+		</FloatingPanel.Positioner>
+	</Portal>
+</FloatingPanel>

@@ -32,17 +32,17 @@ export function registerAllPlugins() {
 
 	// Register HTTP Class Editors - Nodes
 	console.log('[Plugins] 🔌 Registering HTTP class editors (nodes)...');
-	httpClassEditorRegistry.register_node(routerEditorPlugin);
-	httpClassEditorRegistry.register_node(reverseProxyEditorPlugin);
-	httpClassEditorRegistry.register_node(directResponseEditorPlugin);
-	httpClassEditorRegistry.register_node(staticResponseEditorPlugin);
+	httpClassEditorRegistry.registerNode(routerEditorPlugin);
+	httpClassEditorRegistry.registerNode(reverseProxyEditorPlugin);
+	httpClassEditorRegistry.registerNode(directResponseEditorPlugin);
+	httpClassEditorRegistry.registerNode(staticResponseEditorPlugin);
 
 	// Register HTTP Class Editors - Filters
 	console.log('[Plugins] 🔌 Registering HTTP class editors (filters)...');
-	httpClassEditorRegistry.register_node(urlRewriteEditorPlugin);
-	httpClassEditorRegistry.register_node(requestHeaderModifyEditorPlugin);
-	httpClassEditorRegistry.register_node(responseHeaderModifyEditorPlugin);
-	httpClassEditorRegistry.register_node(requestRedirectEditorPlugin);
+	httpClassEditorRegistry.registerNode(urlRewriteEditorPlugin);
+	httpClassEditorRegistry.registerNode(requestHeaderModifyEditorPlugin);
+	httpClassEditorRegistry.registerNode(responseHeaderModifyEditorPlugin);
+	httpClassEditorRegistry.registerNode(requestRedirectEditorPlugin);
 
 	const elapsed = (performance.now() - startTime).toFixed(2);
 	console.log(`[Plugins] ✅ Built-in plugin registration complete (${elapsed}ms)`);

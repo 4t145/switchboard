@@ -39,8 +39,13 @@ function getInputs(nodeId: string, node: InstanceDataWithoutType<unknown>): Inpu
 export type FlowGraphNode = {
 	id: string;
 	data: InstanceDataWithoutType<unknown>;
-	outputs: string[];
-	inputs: string[];
+	outputs: OutputInfo[];
+	inputs: InputInfo[];
+};
+
+export type FlowGraphFilter = {
+	id: string;
+	data: InstanceDataWithoutType<unknown>;
 };
 
 export type FlowGraphLink = {
@@ -51,6 +56,7 @@ export type FlowGraphLink = {
 export type FlowGraph = {
 	entrypoint: string;
 	nodes: Record<string, FlowGraphNode>;
+	filters: Record<string, FlowGraphFilter>;
 	links: {
 		indexedByFrom: Map<NodeId, Record<NodePort, NodeTargetObject>>;
 		indexedByTo: Map<NodeId, Record<NodePort, NodeTargetObject>>;
@@ -59,7 +65,7 @@ export type FlowGraph = {
 	readonly addNode: (node: FlowGraphNode) => void;
 	readonly deleteLink: (from: NodeTargetObject, to: NodeTargetObject) => void;
 	readonly deleteNode: (nodeId: NodeId) => void;
-	readonly asTree: () => FlowTreeView;
+	readonly asTree: () => FlowTreeViewRoot;
 };
 
 export const FlowGraph = {
@@ -67,6 +73,7 @@ export const FlowGraph = {
 		const obj = Object.create({});
 		obj.entrypoint = entrypoint;
 		obj.nodes = {};
+		obj.filters = {};
 		obj.links = {
 			indexedByFrom: new Map(),
 			indexedByTo: new Map()
@@ -171,56 +178,303 @@ export async function buildFlowGraph(flow: FlowConfig): Promise<FlowGraph> {
 		const node: FlowGraphNode = {
 			id: nodeId,
 			data: nodeData,
-			inputs: inputs.map((input) => input.port),
-			outputs: outputs.map((output) => output.port)
+			inputs,
+			outputs
 		};
 		graph.addNode(node);
 		for (const link of links) {
 			graph.addLink(link.from, link.to);
 		}
 	}
+	for (const [filterId, filterData] of Object.entries(flow.filters ?? {})) {
+		const filter: FlowGraphFilter = {
+			id: filterId,
+			data: filterData
+		};
+		graph.filters[filterId] = filter;
+	}
 	return graph;
 }
 
-export type FlowTreeViewNode = {
+export type FlowTreeViewNode =
+	| FlowTreeViewNodeDispatcher
+	| FlowTreeViewNodeDispatcherReference
+	| FlowTreeViewNodeService
+	| FlowTreeViewRoot
+	| FlowTreeViewNodeFilter
+	| FlowTreeViewNodeFilterDir
+	| FlowTreeViewOrphans
+	| FlowTreeViewNodeInterface;
+
+
+export type FlowTreeViewInstanceSelection = {
+	type: 'node';
 	id: string;
+} | {
+	type: 'filter';
+	id: string;
+} 
+
+export const FlowTreeViewInstanceSelection = {
+	fromString(value: string): FlowTreeViewInstanceSelection | undefined {
+		if (value.startsWith('$filter:')) {
+			return {
+				type: 'filter',
+				id: value.substring('$filter:'.length)
+			};
+		} else if (value.startsWith('$node:')) {
+			return {
+				type: 'node',
+				id: value.substring('$node:'.length)
+			};
+		}
+		return undefined;
+	}
+}
+export const FlowTreeViewNode = {
+	nodeToValue(node: FlowTreeViewNode): string {
+		switch (node.type) {
+			case 'dispatcher':
+			case 'service':
+				return `$node:${node.id}`;
+			case 'dispatcher-reference':
+				return `$node:${node.ref}`;
+			case 'root':
+				return '$root';
+			case 'filter':
+				return `$filter:${node.id}`;
+			case 'filter-dir': {
+				let label;
+				if (node.location.type === 'global') {
+					label = '$global';
+				} else {
+					label = `${node.location.node}:${node.location.type}:${node.location.port}`;
+				}
+				return `$filter-dir:${label}`;
+			}
+			case 'orphans':
+				return '$orphans';
+			case 'node-interface':
+				return `$${node.kind}:${node.node}`;
+		}
+	},
+	nodeToString(node: FlowTreeViewNode): string {
+		return FlowTreeViewNode.nodeToValue(node);
+	},
+	nodeToChildrenCount(node: FlowTreeViewNode): number {
+		switch (node.type) {
+			case 'dispatcher':
+				return node.children.length;
+			case 'service':
+				return 1;
+			case 'dispatcher-reference':
+			case 'filter':
+				return 0;
+			case 'node-interface':
+				return node.filters.length;
+			case 'root':
+				return 3;
+			case 'filter-dir':
+				return node.filters.length;
+			case 'orphans':
+				return node.nodes.length;
+		}
+	},
+	nodeToChildren(node: FlowTreeViewNode): FlowTreeViewNode[] {
+		switch (node.type) {
+			case 'dispatcher':
+				return [...node.children, node.outputs, node.inputs];
+			case 'filter-dir':
+				return node.filters;
+			case 'orphans':
+				return node.nodes;
+			case 'service':
+				return [node.inputs];
+			case 'dispatcher-reference':
+			case 'filter':
+				return [];
+			case 'root':
+				return [node.node_entrypoint, node.orphans, node.filters];
+			case 'node-interface':
+				return node.filters;
+		}
+	}
+};
+
+export type FlowTreeViewRoot = {
+	type: 'root';
+	filters: FlowTreeViewNodeFilterDir;
+	node_entrypoint: FlowTreeViewNode;
+	orphans: FlowTreeViewOrphans;
+};
+
+export type FlowTreeViewNodeDispatcherReference = {
+	ref: string;
+	type: 'dispatcher-reference';
+};
+
+export type FlowTreeViewNodeDispatcher = {
+	id: string;
+	type: 'dispatcher';
 	children: FlowTreeViewNode[];
-	duplicate: boolean;
-	graphReference: FlowGraph;
+	outputs: FlowTreeViewNodeInterface;
+	inputs: FlowTreeViewNodeInterface;
+};
+export type FlowTreeViewNodeService = {
+	id: string;
+	inputs: FlowTreeViewNodeInterface;
+	type: 'service';
 };
 
-export type FlowTreeView = {
-	root: FlowTreeViewNode;
-	orphans: FlowTreeViewNode[];
+export type FlowTreeViewNodeFilter = {
+	id: string;
+	type: 'filter';
 };
 
-export function flowGraphAsTree(graph: FlowGraph): FlowTreeView {
+export type FlowTreeViewNodeInterface = {
+	type: 'node-interface';
+	kind: 'input' | 'output';
+	node: string;
+	filters: FlowTreeViewNodeFilterDir[];
+};
+
+export type FlowTreeViewNodeFilterDir = {
+	type: 'filter-dir';
+	location:
+		| {
+				type: 'input';
+				node: string;
+				port: string;
+		  }
+		| {
+				type: 'output';
+				port: string;
+				node: string;
+		  }
+		| {
+				type: 'global';
+		  };
+	filters: FlowTreeViewNodeFilter[];
+};
+
+export type FlowTreeViewNodeOutputInterface = {
+	port: string;
+	filters: FlowTreeViewNodeFilter[];
+};
+
+export type FlowTreeViewNodeInputInterface = {
+	port: string;
+	filters: FlowTreeViewNodeFilter[];
+};
+
+export type FlowTreeViewOrphans = {
+	type: 'orphans';
+	nodes: FlowTreeViewNode[];
+};
+
+export function flowGraphAsTree(graph: FlowGraph): FlowTreeViewRoot {
 	const entrypoint = graph.entrypoint;
 	const visited = new Set<string>();
 	const orphans: FlowTreeViewNode[] = [];
 	function buildTreeNode(nodeId: string): FlowTreeViewNode {
-		if (visited.has(nodeId)) {
-			return {
+		// is dispatcher node?
+		const node = graph.nodes[nodeId];
+		if (node.outputs.length > 0) {
+			if (visited.has(nodeId)) {
+				return <FlowTreeViewNodeDispatcherReference>{
+					ref: nodeId,
+					type: 'dispatcher-reference'
+				};
+			}
+			visited.add(nodeId);
+			const children: string[] = [];
+			const outputs = graph.links.indexedByFrom.get(nodeId);
+			if (outputs) {
+				for (const target of Object.values(outputs)) {
+					children.push(target.nodeId);
+				}
+			}
+			return <FlowTreeViewNodeDispatcher>{
 				id: nodeId,
-				children: [],
-				duplicate: true,
-				graphReference: graph
+				children: children.map((childId) => buildTreeNode(childId)),
+				outputs: <FlowTreeViewNodeInterface>{
+					type: 'node-interface',
+					kind: 'output',
+					node: nodeId,
+					filters: node.outputs.map(
+						(output) =>
+							<FlowTreeViewNodeFilterDir>{
+								type: 'filter-dir',
+								location: {
+									type: 'output',
+									port: output.port,
+									node: nodeId
+								},
+								filters: output.filters.map(
+									(filterId) =>
+										<FlowTreeViewNodeFilter>{
+											id: filterId,
+											type: 'filter'
+										}
+								)
+							}
+					)
+				},
+				inputs: <FlowTreeViewNodeInterface>{
+					type: 'node-interface',
+					kind: 'input',
+					node: nodeId,
+					filters: node.inputs.map(
+						(input) =>
+							<FlowTreeViewNodeFilterDir>{
+								type: 'filter-dir',
+								location: {
+									type: 'input',
+									port: input.port,
+									node: nodeId
+								},
+								filters: input.filters.map(
+									(filterId) =>
+										<FlowTreeViewNodeFilter>{
+											id: filterId,
+											type: 'filter'
+										}
+								)
+							}
+					)
+				},
+				type: 'dispatcher'
+			};
+		} else {
+			visited.add(nodeId);
+			return <FlowTreeViewNodeService>{
+				id: nodeId,
+				type: 'service',
+				inputs: <FlowTreeViewNodeInterface>{
+					type: 'node-interface',
+					kind: 'input',
+					node: nodeId,
+					filters: node.inputs.map(
+						(input) =>
+							<FlowTreeViewNodeFilterDir>{
+								type: 'filter-dir',
+								location: {
+									type: 'input',
+									port: input.port,
+									node: nodeId
+								},
+								filters: input.filters.map(
+									(filterId) =>
+										<FlowTreeViewNodeFilter>{
+											id: filterId,
+											type: 'filter'
+										}
+								)
+							}
+					)
+				}
 			};
 		}
-		visited.add(nodeId);
-		const children: string[] = [];
-		const outputs = graph.links.indexedByFrom.get(nodeId);
-		if (outputs) {
-			for (const target of Object.values(outputs)) {
-				children.push(target.nodeId);
-			}
-		}
-		return {
-			id: nodeId,
-			children: children.map((childId) => buildTreeNode(childId)),
-			duplicate: false,
-			graphReference: graph
-		};
 	}
 	const root = buildTreeNode(entrypoint);
 
@@ -230,9 +484,26 @@ export function flowGraphAsTree(graph: FlowGraph): FlowTreeView {
 			orphans.push(buildTreeNode(nodeId));
 		}
 	}
-
+	const filters: FlowTreeViewNodeFilter[] = [];
+	for (const filterId of Object.keys(graph.filters)) {
+		filters.push({
+			id: filterId,
+			type: 'filter'
+		});
+	}
 	return {
-		root,
-		orphans
+		type: 'root',
+		node_entrypoint: root,
+		filters: {
+			type: 'filter-dir',
+			location: {
+				type: 'global'
+			},
+			filters
+		},
+		orphans: {
+			type: 'orphans',
+			nodes: orphans
+		}
 	};
 }

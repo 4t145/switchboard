@@ -4,7 +4,7 @@ import { dataTypeRegistry } from './registry';
 import JsonEditor from './components/json-editor.svelte';
 import PemEditor from './components/pem-editor.svelte';
 import ProviderConfig from './components/provider-config.svelte';
-import HttpClassConfig from './components/http-class-config.svelte';
+import HttpInstanceConfig from './components/http-instance-config.svelte';
 
 /**
  * 注册所有数据类型到全局注册表
@@ -57,9 +57,9 @@ export function registerDataTypes() {
 
 	// HTTP 类配置类型（使用 HTTP 类插件系统）
 	dataTypeRegistry.register({
-		type: 'HttpClassConfig',
-		displayName: 'HTTP Class Configuration',
-		component: HttpClassConfig,
+		type: 'HttpInstanceConfig',
+		displayName: 'HTTP Instance Configuration',
+		component: HttpInstanceConfig,
 		defaultValue: () => ({}),
 		dataFormat: 'object'
 	});

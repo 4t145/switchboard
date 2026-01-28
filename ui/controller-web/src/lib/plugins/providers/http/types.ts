@@ -11,8 +11,8 @@ export interface HttpConfig<Cfg = unknown> {
 
 export interface FlowConfig<Cfg = unknown> {
 	entrypoint: NodeTarget;
-	nodes?: Record<string, InstanceDataWithoutType<Cfg>>;
-	filters?: Record<string, InstanceDataWithoutType<Cfg>>;
+	nodes: Record<string, InstanceDataWithoutType<Cfg>>;
+	filters: Record<string, InstanceDataWithoutType<Cfg>>;
 	options?: FlowOptions;
 }
 

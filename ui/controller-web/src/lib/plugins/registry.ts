@@ -74,9 +74,9 @@ class HttpClassEditorRegistry {
 
 	register<T>(plugin: HttpClassEditorPlugin<T>) {
 		if (plugin.type === 'node') {
-			this.register_node(plugin as HttpNodeClassPlugin<T>);
+			this.registerNode(plugin as HttpNodeClassPlugin<T>);
 		} else if (plugin.type === 'filter') {
-			this.register_filter(plugin as HttpFilterClassPlugin<T>);
+			this.registerFilter(plugin as HttpFilterClassPlugin<T>);
 		} else {
 			console.error(`[HttpClassEditorRegistry] Failed to register plugin: Unknown type`);
 		}
@@ -85,7 +85,7 @@ class HttpClassEditorRegistry {
 	/**
 	 * Register a HTTP class editor plugin
 	 */
-	register_node<T>(plugin: HttpNodeClassPlugin<T>) {
+	registerNode<T>(plugin: HttpNodeClassPlugin<T>) {
 		const isUpdate = this.nodes.has(plugin.classId);
 		this.nodes.set(plugin.classId, plugin as HttpNodeClassPlugin);
 
@@ -104,7 +104,7 @@ class HttpClassEditorRegistry {
 		});
 	}
 
-	register_filter<T>(plugin: HttpFilterClassPlugin<T>) {
+	registerFilter<T>(plugin: HttpFilterClassPlugin<T>) {
 		const isUpdate = this.filters.has(plugin.classId);
 		this.filters.set(plugin.classId, plugin as HttpFilterClassPlugin);
 
@@ -125,13 +125,13 @@ class HttpClassEditorRegistry {
 
 	unregister(classId: string) {
 		if (this.nodes.has(classId)) {
-			this.unregister_node(classId);
+			this.unregisterNode(classId);
 		} else if (this.filters.has(classId)) {
-			this.unregister_filter(classId);
+			this.unregisterFilter(classId);
 		}
 	}
 
-	unregister_filter(classId: string) {
+	unregisterFilter(classId: string) {
 		const plugin = this.filters.get(classId);
 		if (plugin) {
 			this.filters.delete(classId);
@@ -141,7 +141,7 @@ class HttpClassEditorRegistry {
 	/**
 	 * Unregister a plugin
 	 */
-	unregister_node(classId: string) {
+	unregisterNode(classId: string) {
 		const plugin = this.nodes.get(classId);
 		if (plugin) {
 			this.nodes.delete(classId);
@@ -153,13 +153,29 @@ class HttpClassEditorRegistry {
 	 * Get a plugin by class ID
 	 */
 	get<T extends HttpClassEditorPlugin = HttpClassEditorPlugin>(classId: string): T | undefined {
-		const plugin = this.nodes.get(classId) as T | undefined;
+		const plugin = this.nodes.get(classId) as T | undefined ?? this.filters.get(classId) as T | undefined ?? undefined;
 		if (!plugin) {
 			console.debug(`[HttpClassEditorRegistry] Plugin not found for class: ${classId}`);
 		}
 		return plugin;
 	}
 
+	getFilter(classId: string): HttpFilterClassPlugin | undefined {
+		const plugin = this.filters.get(classId);
+		if (!plugin) {
+			console.debug(`[HttpClassEditorRegistry] Filter plugin not found for class: ${classId}`);
+		}
+		return plugin;
+	}
+
+	getNode(classId: string): HttpNodeClassPlugin | undefined {
+		const plugin = this.nodes.get(classId);
+		if (!plugin) {
+			console.debug(`[HttpClassEditorRegistry] Node plugin not found for class: ${classId}`);
+		}
+		return plugin;
+	}
+	
 	/**
 	 * Get all registered node plugins
 	 */

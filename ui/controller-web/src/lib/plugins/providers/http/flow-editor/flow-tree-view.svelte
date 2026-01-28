@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { createTreeViewCollection, TreeView } from '@skeletonlabs/skeleton-svelte';
-	import type { FlowGraph, FlowTreeView, FlowTreeViewNode } from './flow-view-builder';
-	import { ExternalLinkIcon, FileIcon, LogInIcon, ServerIcon, SplitIcon } from 'lucide-svelte';
+	import { FlowTreeViewNode, type FlowGraph } from './flow-view-builder';
+	import { ExternalLinkIcon, FileIcon, FunnelIcon, LogInIcon, ServerIcon, SplitIcon } from 'lucide-svelte';
 
 	type Props = {
 		graph: FlowGraph;
@@ -15,38 +15,37 @@
 
 	function buildTreeView(graph: FlowGraph) {
 		const tree = graph.asTree();
-		return <FlowTreeViewNode>{
-			id: '$view_root',
-			children: [tree.root, ...tree.orphans],
-			duplicate: false,
-			graphReference: graph
-		}
+		return tree
 	}
 	const treeView = $derived(buildTreeView(graph));
 	const collection = $derived(createTreeViewCollection<FlowTreeViewNode>({
-		nodeToValue: (node) => node.id,
-		nodeToString: (node) => node.id,
-		nodeToChildrenCount: (node) => node.children.length,
-		nodeToChildren: (node) => node.children,
+		nodeToValue: FlowTreeViewNode.nodeToValue,
+		nodeToString: FlowTreeViewNode.nodeToString,
+		nodeToChildrenCount: FlowTreeViewNode.nodeToChildrenCount,
+		nodeToChildren: FlowTreeViewNode.nodeToChildren,
 		rootNode: treeView,
 	}));
-	const selectedValue = $state(undefined as string[] | undefined);
+	let selectedValue = $state(undefined as string[] | undefined);
 	$effect(() => {
 		selected = selectedValue?.at(0) ?? undefined;
 	});
 </script>
-<TreeView {collection} selectedValue={selectedValue} selectionMode="single">
-	<TreeView.Label>Flow Tree View</TreeView.Label>
+<TreeView {collection} selectedValue={selectedValue} onSelectionChange={(event) => { selectedValue = event.selectedValue; }} selectionMode="single">
 	<TreeView.Tree>
-		{#each collection.rootNode.children || [] as node, index (node)}
-			{@render treeNode(node, [index])}
-		{/each}
+		{#if collection.rootNode.type === 'root'}
+			{@render treeNode(collection.rootNode.node_entrypoint, [0])}
+			{#if collection.rootNode.orphans.nodes.length > 0}
+				{@render treeNode(collection.rootNode.orphans, [1])}
+			{/if}
+			{@render treeNode(collection.rootNode.filters, [2])}
+		{/if}
 	</TreeView.Tree>
 </TreeView>
+
 {#snippet treeNode(node: FlowTreeViewNode, indexPath: number[])}
 	<TreeView.NodeProvider value={{ node, indexPath }}>
-		{#if node.children && node.children.length > 0}
-			<TreeView.Branch>
+		{#if node.type === 'dispatcher'}
+		<TreeView.Branch>
 				<TreeView.BranchControl>
 					<TreeView.BranchIndicator />
 					<TreeView.BranchText>
@@ -59,20 +58,111 @@
 				</TreeView.BranchControl>
 				<TreeView.BranchContent>
 					<TreeView.BranchIndentGuide />
+					{@const isInputEmpty = node.inputs.filters.reduce((acc, port) => acc + port.filters.length, 0) > 0}
+					{@const isOutputEmpty = node.outputs.filters.reduce((acc, port) => acc + port.filters.length, 0) > 0}
 					{#each node.children as childNode, childIndex (childNode)}
+						{@render treeNode(childNode, [...indexPath, childIndex])}
+					{/each}
+					{#if isInputEmpty}
+						{@render treeNode(node.inputs, [...indexPath, node.children.length + 1])}
+					{/if}
+					{#if isOutputEmpty}
+						{@render treeNode(node.outputs, [...indexPath, node.children.length])}
+					{/if}
+				</TreeView.BranchContent>
+			</TreeView.Branch>
+		{:else if node.type === 'node-interface'}
+		<TreeView.Branch>
+				<TreeView.BranchControl>
+					<TreeView.BranchIndicator />
+					<TreeView.BranchText>
+						{#if node.kind === 'input'}
+							<LogInIcon  class="size-4 rotate-180"></LogInIcon>
+							Inputs
+						{:else}
+							<LogInIcon  class="size-4"></LogInIcon>
+							Outputs
+						{/if}
+					</TreeView.BranchText>
+				</TreeView.BranchControl>
+				<TreeView.BranchContent>
+					<TreeView.BranchIndentGuide />
+					{#each node.filters as childNode, childIndex (childNode)}
 						{@render treeNode(childNode, [...indexPath, childIndex])}
 					{/each}
 				</TreeView.BranchContent>
 			</TreeView.Branch>
-		{:else}
-			<TreeView.Item>
-				{#if node.duplicate}
-					<ExternalLinkIcon class="size-4" />
-				{:else }
+		{:else if node.type === 'dispatcher-reference'}
+		<TreeView.Item>
+			<ExternalLinkIcon class="size-4" />
+			{node.ref} (dispatcher reference)
+		</TreeView.Item>
+		{:else if node.type === 'service'}
+			{@const isEmpty = node.inputs.filters.reduce((acc, port) => acc + port.filters.length, 0) > 0}
+			{#if isEmpty}
+				<TreeView.Branch>
+					<TreeView.BranchControl>
+						<TreeView.BranchIndicator />
+						<TreeView.BranchText>
+							<ServerIcon class="size-4" />
+							{node.id}
+						</TreeView.BranchText>
+					</TreeView.BranchControl>
+					<TreeView.BranchContent>
+						<TreeView.BranchIndentGuide />
+						{@render treeNode(node.inputs, [...indexPath, 0])}
+					</TreeView.BranchContent>
+				</TreeView.Branch>
+			{:else}
+				<TreeView.Item>
 					<ServerIcon class="size-4" />
-				{/if}
-				{node.id}
-			</TreeView.Item>
+					{node.id}
+				</TreeView.Item>
+			{/if}
+		{:else if node.type === 'filter'}
+		<TreeView.Item>
+			<FunnelIcon class="size-4" />
+			{node.id}
+		</TreeView.Item>
+		{:else if node.type === 'filter-dir'}
+			{#if node.filters.length > 0}
+				<TreeView.Branch>
+					<TreeView.BranchControl>
+						<TreeView.BranchIndicator />
+						<TreeView.BranchText>
+							{#if node.location.type === 'global'}
+								<FunnelIcon  class="size-4"></FunnelIcon>
+								Filters
+							{:else }	
+								<ExternalLinkIcon  class="size-4"></ExternalLinkIcon>
+								{node.location.node} {node.location.port}
+							{/if}
+						</TreeView.BranchText>
+					</TreeView.BranchControl>
+					<TreeView.BranchContent>
+						<TreeView.BranchIndentGuide />
+						{#each node.filters as childNode, childIndex (childNode)}
+							{@render treeNode(childNode, [...indexPath, childIndex])}
+						{/each}
+					</TreeView.BranchContent>
+				</TreeView.Branch>
+			{/if}
+		{:else if node.type === 'orphans'}
+		<TreeView.Branch>
+			<TreeView.BranchControl>
+				<TreeView.BranchIndicator />
+				<TreeView.BranchText>
+					<FileIcon  class="size-4"></FileIcon>
+					Orphan Nodes
+				</TreeView.BranchText>
+			</TreeView.BranchControl>
+			<TreeView.BranchContent>
+				<TreeView.BranchIndentGuide />
+				{#each node.nodes as childNode, childIndex (childNode)}
+					{@render treeNode(childNode, [...indexPath, childIndex])}
+				{/each}
+			</TreeView.BranchContent>
+		</TreeView.Branch>
 		{/if}
 	</TreeView.NodeProvider>
 {/snippet}
