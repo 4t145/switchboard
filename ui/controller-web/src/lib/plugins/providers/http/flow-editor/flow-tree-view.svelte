@@ -17,31 +17,68 @@
 		const tree = graph.asTree();
 		return tree
 	}
-	const treeView = $derived(buildTreeView(graph));
-	const collection = $derived(createTreeViewCollection<FlowTreeViewNode>({
-		nodeToValue: FlowTreeViewNode.nodeToValue,
-		nodeToString: FlowTreeViewNode.nodeToString,
-		nodeToChildrenCount: FlowTreeViewNode.nodeToChildrenCount,
-		nodeToChildren: FlowTreeViewNode.nodeToChildren,
-		rootNode: treeView,
-	}));
+	
+	const treeView = $derived.by(() => {
+		try {
+			return buildTreeView(graph)
+		} catch (e) {
+			console.error(`Failed to build tree view`, e);
+			return Error(`Failed to build tree view: ${e}`);
+		}
+	});
+	const componentState: {
+		type: 'ready';
+		collection: ReturnType<typeof createTreeViewCollection<FlowTreeViewNode>>;
+	} | {
+		type: 'error';
+		error: Error;
+	} = $derived.by(() => {
+		try {
+			return {
+				type: 'ready',
+				collection: createTreeViewCollection<FlowTreeViewNode>({
+					nodeToValue: FlowTreeViewNode.nodeToValue,
+					nodeToString: FlowTreeViewNode.nodeToString,
+					nodeToChildrenCount: FlowTreeViewNode.nodeToChildrenCount,
+					nodeToChildren: FlowTreeViewNode.nodeToChildren,
+					rootNode: buildTreeView(graph),
+				})
+			};
+		} catch (e) {
+			console.error(`Failed to build tree view`, e);
+			return {
+				type: 'error',
+				error: Error(`Failed to build tree view: ${e}`)
+			}
+		}
+		
+	});
 	let selectedValue = $state(undefined as string[] | undefined);
 	$effect(() => {
 		selected = selectedValue?.at(0) ?? undefined;
 	});
 </script>
-<TreeView {collection} selectedValue={selectedValue} onSelectionChange={(event) => { selectedValue = event.selectedValue; }} selectionMode="single">
-	<TreeView.Tree>
-		{#if collection.rootNode.type === 'root'}
-			{@render treeNode(collection.rootNode.node_entrypoint, [0])}
-			{#if collection.rootNode.orphans.nodes.length > 0}
-				{@render treeNode(collection.rootNode.orphans, [1])}
-			{/if}
-			{@render treeNode(collection.rootNode.filters, [2])}
-		{/if}
-	</TreeView.Tree>
-</TreeView>
 
+{#if componentState.type === 'error'}
+	<div class="alert alert-danger">
+		<div class="flex items-center space-x-2">
+			<span>Error building flow tree view: {componentState.error.message}</span>
+		</div>
+	</div>
+{:else if componentState.type === 'ready'}
+	{@const collection = componentState.collection}
+	<TreeView {collection} selectedValue={selectedValue} onSelectionChange={(event) => { selectedValue = event.selectedValue; }} selectionMode="single">
+		<TreeView.Tree>
+			{#if collection.rootNode.type === 'root'}
+				{@render treeNode(collection.rootNode.node_entrypoint, [0])}
+				{#if collection.rootNode.orphans.nodes.length > 0}
+					{@render treeNode(collection.rootNode.orphans, [1])}
+				{/if}
+				{@render treeNode(collection.rootNode.filters, [2])}
+			{/if}
+		</TreeView.Tree>
+	</TreeView>
+{/if}
 {#snippet treeNode(node: FlowTreeViewNode, indexPath: number[])}
 	<TreeView.NodeProvider value={{ node, indexPath }}>
 		{#if node.type === 'dispatcher'}

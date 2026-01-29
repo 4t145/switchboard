@@ -22,7 +22,7 @@
 			<div
 				class="card cursor-pointer border p-4 transition-all {settingsStore.language === lang.code
 					? 'border-primary-500 bg-primary-50 ring-2 ring-primary-500 dark:bg-primary-900/20'
-					: 'border-surface-300 hover:border-primary-300 dark:border-surface-600 dark:hover:border-primary-700'}"
+					: 'hover:border-primary-300  dark:hover:border-primary-700'}"
 				onclick={() => (settingsStore.language = lang.code)}
 			>
 				<div class="flex items-center gap-3">

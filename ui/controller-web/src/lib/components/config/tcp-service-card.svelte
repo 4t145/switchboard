@@ -52,7 +52,7 @@
 
 	<!-- Config -->
 	{#if service.config}
-		<div class="pt-2 border-t border-surface-300 dark:border-surface-700">
+		<div class="pt-2 border-t dark:border-surface-700">
 			<div class="flex items-center gap-2 text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
 				<Settings class="w-4 h-4" />
 				Configuration:

@@ -64,7 +64,7 @@
 		<div class="space-y-3">
 			{#each value.binds as bind, i}
 				<div
-					class="flex items-start gap-4 card border border-surface-300 p-3 dark:border-surface-600"
+					class="flex items-start gap-4 card border p-3 "
 				>
 					<div class="grid flex-1 grid-cols-1 gap-4 md:grid-cols-2">
 						<label class="label">
@@ -116,8 +116,7 @@
 		</h4>
 		<ProviderConfigEditor
 			bind:value={value.config}
-			provider={value.provider}
-			dataType="TcpServiceConfig"
+			bind:provider={value.provider}
 		/>
 	</div>
 </div>

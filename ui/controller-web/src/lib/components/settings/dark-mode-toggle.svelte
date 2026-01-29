@@ -17,7 +17,7 @@
 	}
 </script>
 
-<div class="card border border-surface-300 p-5 dark:border-surface-600">
+<div class="card border p-5 ">
 	<div class="space-y-4">
 		<div>
 			<div class="mb-1 font-semibold">{msg.settings_darkmode_label()}</div>
@@ -31,7 +31,7 @@
 					class="flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-all hover:bg-surface-100 dark:hover:bg-surface-800 {settingsStore.colorMode ===
 					mode.value
 						? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
-						: 'border-surface-300 dark:border-surface-600'}"
+						: ''}"
 					onclick={() => selectMode(mode.value)}
 					type="button"
 				>

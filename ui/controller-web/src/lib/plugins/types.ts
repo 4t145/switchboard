@@ -16,6 +16,7 @@ export interface ValidationResult {
 export type ProviderEditorProps<T = unknown> = {
 	/** Current configuration value (can be object or LinkOrValue string) */
 	value: T;
+	onSave: (value: T) => void;
 	/** Whether the editor is read-only */
 	readonly?: boolean;
 };
@@ -53,6 +54,7 @@ export interface HttpClassEditorProps<T = unknown> {
 	instanceId?: string;
 	/** Whether the editor is read-only */
 	readonly?: boolean;
+	onSave: (value: T) => void;
 }
 
 /**

@@ -126,7 +126,7 @@
 	{:else if mode === 'Sni' && isSniTlsResolver(value)}
 		<!-- Sni Editor -->
 		{#each value.sni as { hostname, ...params }}
-			<div class="card border border-surface-300 p-3 dark:border-surface-600">
+			<div class="card border p-3 ">
 				<div class="mb-3 flex items-center justify-between">
 					<h4 class="text-base font-bold">{hostname}</h4>
 					<button

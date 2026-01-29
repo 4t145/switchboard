@@ -348,7 +348,7 @@
 		<!-- Certificate Information Display -->
 		{#if certInfo}
 			{@const certStatus = getCertStatus(certInfo.validTo)}
-			<div class="mt-4 p-4 bg-surface-100 dark:bg-surface-800 rounded-lg border border-surface-300 dark:border-surface-600 space-y-3">
+			<div class="mt-4 p-4 bg-surface-100 dark:bg-surface-800 rounded-lg border  space-y-3">
 				<!-- Status Badge -->
 				<div class="flex items-center gap-2">
 					<Lock size={16} class="text-primary-500" />
@@ -445,7 +445,7 @@
 			</div>
 		{:else if isPrivateKey && rawText.trim()}
 			<!-- Private Key Info (No Parsing) -->
-			<div class="mt-4 p-3 bg-surface-100 dark:bg-surface-800 rounded-lg border border-surface-300 dark:border-surface-600">
+			<div class="mt-4 p-3 bg-surface-100 dark:bg-surface-800 rounded-lg border ">
 				<div class="flex items-center gap-2 text-surface-700 dark:text-surface-300 text-sm">
 					<Key size={16} class="text-warning-500" />
 					<span>Private key detected (content details hidden for security)</span>

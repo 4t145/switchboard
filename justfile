@@ -17,8 +17,6 @@ dev-sbc-sudo:
     cargo build --bin sbc
     sudo ./target/debug/sbc start examples/config/controller.toml
 
-dev-ui:
-    npm 
 build-container:
     podman build \
         --build-arg USE_RSPROXY={{proxy}} \

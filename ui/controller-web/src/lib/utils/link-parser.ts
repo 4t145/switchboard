@@ -2,16 +2,16 @@ export type LinkKind = 'storage' | 'file' | 'http';
 
 export type ParsedLink = {
 	kind: 'storage';
-	data: {
-		id: string;
-		revision: string;
-	}
+	scheme: 'storage';
+	location: string;
 } | {
 	kind: 'file';
-	data: string;
+	scheme: 'file';
+	location: string;
 } | {
 	kind: 'http';
-	data: string;
+	scheme: 'http' | 'https';
+	location: string;
 }
 
 export type StorageObjectDescriptor = {
@@ -48,11 +48,11 @@ export function parseLink(val: unknown): ParsedLink | null {
 	}
 
 	if (val.startsWith('file://')) {
-		return { kind: 'file', data: val.slice(7) };
+		return { kind: 'file', location: val.slice(7), scheme: 'file' };
 	}
 
 	if (val.startsWith('http://') || val.startsWith('https://')) {
-		return { kind: 'http', data: val };
+		return { kind: 'http', location: val, scheme: val.startsWith('http://') ? 'http' : 'https' };
 	}
 
 	if (val.startsWith('storage://')) {
@@ -60,13 +60,10 @@ export function parseLink(val: unknown): ParsedLink | null {
 		if (parts.length >= 2) {
 			return {
 				kind: 'storage',
-				data: { id: parts[0], revision: parts[1] } as StorageObjectDescriptor
+				scheme: 'storage',
+				location: val.slice(10)
 			};
 		}
-	}
-
-	if (val.startsWith('ftp://') || val.startsWith('ftps://')) {
-		return { kind: 'http', data: val };
 	}
 
 	return null;
@@ -74,16 +71,16 @@ export function parseLink(val: unknown): ParsedLink | null {
 
 export function formatLink(parsedLink: ParsedLink): string {
 	if (parsedLink.kind === 'file') {
-		const path = parsedLink.data.toString();
+		const path = parsedLink.location.toString();
 		return path.startsWith('file://') ? path : `file://${path}`;
 	}
 
 	if (parsedLink.kind === 'http') {
-		return parsedLink.data.toString();
+		return parsedLink.location.toString();
 	}
 
 	if (parsedLink.kind === 'storage') {
-		return `storage://${parsedLink.data.id}#${parsedLink.data.revision}`;
+		return `storage://${parsedLink.location}`;
 	}
 
 	return '';
@@ -93,7 +90,16 @@ export function isLinkValue(value: unknown): value is string {
 	return parseLink(value) !== null;
 }
 
+export function isInlineValue<T>(value: T | string): value is T {
+	return !isLinkValue(value);
+}
+
+
 export function getLinkKind(value: unknown): LinkKind | null {
 	const parsed = parseLink(value);
 	return parsed ? parsed.kind : null;
+}
+
+export function getScheme(value: string) {
+	return value.split('://', 1)[0];
 }

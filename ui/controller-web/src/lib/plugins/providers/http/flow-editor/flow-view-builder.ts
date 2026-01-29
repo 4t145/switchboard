@@ -152,20 +152,27 @@ export const FlowGraph = {
 };
 
 export async function buildFlowGraph(flow: FlowConfig): Promise<FlowGraph> {
-	const nodes = flow.nodes ?? {};
 	const resolving: Record<string, Promise<void>> = {};
+	const resolvedNodes: Record<string, InstanceDataWithoutType<unknown>> = {};
 	// resolve all the config
-	for (const [nodeId, nodeData] of Object.entries(nodes)) {
+	for (const [nodeId, nodeData] of Object.entries(flow.nodes ?? {})) {
 		if (isLinkValue(nodeData.config)) {
 			const promise = api.resolve.link_to_object(nodeData.config).then((response) => {
-				nodeData.config = response;
+				resolvedNodes[nodeId] = {
+					...nodeData,
+					config: response
+				};
 			});
 			resolving[nodeId] = promise;
+		} else {
+			resolvedNodes[nodeId] = {
+				...nodeData
+			};
 		}
 	}
 	await Promise.all(Object.values(resolving));
 	const graph: FlowGraph = FlowGraph.new(flow.entrypoint);
-	for (const [nodeId, nodeData] of Object.entries(nodes)) {
+	for (const [nodeId, nodeData] of Object.entries(resolvedNodes)) {
 		const outputs = getOutputs(nodeId, nodeData);
 		const inputs = getInputs(nodeId, nodeData);
 		const links: FlowGraphLink[] = outputs.map((output) => {
@@ -376,7 +383,9 @@ export function flowGraphAsTree(graph: FlowGraph): FlowTreeViewRoot {
 	const entrypoint = graph.entrypoint;
 	const visited = new Set<string>();
 	const orphans: FlowTreeViewNode[] = [];
+	console.debug('Building flow tree view from graph with entrypoint:', graph.nodes);
 	function buildTreeNode(nodeId: string): FlowTreeViewNode {
+		console.debug('Building tree node for:', nodeId);
 		// is dispatcher node?
 		const node = graph.nodes[nodeId];
 		if (node.outputs.length > 0) {

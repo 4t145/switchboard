@@ -6,7 +6,7 @@
 	import FlowTree from './flow-editor/flow-tree-view.svelte';
 	import FlowGraphView from './flow-editor/flow-graph-view.svelte';
 	import { EditIcon, GripVerticalIcon, ListIcon, MaximizeIcon, MinimizeIcon, MinusIcon, NetworkIcon, View, WorkflowIcon, XIcon } from 'lucide-svelte';
-	import { Dialog, FloatingPanel, Portal, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
+	import { Dialog, FloatingPanel, Portal, SegmentedControl, ToggleGroup } from '@skeletonlabs/skeleton-svelte';
 	import InstanceConfigEditor from './flow-editor/instance-config-editor.svelte';
 
 	type Props = {
@@ -31,6 +31,7 @@
 
 	let graphState = $state<GraphState>({ type: 'uninitialized' });
 	let viewMode = $state<ViewMode>('tree');
+	let viewModeSelection = $derived<string[]>([viewMode]);
 	let selectedValue = $state(undefined as string | undefined);
 	let selectedInstance = $derived.by(() => {
 		if (graphState.type !== 'ready' || !selectedValue) {
@@ -108,6 +109,14 @@
 					<EditIcon class="size-4 mr-2" />
 				</button>
 			</div>
+			<ToggleGroup defaultValue={["tree"]} multiple={false} value={viewModeSelection} onValueChange={(details) => { viewModeSelection = details.value; viewMode = details.value[0] as ViewMode; }}>
+				<ToggleGroup.Item value="list">
+					<ListIcon class="size-4" />
+				</ToggleGroup.Item>
+				<ToggleGroup.Item value="tree">
+					<WorkflowIcon class="size-4" />
+				</ToggleGroup.Item>
+			</ToggleGroup>
 			<SegmentedControl value={viewMode} onValueChange={(details) => {  viewMode = details.value as ViewMode; }} defaultValue="tree" class="btn-group">
 				<SegmentedControl.Control>
 					<SegmentedControl.Indicator />

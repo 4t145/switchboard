@@ -49,13 +49,13 @@
 	</div>
 
 	{#if themes.length === 0}
-		<div class="card border border-surface-300 dark:border-surface-600 p-8 text-center">
+		<div class="card border  p-8 text-center">
 			<p class="opacity-60">{msg.settings_custom_themes_none()}</p>
 		</div>
 	{:else}
 		<div class="space-y-3">
 			{#each themes as theme (theme.id)}
-				<div class="card border border-surface-300 dark:border-surface-600 p-4">
+				<div class="card border  p-4">
 					<div class="flex items-start gap-4">
 						<!-- Color Preview -->
 						<div class="flex gap-1 flex-shrink-0">

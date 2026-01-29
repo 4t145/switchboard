@@ -88,7 +88,7 @@
 		class="w-full"
 		disabled={uploading || !customThemesStore.canAddMore}
 	>
-		<FileUpload.Dropzone class="border-2 border-dashed border-surface-300 dark:border-surface-600 rounded-lg p-8 text-center hover:border-primary-500 dark:hover:border-primary-400 transition-colors">
+		<FileUpload.Dropzone class="border-2 border-dashed  rounded-lg p-8 text-center hover:border-primary-500 dark:hover:border-primary-400 transition-colors">
 			<div class="flex flex-col items-center gap-3">
 				<Upload size={32} class="opacity-50" />
 				<div>

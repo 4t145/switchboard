@@ -18,11 +18,9 @@
     <span class="badge">{config.class}</span>
     {instanceId}
 </div>
-<LinkOrValueEditor bind:value={config.config} dataType="HttpInstanceConfig" editorProps = {
-    {
-        classId: config.class,
-        instanceType: instanceType,
-        readonly: false
-    }
-}/>
+
+{#snippet editor(value: unknown, onSave: (saveValue: unknown) => void) }
+
+{/snippet}
+<LinkOrValueEditor bind:value={config.config} valueDataFormat="object" editor = {editor} getDefaultInlineValue={() => ({})}/>
 

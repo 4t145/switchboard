@@ -148,7 +148,7 @@
 		<div class="flex items-center">
 			{#if currentStep > 0 && sourceSummary}
 				<div
-					class="hidden items-center border-l border-surface-300 pl-4 md:flex dark:border-surface-600"
+					class="hidden items-center border-l pl-4 md:flex "
 				>
 					<span class="mr-2 text-xs text-surface-500">Source:</span>
 					<span class="preset-tonal-secondary badge text-xs">{sourceSummary}</span>

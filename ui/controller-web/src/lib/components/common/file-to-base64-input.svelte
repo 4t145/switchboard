@@ -84,7 +84,7 @@
 		</FileUpload>
 	{:else}
 		<div
-			class="flex items-center gap-2 rounded-lg border border-surface-300 bg-surface-50 p-2 dark:border-surface-600 dark:bg-surface-800"
+			class="flex items-center gap-2 rounded-lg border bg-surface-50 p-2  dark:bg-surface-800"
 		>
 			<FileText size={20} class="text-primary-500" />
 

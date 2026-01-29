@@ -85,7 +85,7 @@
 	</div>
 
 	<!-- Theme Preview -->
-	<div class="card border border-surface-300 p-4 dark:border-surface-600">
+	<div class="card border p-4 ">
 		<div class="mb-2 text-sm font-medium opacity-75">{msg.settings_theme_preview()}</div>
 		<div class="flex gap-2">
 			{#each previewData.colors as color}
