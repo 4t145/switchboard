@@ -16,18 +16,14 @@ export type FileTcpServiceConfig = {
 };
 
 export type SniFileStyleTlsResolver = { sni: ({ hostname: string } & TlsCertParams)[] };
-export type FileStyleTlsResolver =
-	| TlsCertParams
-	| SniFileStyleTlsResolver;
+export type FileStyleTlsResolver = TlsCertParams | SniFileStyleTlsResolver;
 
 export function isSniTlsResolver(
 	resolver: FileStyleTlsResolver
 ): resolver is SniFileStyleTlsResolver {
 	return (resolver as SniFileStyleTlsResolver).sni !== undefined;
 }
-export function isSingleTlsResolver(
-	resolver: FileStyleTlsResolver
-): resolver is TlsCertParams {
+export function isSingleTlsResolver(resolver: FileStyleTlsResolver): resolver is TlsCertParams {
 	return (resolver as TlsCertParams).certs !== undefined;
 }
 export type FileStyleTls = {

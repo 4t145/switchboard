@@ -1,6 +1,6 @@
 <script lang="ts" generics="T extends Record<string, any>">
-	import { ArrowLeft, Edit2, Plus, Search, Trash2, X } from "lucide-svelte";
-	import type { Snippet } from "svelte";
+	import { ArrowLeft, Edit2, Plus, Search, Trash2, X } from '@lucide/svelte';
+	import type { Snippet } from 'svelte';
 
 	interface Props {
 		items: T[];
@@ -31,7 +31,7 @@
 		breakpoint = 768,
 		mobileMode = 'stack'
 	}: Props = $props();
-	
+
 	let editingIndex = $state<number | null>(null);
 	let searchQuery = $state<string>('');
 
@@ -44,16 +44,14 @@
 		searchQuery.trim() === ''
 			? items.map((item, index) => ({ item, originalIndex: index }))
 			: items
-				.map((item, index) => ({ item, originalIndex: index }))
-				.filter(({ item }) =>
-					getItemName(item).toLowerCase().includes(searchQuery.toLowerCase())
-				)
+					.map((item, index) => ({ item, originalIndex: index }))
+					.filter(({ item }) => getItemName(item).toLowerCase().includes(searchQuery.toLowerCase()))
 	);
 
 	// 响应式检测
 	function updateLayout() {
 		if (!responsive) return;
-		
+
 		isMobile = window.innerWidth < breakpoint;
 		if (!isMobile) {
 			showMobileEditor = false;
@@ -63,14 +61,14 @@
 	// 响应式监听器
 	$effect(() => {
 		if (!responsive) return;
-		
+
 		function handleResize() {
 			updateLayout();
 		}
-		
+
 		updateLayout();
 		window.addEventListener('resize', handleResize);
-		
+
 		return () => {
 			window.removeEventListener('resize', handleResize);
 		};
@@ -87,7 +85,7 @@
 		const newItem = createItem();
 		items = [...items, newItem];
 		editingIndex = items.length - 1;
-		
+
 		// 移动端显示编辑器
 		if (isMobile) {
 			showMobileEditor = true;
@@ -96,7 +94,7 @@
 
 	function selectItem(index: number) {
 		editingIndex = index;
-		
+
 		// 移动端切换到编辑器
 		if (isMobile) {
 			showMobileEditor = true;
@@ -122,11 +120,11 @@
 <!-- 主容器 -->
 <div class="flex h-full flex-col {responsive ? '' : 'md:flex-row'}">
 	<!-- 头部区域 -->
-	<header class="flex-none border-b border-surface-200-700 p-4">
+	<header class="border-surface-200-700 flex-none border-b p-4">
 		<h2 class="text-lg font-semibold text-surface-900-100">{title}</h2>
 		<div class="mt-2">
 			<div class="relative">
-				<Search class="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500" size={16} />
+				<Search class="absolute top-1/2 left-3 -translate-y-1/2 text-surface-500" size={16} />
 				<input
 					class="input w-full pl-10"
 					placeholder={`搜索 ${title.toLowerCase()}...`}
@@ -134,7 +132,7 @@
 				/>
 				{#if searchQuery}
 					<button
-						class="btn-icon btn-icon-sm absolute right-1 top-1/2 -translate-y-1/2"
+						class="absolute top-1/2 right-1 btn-icon btn-icon-sm -translate-y-1/2"
 						onclick={() => (searchQuery = '')}
 					>
 						<X size={14} />
@@ -147,13 +145,17 @@
 	<!-- 内容区域 -->
 	<div class="flex min-h-0 flex-1 {responsive && isMobile ? 'flex-col' : ''}">
 		<!-- 侧边栏/列表区域 -->
-		<aside class="flex-none overflow-y-auto bg-surface-50-950 {responsive && isMobile ? 'flex-1' : sidebarWidth}">
+		<aside
+			class="flex-none overflow-y-auto bg-surface-50-950 {responsive && isMobile
+				? 'flex-1'
+				: sidebarWidth}"
+		>
 			<div class="flex-1 space-y-2 overflow-y-auto p-2">
 				{#each filteredItems as { item, originalIndex } (originalIndex)}
 					<!-- svelte-ignore a11y_click_events_have_key_events -->
 					<!-- svelte-ignore a11y_no_static_element_interactions -->
 					<div
-						class="rounded-container-token hover:preset-tonal flex cursor-pointer items-center justify-between p-3 transition-all min-h-12
+						class="rounded-container-token flex min-h-12 cursor-pointer items-center justify-between p-3 transition-all hover:preset-tonal
 						       {editingIndex === originalIndex ? 'preset-tonal-primary' : ''}"
 						onclick={() => selectItem(originalIndex)}
 						onkeydown={(e) => {
@@ -179,7 +181,7 @@
 						</div>
 					</div>
 				{/each}
-				
+
 				{#if filteredItems.length === 0 && items.length > 0}
 					<div class="p-8 text-center text-sm text-surface-500">
 						未找到匹配项 "{searchQuery}"
@@ -192,21 +194,15 @@
 			</div>
 
 			{#if items.length > 0}
-				<div class="border-t border-surface-200-700 p-2">
-					<button
-						onclick={addItem}
-						class="btn btn-sm preset-tonal w-full"
-					>
+				<div class="border-surface-200-700 border-t p-2">
+					<button onclick={addItem} class="btn w-full preset-tonal btn-sm">
 						<Plus size={16} class="mr-2" />
 						添加 {title.slice(0, -1)}
 					</button>
 				</div>
 			{:else}
 				<div class="p-2">
-					<button
-						onclick={addItem}
-						class="btn btn-sm preset-filled-primary w-full"
-					>
+					<button onclick={addItem} class="preset-filled-primary btn w-full btn-sm">
 						<Plus size={16} class="mr-2" />
 						创建第一个 {title.slice(0, -1)}
 					</button>
@@ -215,20 +211,19 @@
 		</aside>
 
 		<!-- 编辑器区域 -->
-		<main class="flex flex-1 flex-col overflow-hidden bg-surface-0-1000 
-		           {responsive && isMobile && !showMobileEditor ? 'hidden' : ''}">
+		<main
+			class="bg-surface-0-1000 flex flex-1 flex-col overflow-hidden
+		           {responsive && isMobile && !showMobileEditor ? 'hidden' : ''}"
+		>
 			{#if editingIndex !== null && items[editingIndex]}
 				{#if responsive && isMobile && showMobileEditor}
 					<!-- 移动端编辑器头部 -->
-					<div class="flex items-center gap-2 border-b border-surface-200-700 p-4">
-						<button
-							class="btn btn-sm preset-tonal"
-							onclick={backToList}
-						>
+					<div class="border-surface-200-700 flex items-center gap-2 border-b p-4">
+						<button class="btn preset-tonal btn-sm" onclick={backToList}>
 							<ArrowLeft size={16} class="mr-2" />
 							返回
 						</button>
-						<span class="font-medium text-surface-900-100 truncate">
+						<span class="truncate font-medium text-surface-900-100">
 							{getItemName(items[editingIndex])}
 						</span>
 					</div>
@@ -243,7 +238,7 @@
 			{:else if items.length === 0}
 				<div class="flex flex-1 items-center justify-center">
 					<div class="text-center">
-						<div class="text-surface-500 mb-4">
+						<div class="mb-4 text-surface-500">
 							<Edit2 size={48} class="mx-auto mb-2" />
 							<p class="text-lg font-medium">暂无{title}</p>
 							<p class="text-sm">点击上方按钮创建第一个{title.slice(0, -1)}</p>

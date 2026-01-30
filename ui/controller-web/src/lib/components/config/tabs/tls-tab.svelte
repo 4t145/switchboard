@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { FileStyleTls, FileTcpServiceConfig } from '$lib/api/types/human_readable';
 	import TlsConfigCard from '../tls-config-card.svelte';
-	import { Lock } from 'lucide-svelte';
+	import { Lock } from '@lucide/svelte';
 
 	interface Props {
 		tlsConfigs: FileStyleTls[];
@@ -11,7 +11,13 @@
 		jumpToService: (serviceName: string) => void;
 	}
 
-	let { tlsConfigs, services, highlightTls = null, jumpTarget = null, jumpToService }: Props = $props();
+	let {
+		tlsConfigs,
+		services,
+		highlightTls = null,
+		jumpTarget = null,
+		jumpToService
+	}: Props = $props();
 
 	// Element references for jump functionality
 	let tlsElements: Record<string, HTMLDivElement | undefined> = {};
@@ -70,8 +76,8 @@
 </script>
 
 <div class="space-y-4">
-	<h2 class="h2 flex items-center gap-2">
-		<Lock class="w-6 h-6" />
+	<h2 class="flex items-center gap-2 h2">
+		<Lock class="h-6 w-6" />
 		TLS Configurations
 		{#if tlsConfigs.length > 0}
 			<span class="text-sm font-normal text-surface-500 dark:text-surface-400">
@@ -82,18 +88,21 @@
 
 	{#if tlsConfigs.length > 0}
 		{#each tlsConfigs as tls (tls.name)}
-			<div bind:this={tlsElements[tls.name]} class="transition-all duration-300 space-y-2 rounded-lg">
+			<div
+				bind:this={tlsElements[tls.name]}
+				class="space-y-2 rounded-lg transition-all duration-300"
+			>
 				<TlsConfigCard {tls} />
 
 				<!-- Show which services use this TLS config -->
 				{#if tlsUsage[tls.name] && tlsUsage[tls.name].length > 0}
-					<div class="card p-3 bg-surface-50 dark:bg-surface-800/50">
+					<div class="card bg-surface-50 p-3 dark:bg-surface-800/50">
 						<div class="text-sm text-surface-600 dark:text-surface-400">
 							<span class="font-medium">Used by {tlsUsage[tls.name].length} service(s):</span>
-							<div class="flex flex-wrap gap-2 mt-2">
+							<div class="mt-2 flex flex-wrap gap-2">
 								{#each tlsUsage[tls.name] as serviceName}
 									<button
-										class="btn btn-sm preset-ghost-primary gap-1"
+										class="preset-ghost-primary btn gap-1 btn-sm"
 										onclick={() => jumpToService(serviceName)}
 									>
 										{serviceName}

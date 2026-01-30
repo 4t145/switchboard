@@ -1,9 +1,9 @@
 <script lang="ts">
 	import {
-        type Node,
+		type Node,
 		type Edge,
 		type NodeTypes,
-        SvelteFlow,
+		SvelteFlow,
 		Background,
 		Controls,
 		MiniMap,
@@ -20,10 +20,7 @@
 		selected: string | undefined;
 	};
 
-	let {
-		graph,
-		selected = $bindable(undefined)
-	}: Props = $props();
+	let { graph, selected = $bindable(undefined) }: Props = $props();
 
 	const nodeTypes: NodeTypes = {
 		custom: FlowGraphNode

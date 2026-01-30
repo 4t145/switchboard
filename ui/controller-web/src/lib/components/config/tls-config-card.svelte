@@ -2,7 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import type { FileStyleTls } from '$lib/api/types/human_readable';
 	import { Accordion } from '@skeletonlabs/skeleton-svelte';
-	import { Lock, Shield, ChevronDown, Calendar, User, Key } from 'lucide-svelte';
+	import { Lock, Shield, ChevronDown, Calendar, User, Key } from '@lucide/svelte';
 	import LinkOrValueDisplay from './link-or-value-display.svelte';
 	import TlsOptionsDisplay from './tls-options-display.svelte';
 	import { X509Certificate } from '@peculiar/x509';
@@ -121,10 +121,15 @@
 	}
 
 	// Check if certificate is expired or expiring soon
-	function getCertStatus(validTo: string): { status: 'valid' | 'expiring' | 'expired'; message: string } {
+	function getCertStatus(validTo: string): {
+		status: 'valid' | 'expiring' | 'expired';
+		message: string;
+	} {
 		const expiryDate = new Date(validTo);
 		const now = new Date();
-		const daysUntilExpiry = Math.floor((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+		const daysUntilExpiry = Math.floor(
+			(expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+		);
 
 		if (daysUntilExpiry < 0) {
 			return { status: 'expired', message: 'Expired' };
@@ -141,14 +146,14 @@
 		<!-- Check if it's a certificate or private key -->
 		{@const isCertificate = content.includes('-----BEGIN CERTIFICATE-----')}
 		{@const certInfo = isCertificate ? parseCertificate(content) : null}
-		
+
 		<!-- PEM file display -->
-		<div class="bg-surface-100 dark:bg-surface-800 rounded p-4">
-			<div class="flex items-center gap-2 text-sm text-surface-700 dark:text-surface-300 mb-3">
+		<div class="rounded bg-surface-100 p-4 dark:bg-surface-800">
+			<div class="mb-3 flex items-center gap-2 text-sm text-surface-700 dark:text-surface-300">
 				{#if isCertificate}
-					<Lock class="w-4 h-4 text-primary-500" />
+					<Lock class="h-4 w-4 text-primary-500" />
 				{:else}
-					<Key class="w-4 h-4 text-warning-500" />
+					<Key class="h-4 w-4 text-warning-500" />
 				{/if}
 				<span class="font-medium">{getPemTypeLabel(content)}</span>
 			</div>
@@ -156,50 +161,50 @@
 			{#if certInfo}
 				<!-- Certificate Information -->
 				{@const certStatus = getCertStatus(certInfo.validTo)}
-				
-				<div class="space-y-3 mb-4">
+
+				<div class="mb-4 space-y-3">
 					<!-- Status Badge -->
 					<div class="flex items-center gap-2">
 						<span
-							class="text-xs px-2 py-1 rounded font-medium {certStatus.status === 'valid'
-								? 'bg-success-100 dark:bg-success-900 text-success-700 dark:text-success-300'
+							class="rounded px-2 py-1 text-xs font-medium {certStatus.status === 'valid'
+								? 'bg-success-100 text-success-700 dark:bg-success-900 dark:text-success-300'
 								: certStatus.status === 'expiring'
-									? 'bg-warning-100 dark:bg-warning-900 text-warning-700 dark:text-warning-300'
-									: 'bg-error-100 dark:bg-error-900 text-error-700 dark:text-error-300'}"
+									? 'bg-warning-100 text-warning-700 dark:bg-warning-900 dark:text-warning-300'
+									: 'bg-error-100 text-error-700 dark:bg-error-900 dark:text-error-300'}"
 						>
 							{certStatus.message}
 						</span>
 					</div>
 
 					<!-- Subject -->
-					<div class="text-xs space-y-1">
+					<div class="space-y-1 text-xs">
 						<div class="flex items-center gap-1.5 text-surface-600 dark:text-surface-400">
-							<User class="w-3.5 h-3.5" />
+							<User class="h-3.5 w-3.5" />
 							<span class="font-medium">Subject:</span>
 						</div>
-						<div class="pl-5 text-surface-700 dark:text-surface-300 font-mono break-all">
+						<div class="pl-5 font-mono break-all text-surface-700 dark:text-surface-300">
 							{certInfo.subject}
 						</div>
 					</div>
 
 					<!-- Issuer -->
-					<div class="text-xs space-y-1">
+					<div class="space-y-1 text-xs">
 						<div class="flex items-center gap-1.5 text-surface-600 dark:text-surface-400">
-							<Shield class="w-3.5 h-3.5" />
+							<Shield class="h-3.5 w-3.5" />
 							<span class="font-medium">Issuer:</span>
 						</div>
-						<div class="pl-5 text-surface-700 dark:text-surface-300 font-mono break-all">
+						<div class="pl-5 font-mono break-all text-surface-700 dark:text-surface-300">
 							{certInfo.issuer}
 						</div>
 					</div>
 
 					<!-- Validity Period -->
-					<div class="text-xs space-y-1">
+					<div class="space-y-1 text-xs">
 						<div class="flex items-center gap-1.5 text-surface-600 dark:text-surface-400">
-							<Calendar class="w-3.5 h-3.5" />
+							<Calendar class="h-3.5 w-3.5" />
 							<span class="font-medium">Valid Period:</span>
 						</div>
-						<div class="pl-5 text-surface-700 dark:text-surface-300 space-y-0.5">
+						<div class="space-y-0.5 pl-5 text-surface-700 dark:text-surface-300">
 							<div>From: {formatDate(certInfo.validFrom)}</div>
 							<div>To: {formatDate(certInfo.validTo)}</div>
 						</div>
@@ -207,11 +212,11 @@
 
 					<!-- Subject Alternative Names -->
 					{#if certInfo.subjectAltNames && certInfo.subjectAltNames.length > 0}
-						<div class="text-xs space-y-1">
-							<div class="text-surface-600 dark:text-surface-400 font-medium">
+						<div class="space-y-1 text-xs">
+							<div class="font-medium text-surface-600 dark:text-surface-400">
 								Subject Alternative Names:
 							</div>
-							<div class="pl-5 text-surface-700 dark:text-surface-300 space-y-0.5">
+							<div class="space-y-0.5 pl-5 text-surface-700 dark:text-surface-300">
 								{#each certInfo.subjectAltNames as san}
 									<div class="font-mono">• {san}</div>
 								{/each}
@@ -222,34 +227,34 @@
 					<!-- Technical Details -->
 					<details class="text-xs">
 						<summary
-							class="cursor-pointer text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
+							class="cursor-pointer text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
 						>
 							View technical details
 						</summary>
-						<div class="mt-2 pl-4 space-y-2 text-surface-700 dark:text-surface-300">
+						<div class="mt-2 space-y-2 pl-4 text-surface-700 dark:text-surface-300">
 							<div>
 								<span class="text-surface-600 dark:text-surface-400">Serial Number:</span>
-								<span class="font-mono ml-2">{certInfo.serialNumber}</span>
+								<span class="ml-2 font-mono">{certInfo.serialNumber}</span>
 							</div>
 							<div>
 								<span class="text-surface-600 dark:text-surface-400">Signature Algorithm:</span>
-								<span class="font-mono ml-2">{certInfo.signatureAlgorithm}</span>
+								<span class="ml-2 font-mono">{certInfo.signatureAlgorithm}</span>
 							</div>
 							<div>
 								<span class="text-surface-600 dark:text-surface-400">Public Key Algorithm:</span>
-								<span class="font-mono ml-2">{certInfo.publicKeyAlgorithm}</span>
+								<span class="ml-2 font-mono">{certInfo.publicKeyAlgorithm}</span>
 							</div>
 						</div>
 					</details>
 				</div>
 			{:else if isCertificate}
 				<!-- Certificate parsing failed -->
-				<p class="text-xs text-warning-600 dark:text-warning-400 mb-3">
+				<p class="mb-3 text-xs text-warning-600 dark:text-warning-400">
 					Failed to parse certificate. The raw PEM data is available below.
 				</p>
 			{:else}
 				<!-- Private key - don't parse -->
-				<p class="text-xs text-surface-600 dark:text-surface-400 mb-3">
+				<p class="mb-3 text-xs text-surface-600 dark:text-surface-400">
 					Private key data (content hidden for security).
 				</p>
 			{/if}
@@ -257,33 +262,33 @@
 			<!-- Collapsible raw PEM view -->
 			<details class="text-xs">
 				<summary
-					class="cursor-pointer text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
+					class="cursor-pointer text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
 				>
 					View raw PEM data
 				</summary>
-				<div class="bg-surface-200 dark:bg-surface-900 rounded p-3 overflow-x-auto mt-2">
+				<div class="mt-2 overflow-x-auto rounded bg-surface-200 p-3 dark:bg-surface-900">
 					<pre class="font-mono text-xs"><code>{content}</code></pre>
 				</div>
 			</details>
 		</div>
 	{:else}
 		<!-- Normal content -->
-		<div class="bg-surface-100 dark:bg-surface-800 rounded p-4 overflow-x-auto">
-			<pre class="text-xs font-mono"><code>{content}</code></pre>
+		<div class="overflow-x-auto rounded bg-surface-100 p-4 dark:bg-surface-800">
+			<pre class="font-mono text-xs"><code>{content}</code></pre>
 		</div>
 	{/if}
 {/snippet}
 
-<div class="card p-4 space-y-3">
+<div class="space-y-3 card p-4">
 	<!-- TLS header -->
 	<div class="flex items-center gap-2">
-		<Lock class="w-5 h-5 text-primary-500 flex-shrink-0" />
-		<h3 class="font-semibold text-lg">{tls.name}</h3>
+		<Lock class="h-5 w-5 flex-shrink-0 text-primary-500" />
+		<h3 class="text-lg font-semibold">{tls.name}</h3>
 	</div>
 
 	<!-- Type badge -->
 	<div class="flex items-center gap-2">
-		<Shield class="w-4 h-4 text-surface-500" />
+		<Shield class="h-4 w-4 text-surface-500" />
 		<span class="text-sm font-medium text-surface-700 dark:text-surface-300">
 			{#if isSni}
 				SNI Multi-Certificate ({sniDomains.length} domains)
@@ -302,7 +307,7 @@
 		>
 			<Accordion.Item value="domains">
 				<Accordion.ItemTrigger
-					class="btn btn-sm preset-ghost-surface w-full text-left justify-between gap-2"
+					class="preset-ghost-surface btn w-full justify-between gap-2 btn-sm text-left"
 				>
 					{accordionOpen.includes('domains') ? 'Hide domains' : 'View all domains'}
 					<Accordion.ItemIndicator class="group">
@@ -311,14 +316,14 @@
 				</Accordion.ItemTrigger>
 				<Accordion.ItemContent class="mt-2 space-y-3">
 					{#each sniDomains as domain}
-						<div class="pl-4 border-l-2 border-primary-300 dark:border-primary-700 space-y-2">
-							<div class="font-medium text-sm">{domain.hostname}</div>
+						<div class="space-y-2 border-l-2 border-primary-300 pl-4 dark:border-primary-700">
+							<div class="text-sm font-medium">{domain.hostname}</div>
 							{#if domain.certs}
 								<div class="text-sm">
 									<span class="text-surface-600 dark:text-surface-400">Certs:</span>
 									<div class="mt-1">
-										<LinkOrValueDisplay 
-											value={domain.certs} 
+										<LinkOrValueDisplay
+											value={domain.certs}
 											resolveContent="string"
 											dataType="PemsFile"
 										/>
@@ -329,8 +334,8 @@
 								<div class="text-sm">
 									<span class="text-surface-600 dark:text-surface-400">Key:</span>
 									<div class="mt-1">
-										<LinkOrValueDisplay 
-											value={domain.key} 
+										<LinkOrValueDisplay
+											value={domain.key}
 											resolveContent="string"
 											dataType="PemFile"
 										/>
@@ -347,25 +352,17 @@
 		<div class="space-y-2">
 			{#if hasCerts && 'certs' in tls}
 				<div class="text-sm">
-					<span class="text-surface-600 dark:text-surface-400 font-medium">Certificate:</span>
+					<span class="font-medium text-surface-600 dark:text-surface-400">Certificate:</span>
 					<div class="mt-1 pl-2">
-						<LinkOrValueDisplay 
-							value={tls.certs} 
-							resolveContent="string"
-							dataType="PemsFile"
-						/>
+						<LinkOrValueDisplay value={tls.certs} resolveContent="string" dataType="PemsFile" />
 					</div>
 				</div>
 			{/if}
 			{#if hasKey && 'key' in tls}
 				<div class="text-sm">
-					<span class="text-surface-600 dark:text-surface-400 font-medium">Private Key:</span>
+					<span class="font-medium text-surface-600 dark:text-surface-400">Private Key:</span>
 					<div class="mt-1 pl-2">
-						<LinkOrValueDisplay 
-							value={tls.key} 
-							resolveContent="string"
-							dataType="PemFile"
-						/>
+						<LinkOrValueDisplay value={tls.key} resolveContent="string" dataType="PemFile" />
 					</div>
 				</div>
 			{/if}
@@ -374,7 +371,7 @@
 
 	<!-- TLS Options (if present) -->
 	{#if tls.options}
-		<div class="pt-2 border-t border-surface-200 dark:border-surface-700">
+		<div class="border-t border-surface-200 pt-2 dark:border-surface-700">
 			<TlsOptionsDisplay options={tls.options} />
 		</div>
 	{/if}

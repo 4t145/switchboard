@@ -1,23 +1,23 @@
 <script lang="ts">
 	import { settingsStore } from '$lib/stores/settings.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import { Moon, Sun, Monitor } from 'lucide-svelte';
+	import { Moon, Sun, Monitor } from '@lucide/svelte';
 	import type { ColorMode } from '$lib/stores/settings.svelte';
-	
+
 	const msg = m as any;
-	
+
 	const modes: { value: ColorMode; icon: any; label: () => string }[] = [
 		{ value: 'light', icon: Sun, label: () => msg.settings_darkmode_light() },
 		{ value: 'dark', icon: Moon, label: () => msg.settings_darkmode_dark() },
 		{ value: 'auto', icon: Monitor, label: () => msg.settings_darkmode_auto() }
 	];
-	
+
 	function selectMode(mode: ColorMode) {
 		settingsStore.colorMode = mode;
 	}
 </script>
 
-<div class="card border p-5 ">
+<div class="card border p-5">
 	<div class="space-y-4">
 		<div>
 			<div class="mb-1 font-semibold">{msg.settings_darkmode_label()}</div>

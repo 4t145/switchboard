@@ -10,7 +10,7 @@ const AVAILABLE_THEMES: PresetThemeName[] = [
 	'seafoam',
 	'cerberus',
 	'sahara',
-	'astro',
+	'astro'
 ];
 
 export const load: PageLoad = async () => {

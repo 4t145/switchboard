@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { api } from '$lib/api/routes';
-	import { FileText, CloudDownload, PlusSquare, Loader2 } from 'lucide-svelte';
+	import { FileText, CloudDownload, PlusSquare, Loader2 } from '@lucide/svelte';
 	import ObjectPages from '$lib/components/object-pages.svelte';
 	import { shortRev } from '$lib/utils';
 

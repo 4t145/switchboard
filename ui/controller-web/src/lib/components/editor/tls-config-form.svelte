@@ -1,9 +1,9 @@
 <script lang="ts">
 	import TlsResolverForm from './tls-resolver-form.svelte';
 	import { TagsInput, Collapsible } from '@skeletonlabs/skeleton-svelte';
-	import { ChevronDown } from 'lucide-svelte';
+	import { ChevronDown } from '@lucide/svelte';
 	import type { FileStyleTls, FileStyleTlsResolver, TlsCertParams } from '$lib/api/types';
-	export type Props= {
+	export type Props = {
 		value: FileStyleTls;
 	};
 	let { value = $bindable() }: Props = $props<{
@@ -14,7 +14,7 @@
 	// Using $effect.pre to ensure this runs before rendering if possible, or just standard effect
 	$effect(() => {
 		if (!value) return; // Safety check
-		
+
 		if (!value.options) {
 			value.options = {
 				ignore_client_order: false,
@@ -42,39 +42,53 @@
 	</label>
 
 	<!-- Certificate Resolver Section -->
-	<Collapsible 
-		class="card border border-surface-200 dark:border-surface-700" 
+	<Collapsible
+		class="card border border-surface-200 dark:border-surface-700"
 		open={resolverOpen}
 		onOpenChange={(details) => (resolverOpen = details.open)}
 	>
-		<Collapsible.Trigger class="flex w-full items-center justify-between border-b border-surface-200 px-4 py-3 hover:preset-tonal dark:border-surface-700 cursor-pointer">
+		<Collapsible.Trigger
+			class="flex w-full cursor-pointer items-center justify-between border-b border-surface-200 px-4 py-3 hover:preset-tonal dark:border-surface-700"
+		>
 			<h3 class="h3 font-bold">Certificate Resolver</h3>
 			<Collapsible.Indicator>
-				<ChevronDown size={18} class="transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+				<ChevronDown
+					size={18}
+					class={`transition-transform duration-200 ${resolverOpen ? 'rotate-180' : ''}`}
+				/>
 			</Collapsible.Indicator>
 		</Collapsible.Trigger>
-		<Collapsible.Content class="p-3 w-full">
-			<TlsResolverForm bind:value={value} />
+		<Collapsible.Content class="w-full p-3">
+			<TlsResolverForm bind:value />
 		</Collapsible.Content>
 	</Collapsible>
 
 	<!-- TLS Options Section -->
-	<Collapsible 
+	<Collapsible
 		class="card border border-surface-200 dark:border-surface-700"
 		open={optionsOpen}
 		onOpenChange={(details) => (optionsOpen = details.open)}
 	>
-		<Collapsible.Trigger class="flex w-full items-center justify-between border-b border-surface-200 px-4 py-3 hover:preset-tonal dark:border-surface-700 cursor-pointer">
+		<Collapsible.Trigger
+			class="flex w-full cursor-pointer items-center justify-between border-b border-surface-200 px-4 py-3 hover:preset-tonal dark:border-surface-700"
+		>
 			<h3 class="h3 font-bold">TLS Options</h3>
 			<Collapsible.Indicator>
-				<ChevronDown size={18} class="transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+				<ChevronDown
+					size={18}
+					class={`transition-transform duration-200 ${optionsOpen ? 'rotate-180' : ''}`}
+				/>
 			</Collapsible.Indicator>
 		</Collapsible.Trigger>
-		<Collapsible.Content class="p-3 w-full">
+		<Collapsible.Content class="w-full p-3">
 			<div class="grid grid-cols-1 gap-3 md:grid-cols-2">
 				{#if value.options}
 					<label class="flex items-center space-x-2">
-						<input class="checkbox" type="checkbox" bind:checked={value.options.ignore_client_order} />
+						<input
+							class="checkbox"
+							type="checkbox"
+							bind:checked={value.options.ignore_client_order}
+						/>
 						<span>Ignore Client Order</span>
 					</label>
 					<label class="flex items-center space-x-2">
@@ -91,11 +105,15 @@
 					</label>
 					<label class="label">
 						<span>Max Early Data Size</span>
-						<input class="input w-full" type="number" bind:value={value.options.max_early_data_size} />
+						<input
+							class="input w-full"
+							type="number"
+							bind:value={value.options.max_early_data_size}
+						/>
 					</label>
 					<div class="col-span-full">
 						{#if value.options}
-							<TagsInput 
+							<TagsInput
 								value={value.options.alpn_protocols}
 								onValueChange={(details) => {
 									if (value.options) {

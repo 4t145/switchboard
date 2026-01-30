@@ -8,10 +8,13 @@
 		readonly = false,
 		classId,
 		instanceType
-	}: DataTypeComponentProps<unknown, {
-		classId: string;
-		instanceType: 'node' | 'filter';
-	}>  = $props();
+	}: DataTypeComponentProps<
+		unknown,
+		{
+			classId: string;
+			instanceType: 'node' | 'filter';
+		}
+	> = $props();
 
 	// 从插件注册表获取对应的编辑器
 	const plugin = $derived(
@@ -36,7 +39,7 @@
 		<div class="space-y-4">
 			<!-- 插件信息头部 -->
 			<div class="mb-3 flex items-center gap-2">
-				<span class="badge preset-filled-surface text-xs">
+				<span class="preset-filled-surface badge text-xs">
 					{plugin.displayName || classId}
 				</span>
 				{#if plugin.description}
@@ -55,7 +58,7 @@
 	{/if}
 {:else}
 	<!-- View 模式：只读显示 -->
-	<div class="card p-4 bg-surface-100 dark:bg-surface-800">
-		<pre class="text-xs font-mono overflow-x-auto">{JSON.stringify(value, null, 2)}</pre>
+	<div class="card bg-surface-100 p-4 dark:bg-surface-800">
+		<pre class="overflow-x-auto font-mono text-xs">{JSON.stringify(value, null, 2)}</pre>
 	</div>
 {/if}

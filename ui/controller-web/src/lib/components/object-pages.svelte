@@ -25,7 +25,7 @@
 <script lang="ts">
 	import { api } from '$lib/api/routes';
 	import { shortRev } from '$lib/utils';
-	import { Info, Loader2, Check, Search, Copy, Edit, Trash2, Eye, X } from 'lucide-svelte';
+	import { Info, Loader2, Check, Search, Copy, Edit, Trash2, Eye, X } from '@lucide/svelte';
 	import ObjectFilterForm from '$lib/components/object-filter.svelte';
 	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
 
@@ -164,12 +164,17 @@
 		try {
 			await api.storage.delete(itemToDelete.descriptor);
 			// Remove item from local state immediately for better UX
-			items = items.filter(item => 
-				!(item.descriptor.id === itemToDelete!.descriptor.id && 
-				  item.descriptor.revision === itemToDelete!.descriptor.revision)
+			items = items.filter(
+				(item) =>
+					!(
+						item.descriptor.id === itemToDelete!.descriptor.id &&
+						item.descriptor.revision === itemToDelete!.descriptor.revision
+					)
 			);
 			// TODO: Show success toast notification
-			console.log(`Object deleted: ${itemToDelete.descriptor.id}#${itemToDelete.descriptor.revision}`);
+			console.log(
+				`Object deleted: ${itemToDelete.descriptor.id}#${itemToDelete.descriptor.revision}`
+			);
 		} catch (deleteError) {
 			// TODO: Show error toast notification
 			console.error('Failed to delete object:', deleteError);
@@ -203,7 +208,9 @@
 			onViewDetails(item);
 		} else {
 			// Built-in view functionality (placeholder for now)
-			console.log('View details functionality not implemented. Override with onViewDetails callback.');
+			console.log(
+				'View details functionality not implemented. Override with onViewDetails callback.'
+			);
 			alert('查看详情功能需要通过 onViewDetails 回调实现');
 		}
 	}
@@ -212,7 +219,7 @@
 		if (selectionMode === 'single') {
 			return selectedId === item.descriptor.id;
 		} else if (selectionMode === 'multiple') {
-			return selectedItems.some(selected => selected.descriptor.id === item.descriptor.id);
+			return selectedItems.some((selected) => selected.descriptor.id === item.descriptor.id);
 		}
 		return false;
 	}
@@ -248,35 +255,47 @@
 
 	<!-- Selected Items Section -->
 	{#if selectionMode === 'multiple' && selectedItems.length > 0}
-		<div class="bg-primary-50 border border-primary-200 rounded-lg p-4 dark:bg-primary-900/10 dark:border-primary-800">
-			<h3 class="text-lg font-semibold mb-3 text-primary-900 dark:text-primary-100">
+		<div
+			class="rounded-lg border border-primary-200 bg-primary-50 p-4 dark:border-primary-800 dark:bg-primary-900/10"
+		>
+			<h3 class="mb-3 text-lg font-semibold text-primary-900 dark:text-primary-100">
 				已选择项目 ({selectedItems.length})
 			</h3>
 			<div class="space-y-2">
 				{#each selectedItems as item (item.descriptor.id + item.descriptor.revision)}
-					<div class="bg-white border border-surface-200 rounded-lg p-3 flex items-center justify-between dark:bg-surface-800 dark:border-surface-700">
-						<div class="flex items-center gap-3 flex-1 min-w-0">
-							<div class="flex items-center gap-2 min-w-0 flex-1">
-								<span class="font-mono text-sm font-medium text-primary-700 dark:text-primary-300 truncate" title={getIdRevString(item)}>
-									{item.descriptor.id}<span class="text-surface-500 dark:text-surface-400">#{shortRev(item.descriptor.revision)}</span>
+					<div
+						class="flex items-center justify-between rounded-lg border border-surface-200 bg-white p-3 dark:border-surface-700 dark:bg-surface-800"
+					>
+						<div class="flex min-w-0 flex-1 items-center gap-3">
+							<div class="flex min-w-0 flex-1 items-center gap-2">
+								<span
+									class="truncate font-mono text-sm font-medium text-primary-700 dark:text-primary-300"
+									title={getIdRevString(item)}
+								>
+									{item.descriptor.id}<span class="text-surface-500 dark:text-surface-400"
+										>#{shortRev(item.descriptor.revision)}</span
+									>
 								</span>
 								<button
-									class="rounded p-1 text-surface-500 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+									class="rounded p-1 text-surface-500 transition-colors hover:bg-surface-200 dark:hover:bg-surface-700"
 									onclick={(e) => copyToClipboard(e, getIdRevString(item))}
 									title="Copy ID#Rev"
 								>
 									<Copy size={14} />
 								</button>
 							</div>
-							<span class="text-xs text-surface-500 whitespace-nowrap">
+							<span class="text-xs whitespace-nowrap text-surface-500">
 								{item.meta.data_type}
 							</span>
 						</div>
-						<div class="flex items-center gap-1 ml-3">
+						<div class="ml-3 flex items-center gap-1">
 							{#if showViewDetails}
 								<button
-									class="btn-icon btn-icon-sm hover:preset-tonal-primary transition-colors"
-									onclick={(e) => { e.stopPropagation(); handleViewDetails(item); }}
+									class="btn-icon btn-icon-sm transition-colors hover:preset-tonal-primary"
+									onclick={(e) => {
+										e.stopPropagation();
+										handleViewDetails(item);
+									}}
 									title="Details"
 								>
 									<Eye size={16} />
@@ -284,8 +303,11 @@
 							{/if}
 							{#if showEdit}
 								<button
-									class="btn-icon btn-icon-sm hover:preset-tonal-secondary transition-colors"
-									onclick={(e) => { e.stopPropagation(); handleEdit(item); }}
+									class="btn-icon btn-icon-sm transition-colors hover:preset-tonal-secondary"
+									onclick={(e) => {
+										e.stopPropagation();
+										handleEdit(item);
+									}}
 									title="Edit"
 								>
 									<Edit size={16} />
@@ -293,8 +315,11 @@
 							{/if}
 							{#if showDelete}
 								<button
-									class="btn-icon btn-icon-sm hover:preset-tonal-error transition-colors"
-									onclick={(e) => { e.stopPropagation(); handleRemove(item); }}
+									class="btn-icon btn-icon-sm transition-colors hover:preset-tonal-error"
+									onclick={(e) => {
+										e.stopPropagation();
+										handleRemove(item);
+									}}
 									title="Delete"
 								>
 									<Trash2 size={16} />
@@ -310,18 +335,20 @@
 	<!-- Candidates List -->
 	<div class="space-y-2">
 		{#if items.length > 0}
-			<h3 class="text-lg font-semibold text-surface-900 dark:text-surface-100 mb-3">
+			<h3 class="mb-3 text-lg font-semibold text-surface-900 dark:text-surface-100">
 				{selectionMode === 'multiple' ? '候选项目' : '项目列表'}
 			</h3>
 		{/if}
-		
+
 		{#each items as item (item.descriptor.id + item.descriptor.revision)}
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<div
 				class="group card border border-surface-200 p-4 transition-all duration-200 hover:border-primary-300 hover:shadow-sm
-				       {isSelected(item) ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500 dark:bg-primary-900/20' : 'dark:bg-surface-800 dark:border-surface-700'}
+				       {isSelected(item)
+					? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500 dark:bg-primary-900/20'
+					: 'dark:border-surface-700 dark:bg-surface-800'}
 				       {selectionMode !== 'none' ? 'cursor-pointer' : ''}"
 				onclick={() => selectionMode !== 'none' && handleSelect(item)}
 				role={selectionMode !== 'none' ? 'button' : undefined}
@@ -329,13 +356,19 @@
 				onkeydown={(e) => selectionMode !== 'none' && e.key === 'Enter' && handleSelect(item)}
 			>
 				<div class="flex items-center justify-between">
-					<div class="flex items-center gap-3 flex-1 min-w-0">
-						<div class="flex items-center gap-2 min-w-0 flex-1">
-							<span class="font-mono text-sm font-semibold text-surface-900 dark:text-surface-100 truncate" title={getIdRevString(item)}>
-								<span class="text-primary-700 dark:text-primary-300">{item.descriptor.id}</span><span class="text-surface-500 dark:text-surface-400">#{shortRev(item.descriptor.revision)}</span>
+					<div class="flex min-w-0 flex-1 items-center gap-3">
+						<div class="flex min-w-0 flex-1 items-center gap-2">
+							<span
+								class="truncate font-mono text-sm font-semibold text-surface-900 dark:text-surface-100"
+								title={getIdRevString(item)}
+							>
+								<span class="text-primary-700 dark:text-primary-300">{item.descriptor.id}</span
+								><span class="text-surface-500 dark:text-surface-400"
+									>#{shortRev(item.descriptor.revision)}</span
+								>
 							</span>
 							<button
-								class="btn-icon btn-icon-sm opacity-0 group-hover:opacity-100 hover:preset-tonal-surface transition-opacity"
+								class="btn-icon btn-icon-sm opacity-0 transition-opacity group-hover:opacity-100 hover:preset-tonal-surface"
 								onclick={(e) => copyToClipboard(e, getIdRevString(item))}
 								title="Copy ID#Rev"
 							>
@@ -343,16 +376,23 @@
 							</button>
 						</div>
 						<div class="flex items-center gap-4 text-xs text-surface-500">
-							<span>Type: <span class="font-medium text-surface-700 dark:text-surface-300">{item.meta.data_type}</span></span>
+							<span
+								>Type: <span class="font-medium text-surface-700 dark:text-surface-300"
+									>{item.meta.data_type}</span
+								></span
+							>
 							<span>Created: {new Date(item.meta.created_at).toLocaleDateString()}</span>
 						</div>
 					</div>
-					
-					<div class="flex items-center gap-1 ml-3">
+
+					<div class="ml-3 flex items-center gap-1">
 						{#if showViewDetails}
 							<button
-								class="btn-icon btn-icon-sm opacity-0 group-hover:opacity-100 hover:preset-tonal-primary transition-opacity"
-								onclick={(e) => { e.stopPropagation(); handleViewDetails(item); }}
+								class="btn-icon btn-icon-sm opacity-0 transition-opacity group-hover:opacity-100 hover:preset-tonal-primary"
+								onclick={(e) => {
+									e.stopPropagation();
+									handleViewDetails(item);
+								}}
 								title="Details"
 							>
 								<Eye size={16} />
@@ -360,8 +400,11 @@
 						{/if}
 						{#if showEdit}
 							<button
-								class="btn-icon btn-icon-sm opacity-0 group-hover:opacity-100 hover:preset-tonal-secondary transition-opacity"
-								onclick={(e) => { e.stopPropagation(); handleEdit(item); }}
+								class="btn-icon btn-icon-sm opacity-0 transition-opacity group-hover:opacity-100 hover:preset-tonal-secondary"
+								onclick={(e) => {
+									e.stopPropagation();
+									handleEdit(item);
+								}}
 								title="Edit"
 							>
 								<Edit size={16} />
@@ -369,8 +412,11 @@
 						{/if}
 						{#if showDelete}
 							<button
-								class="btn-icon btn-icon-sm opacity-0 group-hover:opacity-100 hover:preset-tonal-error transition-opacity"
-								onclick={(e) => { e.stopPropagation(); handleRemove(item); }}
+								class="btn-icon btn-icon-sm opacity-0 transition-opacity group-hover:opacity-100 hover:preset-tonal-error"
+								onclick={(e) => {
+									e.stopPropagation();
+									handleRemove(item);
+								}}
 								title="Delete"
 							>
 								<Trash2 size={16} />
@@ -378,8 +424,11 @@
 						{/if}
 						{#if selectionMode === 'multiple' && !isSelected(item)}
 							<button
-								class="btn-icon btn-icon-sm opacity-0 group-hover:opacity-100 hover:preset-tonal-success transition-opacity"
-								onclick={(e) => { e.stopPropagation(); handleSelect(item); }}
+								class="btn-icon btn-icon-sm opacity-0 transition-opacity group-hover:opacity-100 hover:preset-tonal-success"
+								onclick={(e) => {
+									e.stopPropagation();
+									handleSelect(item);
+								}}
 								title="Select"
 							>
 								<Check size={16} />
@@ -389,7 +438,9 @@
 
 					<!-- Selection Indicator -->
 					{#if isSelected(item)}
-						<div class="ml-3 flex items-center justify-center w-6 h-6 rounded-full bg-primary-500 text-white">
+						<div
+							class="ml-3 flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-white"
+						>
 							<Check size={14} strokeWidth={3} />
 						</div>
 					{/if}
@@ -400,7 +451,7 @@
 
 	<!-- Error State -->
 	{#if error}
-		<div class="alert preset-tonal-error flex items-center gap-2">
+		<div class="alert flex items-center gap-2 preset-tonal-error">
 			<Info size={16} />
 			<span class="flex-1">Error: {error.message}</span>
 			<button class="preset-filled-error btn btn-sm" onclick={reload}>Retry</button>
@@ -421,7 +472,7 @@
 				<p>No items found.</p>
 			</div>
 		{:else if hasMore}
-			<button class="preset-tonal-surface btn btn-sm" onclick={loadNextPage} disabled={loading}>
+			<button class="btn preset-tonal-surface btn-sm" onclick={loadNextPage} disabled={loading}>
 				{#if loading}
 					<Loader2 class="mr-2 animate-spin" size={14} /> Loading...
 				{:else}
@@ -435,17 +486,25 @@
 </div>
 
 <!-- Delete Confirmation Dialog -->
-<Dialog open={showDeleteDialog} onOpenChange={(details) => (showDeleteDialog = details.open)} closeOnInteractOutside={false}>
+<Dialog
+	open={showDeleteDialog}
+	onOpenChange={(details) => (showDeleteDialog = details.open)}
+	closeOnInteractOutside={false}
+>
 	<Portal>
 		<Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-50-950/50" />
-		<Dialog.Positioner class="fixed inset-0 z-50 flex justify-center items-center p-4">
-			<Dialog.Content class="card bg-surface-100-900 w-full max-w-md p-6 space-y-4 shadow-xl 
-			                       transition transition-discrete opacity-0 translate-y-[100px] 
-			                       starting:data-[state=open]:opacity-0 starting:data-[state=open]:translate-y-[100px] 
-			                       data-[state=open]:opacity-100 data-[state=open]:translate-y-0">
+		<Dialog.Positioner class="fixed inset-0 z-50 flex items-center justify-center p-4">
+			<Dialog.Content
+				class="w-full max-w-md translate-y-[100px] space-y-4 card bg-surface-100-900 p-6 
+			                       opacity-0 shadow-xl transition transition-discrete 
+			                       data-[state=open]:translate-y-0 data-[state=open]:opacity-100 
+			                       starting:data-[state=open]:translate-y-[100px] starting:data-[state=open]:opacity-0"
+			>
 				<header class="flex items-start justify-between gap-4">
 					<div class="flex items-center gap-3">
-						<div class="flex items-center justify-center w-12 h-12 rounded-full bg-error-100 dark:bg-error-900">
+						<div
+							class="flex h-12 w-12 items-center justify-center rounded-full bg-error-100 dark:bg-error-900"
+						>
 							<Trash2 size={24} class="text-error-600 dark:text-error-400" />
 						</div>
 						<div>
@@ -458,16 +517,22 @@
 						<X size={16} />
 					</Dialog.CloseTrigger>
 				</header>
-				
-				<Dialog.Description class="text-surface-600 dark:text-surface-400 leading-relaxed">
+
+				<Dialog.Description class="leading-relaxed text-surface-600 dark:text-surface-400">
 					{#if itemToDelete}
-						<p>您确定要删除 <strong class="font-mono text-primary-700 dark:text-primary-300">{itemToDelete.descriptor.id}#{itemToDelete.descriptor.revision.slice(0, 8)}</strong> 吗？</p>
-						<p class="text-sm text-surface-500 dark:text-surface-400 mt-2">此操作不可撤销。删除后无法恢复。</p>
+						<p>
+							您确定要删除 <strong class="font-mono text-primary-700 dark:text-primary-300"
+								>{itemToDelete.descriptor.id}#{itemToDelete.descriptor.revision.slice(0, 8)}</strong
+							> 吗？
+						</p>
+						<p class="mt-2 text-sm text-surface-500 dark:text-surface-400">
+							此操作不可撤销。删除后无法恢复。
+						</p>
 					{:else}
 						<p>没有选择要删除的项目。</p>
 					{/if}
 				</Dialog.Description>
-				
+
 				<footer class="flex justify-end gap-3 pt-2">
 					<button
 						type="button"

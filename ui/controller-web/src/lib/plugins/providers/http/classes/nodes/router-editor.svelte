@@ -83,7 +83,7 @@
 		<div class="flex items-center justify-between">
 			<label class="label-text text-sm font-semibold">Hostname Routes</label>
 			{#if !readonly}
-				<button class="btn btn-sm preset-tonal-primary" onclick={addHostnameRule}>
+				<button class="btn preset-tonal-primary btn-sm" onclick={addHostnameRule}>
 					Add Rule
 				</button>
 			{/if}
@@ -97,7 +97,7 @@
 					<div class="flex items-center gap-2">
 						<input
 							type="text"
-							class="input input-sm flex-1"
+							class="input-sm input flex-1"
 							value={pattern}
 							disabled
 							placeholder="Hostname pattern"
@@ -105,14 +105,14 @@
 						<span class="text-xs opacity-60">→</span>
 						<input
 							type="text"
-							class="input input-sm flex-1"
+							class="input-sm input flex-1"
 							bind:value={value.hostname[pattern]}
 							{readonly}
 							placeholder="Output port"
 						/>
 						{#if !readonly}
 							<button
-								class="btn-icon btn-icon-sm preset-filled-error"
+								class="preset-filled-error btn-icon btn-icon-sm"
 								onclick={() => removeHostnameRule(pattern)}
 							>
 								×
@@ -129,9 +129,7 @@
 		<div class="flex items-center justify-between">
 			<label class="label-text text-sm font-semibold">Path Routes</label>
 			{#if !readonly}
-				<button class="btn btn-sm preset-tonal-primary" onclick={addPathRule}>
-					Add Rule
-				</button>
+				<button class="btn preset-tonal-primary btn-sm" onclick={addPathRule}> Add Rule </button>
 			{/if}
 		</div>
 
@@ -143,7 +141,7 @@
 					<div class="flex items-center gap-2">
 						<input
 							type="text"
-							class="input input-sm flex-1"
+							class="input-sm input flex-1"
 							value={pattern}
 							disabled
 							placeholder="Path pattern"
@@ -151,14 +149,14 @@
 						<span class="text-xs opacity-60">→</span>
 						<input
 							type="text"
-							class="input input-sm flex-1"
+							class="input-sm input flex-1"
 							bind:value={value.path[pattern]}
 							{readonly}
 							placeholder="Output port"
 						/>
 						{#if !readonly}
 							<button
-								class="btn-icon btn-icon-sm preset-filled-error"
+								class="preset-filled-error btn-icon btn-icon-sm"
 								onclick={() => removePathRule(pattern)}
 							>
 								×
@@ -175,7 +173,7 @@
 		<div class="flex items-center justify-between">
 			<label class="label-text text-sm font-semibold">Output Ports</label>
 			{#if !readonly}
-				<button class="btn btn-sm preset-tonal-primary" onclick={addOutputPort}>
+				<button class="btn preset-tonal-primary btn-sm" onclick={addOutputPort}>
 					Add Output
 				</button>
 			{/if}
@@ -186,12 +184,12 @@
 				<p class="text-xs opacity-60">No output ports defined</p>
 			{:else}
 				{#each Object.entries(value.output) as [port, outputDef]: [string, any]}
-					<div class="card preset-outlined p-3 space-y-2">
+					<div class="space-y-2 card preset-outlined p-3">
 						<div class="flex items-center justify-between">
 							<span class="text-sm font-medium">{port}</span>
 							{#if !readonly}
 								<button
-									class="btn-icon btn-icon-sm preset-filled-error"
+									class="preset-filled-error btn-icon btn-icon-sm"
 									onclick={() => removeOutputPort(port)}
 								>
 									×
@@ -204,7 +202,7 @@
 							<span class="label-text text-xs">Target Node</span>
 							<input
 								type="text"
-								class="input input-sm"
+								class="input-sm input"
 								bind:value={value.output[port].target}
 								{readonly}
 								placeholder="node-id"
@@ -216,10 +214,7 @@
 							<div class="flex items-center justify-between">
 								<span class="label-text text-xs">Filters</span>
 								{#if !readonly}
-									<button
-										class="btn btn-xs preset-tonal-secondary"
-										onclick={() => addFilter(port)}
-									>
+									<button class="btn-xs btn preset-tonal-secondary" onclick={() => addFilter(port)}>
 										Add Filter
 									</button>
 								{/if}
@@ -233,14 +228,14 @@
 										<div class="flex items-center gap-2">
 											<input
 												type="text"
-												class="input input-xs flex-1"
+												class="input-xs input flex-1"
 												bind:value={value.output[port].filters[index]}
 												{readonly}
 												placeholder="filter-id"
 											/>
 											{#if !readonly}
 												<button
-													class="btn-icon btn-icon-sm preset-filled-error"
+													class="preset-filled-error btn-icon btn-icon-sm"
 													onclick={() => removeFilter(port, index)}
 												>
 													×

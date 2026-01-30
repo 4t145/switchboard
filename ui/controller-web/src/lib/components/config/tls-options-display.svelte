@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { TlsOptions } from '$lib/api/types/tls';
-	import { Check, X, ChevronDown } from 'lucide-svelte';
+	import { Check, X, ChevronDown } from '@lucide/svelte';
 
 	interface Props {
 		options: TlsOptions;
@@ -19,17 +19,17 @@
 
 <details class="group">
 	<summary
-		class="list-none flex items-center justify-between cursor-pointer text-sm font-medium text-surface-700 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-token p-2"
+		class="rounded-token flex cursor-pointer list-none items-center justify-between p-2 text-sm font-medium text-surface-700 hover:bg-surface-100 dark:text-surface-300 dark:hover:bg-surface-800"
 	>
 		<span>Advanced Options</span>
-		<ChevronDown class="w-4 h-4 transition-transform duration-200 group-open:rotate-180" />
+		<ChevronDown class="h-4 w-4 transition-transform duration-200 group-open:rotate-180" />
 	</summary>
 	<div
-		class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-sm p-4 border-t border-surface-200 dark:border-surface-700"
+		class="grid grid-cols-1 gap-x-6 gap-y-4 border-t border-surface-200 p-4 text-sm md:grid-cols-2 lg:grid-cols-3 dark:border-surface-700"
 	>
 		<!-- ALPN Protocols -->
 		{#if options.alpn_protocols && options.alpn_protocols.length > 0}
-			<div class="md:col-span-2 lg:col-span-3 space-y-1">
+			<div class="space-y-1 md:col-span-2 lg:col-span-3">
 				<span class="font-medium text-surface-600 dark:text-surface-400">ALPN Protocols</span>
 				<div class="flex flex-wrap gap-2">
 					{#each options.alpn_protocols as protocol}
@@ -50,7 +50,9 @@
 		<!-- Max Early Data Size -->
 		<div class="space-y-1">
 			<span class="font-medium text-surface-600 dark:text-surface-400">Max Early Data Size</span>
-			<p class="text-surface-800 dark:text-surface-200">{formatBytes(options.max_early_data_size)}</p>
+			<p class="text-surface-800 dark:text-surface-200">
+				{formatBytes(options.max_early_data_size)}
+			</p>
 		</div>
 
 		<!-- TLS 1.3 Tickets -->
@@ -62,10 +64,10 @@
 		<!-- Ignore Client Order -->
 		<div class="flex items-center gap-2">
 			{#if options.ignore_client_order}
-				<Check class="w-4 h-4 text-success-500" />
+				<Check class="h-4 w-4 text-success-500" />
 				<span class="text-surface-800 dark:text-surface-200">Ignore Client Cipher Order</span>
 			{:else}
-				<X class="w-4 h-4 text-surface-500" />
+				<X class="h-4 w-4 text-surface-500" />
 				<span class="text-surface-800 dark:text-surface-200">Respect Client Cipher Order</span>
 			{/if}
 		</div>
@@ -73,10 +75,10 @@
 		<!-- Enable Secret Extraction -->
 		<div class="flex items-center gap-2">
 			{#if options.enable_secret_extraction}
-				<Check class="w-4 h-4 text-success-500" />
+				<Check class="h-4 w-4 text-success-500" />
 				<span class="text-surface-800 dark:text-surface-200">Secret Extraction Enabled</span>
 			{:else}
-				<X class="w-4 h-4 text-surface-500" />
+				<X class="h-4 w-4 text-surface-500" />
 				<span class="text-surface-800 dark:text-surface-200">Secret Extraction Disabled</span>
 			{/if}
 		</div>
@@ -84,10 +86,10 @@
 		<!-- Send Half RTT Data -->
 		<div class="flex items-center gap-2">
 			{#if options.send_half_rtt_data}
-				<Check class="w-4 h-4 text-success-500" />
+				<Check class="h-4 w-4 text-success-500" />
 				<span class="text-surface-800 dark:text-surface-200">0.5-RTT Data Enabled</span>
 			{:else}
-				<X class="w-4 h-4 text-surface-500" />
+				<X class="h-4 w-4 text-surface-500" />
 				<span class="text-surface-800 dark:text-surface-200">0.5-RTT Data Disabled</span>
 			{/if}
 		</div>
@@ -95,12 +97,12 @@
 		<!-- Require Extended Master Secret -->
 		<div class="flex items-center gap-2">
 			{#if options.require_ems}
-				<Check class="w-4 h-4 text-success-500" />
+				<Check class="h-4 w-4 text-success-500" />
 				<span class="text-surface-800 dark:text-surface-200"
 					>Extended Master Secret (EMS) Required</span
 				>
 			{:else}
-				<X class="w-4 h-4 text-surface-500" />
+				<X class="h-4 w-4 text-surface-500" />
 				<span class="text-surface-800 dark:text-surface-200">EMS Not Required</span>
 			{/if}
 		</div>

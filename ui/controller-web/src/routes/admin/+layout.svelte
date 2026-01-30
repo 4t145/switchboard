@@ -3,21 +3,13 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import {
-		Menu,
-		Home,
-		Activity,
-		Database,
-		Settings,
-		Factory,
-		X
-	} from 'lucide-svelte';
+	import { Menu, Home, Activity, Database, Settings, Factory, X } from '@lucide/svelte';
 	import Logo from '$lib/components/logo.svelte';
 	import { settingsStore } from '$lib/stores/settings.svelte';
 	import { initializeGlobalAPI } from '$lib/plugins/global-api';
 	import { registerAllPlugins } from '$lib/plugins/register';
 	import { loadPluginsFromServer } from '$lib/plugins/loader';
-	
+
 	let { children } = $props();
 
 	let isLayoutRail = $state(false);
@@ -32,20 +24,20 @@
 		(async () => {
 			console.log('🔌 [PluginSystem] Initializing plugin system...');
 			const startTime = performance.now();
-			
+
 			try {
 				// 1. Initialize global API for third-party plugins
 				console.log('🔌 [PluginSystem] Step 1/3: Initializing global API...');
 				initializeGlobalAPI();
-				
+
 				// 2. Register built-in plugins
 				console.log('🔌 [PluginSystem] Step 2/3: Registering built-in plugins...');
 				registerAllPlugins();
-				
+
 				// 3. Load third-party plugins from server (if available)
 				console.log('🔌 [PluginSystem] Step 3/3: Loading third-party plugins...');
 				await loadPluginsFromServer();
-				
+
 				const elapsed = (performance.now() - startTime).toFixed(2);
 				console.log(`🔌 [PluginSystem] ✅ Plugin system initialized successfully (${elapsed}ms)`);
 			} catch (error) {
@@ -56,7 +48,7 @@
 
 		// Setup responsive rail/sidebar detection
 		const xlMediaQuery = window.matchMedia('(min-width: 1280px)'); // xl breakpoint
-		
+
 		// Initial check
 		const setLayout = () => {
 			// xl and above: sidebar (wide enough for full sidebar)
@@ -74,7 +66,7 @@
 
 		// Listen for changes
 		const handleResize = () => setLayout();
-		
+
 		xlMediaQuery.addEventListener('change', handleResize);
 		window.addEventListener('resize', handleResize);
 
@@ -129,77 +121,15 @@
 	}
 </script>
 
-<style>
-	/* Active navigation item styling */
-	:global([aria-current="page"]) {
-		background-color: rgb(var(--color-primary-100) / 1);
-		color: rgb(var(--color-primary-700) / 1);
-	}
-
-	:global(.dark [aria-current="page"]) {
-		background-color: rgb(var(--color-primary-900) / 0.3);
-		color: rgb(var(--color-primary-400) / 1);
-	}
-
-	:global([aria-current="page"] svg) {
-		color: rgb(var(--color-primary-600) / 1);
-	}
-
-	:global(.dark [aria-current="page"] svg) {
-		color: rgb(var(--color-primary-400) / 1);
-	}
-
-	/* Active indicator bar */
-	:global([aria-current="page"]::before) {
-		content: '';
-		position: absolute;
-		left: 0;
-		top: 50%;
-		height: 2rem;
-		width: 0.25rem;
-		transform: translateY(-50%);
-		border-radius: 0 9999px 9999px 0;
-		background-color: rgb(var(--color-primary-600) / 1);
-	}
-
-	:global(.dark [aria-current="page"]::before) {
-		background-color: rgb(var(--color-primary-400) / 1);
-	}
-
-	/* Navigation item base styles */
-	:global(.navigation-item) {
-		position: relative;
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		border-radius: 0.5rem;
-		padding: 0.625rem 0.75rem;
-		font-size: 0.875rem;
-		font-weight: 500;
-		color: rgb(var(--color-surface-700) / 1);
-		transition: all 150ms;
-	}
-
-	:global(.navigation-item:hover) {
-		background-color: rgb(var(--color-surface-100) / 1);
-	}
-
-	:global(.dark .navigation-item) {
-		color: rgb(var(--color-surface-300) / 1);
-	}
-
-	:global(.dark .navigation-item:hover) {
-		background-color: rgb(var(--color-surface-700) / 0.5);
-	}
-</style>
-
 <!-- Mobile Header (visible only on small screens) -->
-<div class="sticky top-0 z-40 flex items-center justify-between border-b border-surface-200 bg-white px-4 py-3 dark:border-surface-700 dark:bg-surface-900 lg:hidden">
+<div
+	class="sticky top-0 z-40 flex items-center justify-between border-b border-surface-200 bg-white px-4 py-3 lg:hidden dark:border-surface-700 dark:bg-surface-900"
+>
 	<div class="flex items-center gap-3">
 		<Logo class="h-8 w-8" mode="overlap" />
 		<span class="text-lg font-semibold text-surface-900 dark:text-surface-100">Switchboard</span>
 	</div>
-	
+
 	<button
 		onclick={toggleMobileMenu}
 		class="rounded-lg p-2 hover:bg-surface-100 dark:hover:bg-surface-800"
@@ -228,8 +158,8 @@
 	<!-- Sidebar -->
 	<aside
 		class={`
-			fixed inset-y-0 left-0 z-50 border-r border-surface-200 bg-white transition-all duration-300 ease-in-out dark:border-surface-700 dark:bg-surface-800
-			lg:sticky lg:top-0 lg:h-screen lg:translate-x-0
+			fixed inset-y-0 left-0 z-50 border-r border-surface-200 bg-white transition-all duration-300 ease-in-out lg:sticky lg:top-0
+			lg:h-screen lg:translate-x-0 dark:border-surface-700 dark:bg-surface-800
 			${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
 		`}
 	>
@@ -243,18 +173,22 @@
 						<div class="flex items-center gap-3">
 							<Logo class="h-8 w-8" mode="overlap" />
 							{#if !isLayoutRail}
-								<span class="text-lg font-semibold text-surface-900 dark:text-surface-100">Switchboard</span>
+								<span class="text-lg font-semibold text-surface-900 dark:text-surface-100"
+									>Switchboard</span
+								>
 							{/if}
 						</div>
 					</div>
 				</Navigation.Header>
-				
+
 				<!-- Content Section (flexible, takes remaining space) -->
 				<div class="flex-1 overflow-y-auto">
 					<Navigation.Content>
 						<!-- 主导航（无分组项） -->
 						<Navigation.Group>
-							<Navigation.Label class={`pl-2 ${isLayoutRail ? 'sr-only' : ''}`}>Main</Navigation.Label>
+							<Navigation.Label class={`pl-2 ${isLayoutRail ? 'sr-only' : ''}`}
+								>Main</Navigation.Label
+							>
 							<Navigation.Menu>
 								{#each navigationItems.filter((i) => !i.subItems) as link (link.href)}
 									{@const Icon = iconComponents[link.icon]}
@@ -279,7 +213,7 @@
 						</Navigation.Group>
 					</Navigation.Content>
 				</div>
-				
+
 				<!-- Footer Section -->
 				<Navigation.Footer>
 					{@const settingsActive = isActive('/admin/settings')}
@@ -311,3 +245,67 @@
 		</main>
 	</div>
 </div>
+
+<style>
+	/* Active navigation item styling */
+	:global([aria-current='page']) {
+		background-color: rgb(var(--color-primary-100) / 1);
+		color: rgb(var(--color-primary-700) / 1);
+	}
+
+	:global(.dark [aria-current='page']) {
+		background-color: rgb(var(--color-primary-900) / 0.3);
+		color: rgb(var(--color-primary-400) / 1);
+	}
+
+	:global([aria-current='page'] svg) {
+		color: rgb(var(--color-primary-600) / 1);
+	}
+
+	:global(.dark [aria-current='page'] svg) {
+		color: rgb(var(--color-primary-400) / 1);
+	}
+
+	/* Active indicator bar */
+	:global([aria-current='page']::before) {
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 50%;
+		height: 2rem;
+		width: 0.25rem;
+		transform: translateY(-50%);
+		border-radius: 0 9999px 9999px 0;
+		background-color: rgb(var(--color-primary-600) / 1);
+	}
+
+	:global(.dark [aria-current='page']::before) {
+		background-color: rgb(var(--color-primary-400) / 1);
+	}
+
+	/* Navigation item base styles */
+	:global(.navigation-item) {
+		position: relative;
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		border-radius: 0.5rem;
+		padding: 0.625rem 0.75rem;
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: rgb(var(--color-surface-700) / 1);
+		transition: all 150ms;
+	}
+
+	:global(.navigation-item:hover) {
+		background-color: rgb(var(--color-surface-100) / 1);
+	}
+
+	:global(.dark .navigation-item) {
+		color: rgb(var(--color-surface-300) / 1);
+	}
+
+	:global(.dark .navigation-item:hover) {
+		background-color: rgb(var(--color-surface-700) / 0.5);
+	}
+</style>

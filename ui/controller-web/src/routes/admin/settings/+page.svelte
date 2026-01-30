@@ -5,7 +5,7 @@
 	import LanguageSelector from '$lib/components/settings/language-selector.svelte';
 	import CustomThemeUploader from '$lib/components/settings/custom-theme-uploader.svelte';
 	import CustomThemeManager from '$lib/components/settings/custom-theme-manager.svelte';
-	import { RotateCcw, Settings as SettingsIcon } from 'lucide-svelte';
+	import { RotateCcw, Settings as SettingsIcon } from '@lucide/svelte';
 	import { m } from '$lib/paraglide/messages';
 
 	const msg = m as any;
@@ -31,7 +31,9 @@
 
 	<!-- Appearance Section -->
 	<section class="mb-6">
-		<div class="mb-4 flex items-center gap-2 border-b border-surface-200 pb-2 dark:border-surface-700">
+		<div
+			class="mb-4 flex items-center gap-2 border-b border-surface-200 pb-2 dark:border-surface-700"
+		>
 			<h2 class="h2 text-xl font-semibold">🎨 {msg.settings_appearance()}</h2>
 		</div>
 
@@ -46,7 +48,9 @@
 
 	<!-- Custom Themes Section -->
 	<section class="mb-6">
-		<div class="mb-4 flex items-center gap-2 border-b border-surface-200 pb-2 dark:border-surface-700">
+		<div
+			class="mb-4 flex items-center gap-2 border-b border-surface-200 pb-2 dark:border-surface-700"
+		>
 			<h2 class="h2 text-xl font-semibold">✨ {msg.settings_custom_themes()}</h2>
 		</div>
 
@@ -61,7 +65,9 @@
 
 	<!-- Language Section -->
 	<section class="mb-6">
-		<div class="mb-4 flex items-center gap-2 border-b border-surface-200 pb-2 dark:border-surface-700">
+		<div
+			class="mb-4 flex items-center gap-2 border-b border-surface-200 pb-2 dark:border-surface-700"
+		>
 			<h2 class="h2 text-xl font-semibold">🌐 {msg.settings_language()}</h2>
 		</div>
 
@@ -69,8 +75,10 @@
 	</section>
 
 	<!-- Actions -->
-	<div class="mt-8 flex items-center justify-between border-t border-surface-200 pt-6 dark:border-surface-700">
-		<button class="btn preset-ghost-surface flex items-center gap-2" onclick={handleReset}>
+	<div
+		class="mt-8 flex items-center justify-between border-t border-surface-200 pt-6 dark:border-surface-700"
+	>
+		<button class="preset-ghost-surface btn flex items-center gap-2" onclick={handleReset}>
 			<RotateCcw size={18} />
 			<span>{msg.settings_reset()}</span>
 		</button>

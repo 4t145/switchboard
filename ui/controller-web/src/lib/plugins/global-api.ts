@@ -5,7 +5,7 @@ import { providerEditorRegistry, httpClassEditorRegistry } from './registry';
 import * as SkeletonComponents from '@skeletonlabs/skeleton-svelte';
 
 // Import Lucide icons to expose to plugins
-import * as LucideIcons from 'lucide-svelte';
+import * as LucideIcons from '@lucide/svelte';
 
 /**
  * Validation utilities

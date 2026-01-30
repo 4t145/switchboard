@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { FileUpload } from '@skeletonlabs/skeleton-svelte';
-	import { Upload, X, CheckCircle, AlertCircle } from 'lucide-svelte';
+	import { Upload, X, CheckCircle, AlertCircle } from '@lucide/svelte';
 	import { customThemesStore } from '$lib/stores/custom-themes.svelte';
 	import { m } from '$lib/paraglide/messages';
-	
+
 	const msg = m as any;
 
 	let uploading = $state(false);
@@ -38,11 +38,11 @@
 
 		try {
 			const result = await customThemesStore.addTheme(file);
-			
+
 			if (result.success) {
 				uploadSuccess = true;
 				uploadError = null;
-				
+
 				// Auto-hide success message after 3 seconds
 				setTimeout(() => {
 					uploadSuccess = false;
@@ -67,9 +67,9 @@
 <div class="space-y-4">
 	<div class="flex items-center justify-between">
 		<h3 class="h3 text-lg font-semibold">{msg.settings_custom_themes_upload()}</h3>
-		<a 
-			href="https://themes.skeleton.dev" 
-			target="_blank" 
+		<a
+			href="https://themes.skeleton.dev"
+			target="_blank"
 			rel="noopener noreferrer"
 			class="text-sm text-primary-600 hover:text-primary-700 hover:underline dark:text-primary-400"
 		>
@@ -82,13 +82,15 @@
 	</p>
 
 	<!-- File Upload -->
-	<FileUpload 
-		accept=".css,text/css" 
+	<FileUpload
+		accept=".css,text/css"
 		onFileChange={handleFileSelect}
 		class="w-full"
 		disabled={uploading || !customThemesStore.canAddMore}
 	>
-		<FileUpload.Dropzone class="border-2 border-dashed  rounded-lg p-8 text-center hover:border-primary-500 dark:hover:border-primary-400 transition-colors">
+		<FileUpload.Dropzone
+			class="rounded-lg border-2  border-dashed p-8 text-center transition-colors hover:border-primary-500 dark:hover:border-primary-400"
+		>
 			<div class="flex flex-col items-center gap-3">
 				<Upload size={32} class="opacity-50" />
 				<div>
@@ -110,10 +112,15 @@
 			<FileUpload.Context>
 				{#snippet children(fileUpload)}
 					{#each fileUpload().acceptedFiles as file}
-						<FileUpload.Item {file} class="flex items-center gap-2 p-2 bg-surface-100 dark:bg-surface-800 rounded mt-2">
+						<FileUpload.Item
+							{file}
+							class="mt-2 flex items-center gap-2 rounded bg-surface-100 p-2 dark:bg-surface-800"
+						>
 							<FileUpload.ItemName class="flex-1 text-sm">{file.name}</FileUpload.ItemName>
-							<FileUpload.ItemSizeText class="text-xs opacity-60">{Math.round(file.size / 1024)} KB</FileUpload.ItemSizeText>
-							<FileUpload.ItemDeleteTrigger class="btn btn-sm preset-ghost-error">
+							<FileUpload.ItemSizeText class="text-xs opacity-60"
+								>{Math.round(file.size / 1024)} KB</FileUpload.ItemSizeText
+							>
+							<FileUpload.ItemDeleteTrigger class="preset-ghost-error btn btn-sm">
 								<X size={16} />
 							</FileUpload.ItemDeleteTrigger>
 						</FileUpload.Item>
@@ -125,10 +132,10 @@
 
 	<!-- Success Message -->
 	{#if uploadSuccess}
-		<div class="card preset-tonal-success p-4 flex items-center gap-3">
+		<div class="flex items-center gap-3 card preset-tonal-success p-4">
 			<CheckCircle size={20} />
 			<span class="flex-1">{msg.settings_custom_themes_success()}</span>
-			<button onclick={clearMessages} class="btn btn-sm preset-ghost">
+			<button onclick={clearMessages} class="preset-ghost btn btn-sm">
 				<X size={16} />
 			</button>
 		</div>
@@ -136,10 +143,10 @@
 
 	<!-- Error Message -->
 	{#if uploadError}
-		<div class="card preset-tonal-error p-4 flex items-center gap-3">
+		<div class="flex items-center gap-3 card preset-tonal-error p-4">
 			<AlertCircle size={20} />
 			<span class="flex-1">{uploadError}</span>
-			<button onclick={clearMessages} class="btn btn-sm preset-ghost">
+			<button onclick={clearMessages} class="preset-ghost btn btn-sm">
 				<X size={16} />
 			</button>
 		</div>

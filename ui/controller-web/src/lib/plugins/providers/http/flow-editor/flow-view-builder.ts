@@ -12,11 +12,16 @@ import type { InputInfo, OutputInfo } from '$lib/plugins/types';
 
 function getOutputs(nodeId: string, node: InstanceDataWithoutType<unknown>): OutputInfo[] {
 	const plugin = getHttpClassEditorPlugin(node.class);
-	if (!plugin) {
-		throw new Error(`Plugin not found for class: ${node.class}`);
-	}
-	if (plugin.type !== 'node') {
-		throw new Error(`Plugin for class ${node.class} is not a node`);
+	try {
+		if (!plugin) {
+			throw new Error(`Plugin not found for class: ${node.class}`);
+		}
+		if (plugin.type !== 'node') {
+			throw new Error(`Plugin for class ${node.class} is not a node`);
+		}
+	} catch (err) {
+		console.error('Error getting outputs for node:', nodeId, err);
+		return [];
 	}
 	const outputs = plugin.extractOutputs(node.config);
 	return outputs;
@@ -24,11 +29,16 @@ function getOutputs(nodeId: string, node: InstanceDataWithoutType<unknown>): Out
 
 function getInputs(nodeId: string, node: InstanceDataWithoutType<unknown>): InputInfo[] {
 	const plugin = getHttpClassEditorPlugin(node.class);
-	if (!plugin) {
-		throw new Error(`Plugin not found for class: ${node.class}`);
-	}
-	if (plugin.type !== 'node') {
-		throw new Error(`Plugin for class ${node.class} is not a node`);
+	try {
+		if (!plugin) {
+			throw new Error(`Plugin not found for class: ${node.class}`);
+		}
+		if (plugin.type !== 'node') {
+			throw new Error(`Plugin for class ${node.class} is not a node`);
+		}
+	} catch (err) {
+		console.error('Error getting inputs for node:', nodeId, err);
+		return [];
 	}
 	// Currently, we don't have a way to extract inputs from config
 	// Assuming default input port for now
@@ -213,14 +223,15 @@ export type FlowTreeViewNode =
 	| FlowTreeViewOrphans
 	| FlowTreeViewNodeInterface;
 
-
-export type FlowTreeViewInstanceSelection = {
-	type: 'node';
-	id: string;
-} | {
-	type: 'filter';
-	id: string;
-} 
+export type FlowTreeViewInstanceSelection =
+	| {
+			type: 'node';
+			id: string;
+	  }
+	| {
+			type: 'filter';
+			id: string;
+	  };
 
 export const FlowTreeViewInstanceSelection = {
 	fromString(value: string): FlowTreeViewInstanceSelection | undefined {
@@ -237,7 +248,7 @@ export const FlowTreeViewInstanceSelection = {
 		}
 		return undefined;
 	}
-}
+};
 export const FlowTreeViewNode = {
 	nodeToValue(node: FlowTreeViewNode): string {
 		switch (node.type) {

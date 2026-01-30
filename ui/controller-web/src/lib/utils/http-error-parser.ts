@@ -13,9 +13,7 @@ function parseErrorStack(headerValue: string): ErrorStack | undefined {
 				stack: typeof parsed.stack === 'string' ? parsed.stack : undefined,
 				code: typeof parsed.code === 'string' ? parsed.code : undefined,
 				details:
-					typeof parsed.details === 'object' && parsed.details !== null
-						? parsed.details
-						: undefined
+					typeof parsed.details === 'object' && parsed.details !== null ? parsed.details : undefined
 			};
 		}
 	} catch (e) {
@@ -57,8 +55,7 @@ export async function parseResponseError(response: Response): Promise<HttpError>
 		if (contentType?.includes('application/json')) {
 			const body = await response.json();
 			// Common error response formats
-			bodyMessage =
-				body.error?.message || body.message || body.error || JSON.stringify(body);
+			bodyMessage = body.error?.message || body.message || body.error || JSON.stringify(body);
 		} else if (contentType?.includes('text/')) {
 			bodyMessage = await response.text();
 		}

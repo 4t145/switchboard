@@ -1,32 +1,28 @@
 export type LinkKind = 'storage' | 'file' | 'http';
 
-export type ParsedLink = {
-	kind: 'storage';
-	scheme: 'storage';
-	location: string;
-} | {
-	kind: 'file';
-	scheme: 'file';
-	location: string;
-} | {
-	kind: 'http';
-	scheme: 'http' | 'https';
-	location: string;
-}
+export type ParsedLink =
+	| {
+			kind: 'storage';
+			scheme: 'storage';
+			location: string;
+	  }
+	| {
+			kind: 'file';
+			scheme: 'file';
+			location: string;
+	  }
+	| {
+			kind: 'http';
+			scheme: 'http' | 'https';
+			location: string;
+	  };
 
 export type StorageObjectDescriptor = {
 	id: string;
 	revision: string;
 };
 
-const URI_SCHEMES = [
-	'file://',
-	'http://',
-	'https://',
-	'ftp://',
-	'ftps://',
-	'storage://'
-];
+const URI_SCHEMES = ['file://', 'http://', 'https://', 'ftp://', 'ftps://', 'storage://'];
 
 export function isValidURI(str: string): boolean {
 	for (const scheme of URI_SCHEMES) {
@@ -93,7 +89,6 @@ export function isLinkValue(value: unknown): value is string {
 export function isInlineValue<T>(value: T | string): value is T {
 	return !isLinkValue(value);
 }
-
 
 export function getLinkKind(value: unknown): LinkKind | null {
 	const parsed = parseLink(value);

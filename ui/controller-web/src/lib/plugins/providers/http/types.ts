@@ -30,7 +30,7 @@ export type NodeTarget = string;
 export type NodeTargetObject = {
 	nodeId: string;
 	port: string;
-}
+};
 export const NodeTarget = {
 	parse(target: NodeTarget): NodeTargetObject {
 		if (!target.includes(':')) {

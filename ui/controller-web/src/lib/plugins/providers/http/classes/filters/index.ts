@@ -1,10 +1,10 @@
-import type { HttpClassEditorPlugin, OutputInfo } from '$lib/plugins/types';
-import UrlRewriteEditor from './url-rewrite-editor.svelte';
+import type { HttpClassEditorPlugin } from '$lib/plugins/types';
+import UrlRewriteEditor, { type UrlRewriteFilterConfig } from './url-rewrite-editor.svelte';
 
 /**
  * URL Rewrite Filter Editor Plugin
  */
-export const urlRewriteEditorPlugin: HttpClassEditorPlugin = {
+export const urlRewriteEditorPlugin: HttpClassEditorPlugin<UrlRewriteFilterConfig> = {
 	classId: 'url-rewrite',
 	type: 'filter',
 	displayName: 'URL Rewrite',
@@ -14,11 +14,12 @@ export const urlRewriteEditorPlugin: HttpClassEditorPlugin = {
 
 	createDefaultConfig() {
 		return {
-			path: ''
+			path: null,
+			hostname: null
 		};
 	},
 
-	validate(config: any) {
+	validate(config: UrlRewriteFilterConfig) {
 		const errors: string[] = [];
 
 		if (!config.path) {

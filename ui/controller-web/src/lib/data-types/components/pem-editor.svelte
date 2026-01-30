@@ -7,7 +7,7 @@
 		value = $bindable(''),
 		disabled = false,
 		label = 'PEM Certificate/Key'
-	}: DataTypeComponentProps<string> & { label?: string } = $props();
+	}: DataTypeComponentProps<string, { label?: string }> = $props();
 </script>
 
 {#if mode === 'edit'}
@@ -15,7 +15,7 @@
 	<PemInput bind:value {label} required={false} />
 {:else}
 	<!-- View 模式：只读显示 -->
-	<div class="card p-4 bg-surface-100 dark:bg-surface-800">
-		<pre class="text-xs font-mono overflow-x-auto">{value || '(Empty)'}</pre>
+	<div class="card bg-surface-100 p-4 dark:bg-surface-800">
+		<pre class="overflow-x-auto font-mono text-xs">{value || '(Empty)'}</pre>
 	</div>
 {/if}

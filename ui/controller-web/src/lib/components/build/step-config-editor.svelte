@@ -11,7 +11,7 @@
 			<ServiceConfigEditor bind:config />
 		{:else}
 			<div class="flex h-full items-center justify-center">
-				<div class="alert preset-tonal-warning max-w-md">
+				<div class="alert max-w-md preset-tonal-warning">
 					No configuration loaded. Go back and select a source.
 				</div>
 			</div>

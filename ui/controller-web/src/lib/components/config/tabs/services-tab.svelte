@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { FileTcpServiceConfig } from '$lib/api/types/human_readable';
 	import TcpServiceCard from '../tcp-service-card.svelte';
-	import { Server } from 'lucide-svelte';
+	import { Server } from '@lucide/svelte';
 
 	interface Props {
 		services: FileTcpServiceConfig[];
@@ -55,8 +55,8 @@
 </script>
 
 <div class="space-y-4">
-	<h2 class="h2 flex items-center gap-2">
-		<Server class="w-6 h-6" />
+	<h2 class="flex items-center gap-2 h2">
+		<Server class="h-6 w-6" />
 		TCP Services
 		{#if services.length > 0}
 			<span class="text-sm font-normal text-surface-500 dark:text-surface-400">
@@ -67,7 +67,7 @@
 
 	{#if services.length > 0}
 		{#each services as service (service.name)}
-			<div bind:this={serviceElements[service.name]} class="transition-all duration-300 rounded-lg">
+			<div bind:this={serviceElements[service.name]} class="rounded-lg transition-all duration-300">
 				<TcpServiceCard {service} {jumpToTls} />
 			</div>
 		{/each}

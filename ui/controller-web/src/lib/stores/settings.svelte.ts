@@ -7,7 +7,14 @@ import { setLocale } from '$lib/paraglide/runtime';
 import { customThemesStore } from './custom-themes.svelte';
 
 // Type definitions
-export type PresetThemeName = 'vintage' | 'modern' | 'rocket' | 'seafoam' | 'cerberus' | 'sahara' | 'astro';
+export type PresetThemeName =
+	| 'vintage'
+	| 'modern'
+	| 'rocket'
+	| 'seafoam'
+	| 'cerberus'
+	| 'sahara'
+	| 'astro';
 export type CustomThemeId = `custom:${string}`;
 export type ThemeName = PresetThemeName | CustomThemeId | string; // string for compatibility
 export type LanguageCode = 'zh' | 'en';
@@ -73,7 +80,7 @@ class SettingsStore {
 		if (typeof window === 'undefined') return;
 
 		this.mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-		
+
 		// Apply immediately if in auto mode
 		if (this.settings.colorMode === 'auto') {
 			this.apply();
@@ -85,7 +92,7 @@ class SettingsStore {
 				this.apply();
 			}
 		};
-		
+
 		this.mediaQuery.addEventListener('change', handler);
 	}
 
@@ -94,14 +101,14 @@ class SettingsStore {
 	 */
 	private detectBrowserLanguage(): LanguageCode {
 		if (typeof navigator === 'undefined') return 'zh';
-		
+
 		const browserLang = navigator.language || (navigator as any).userLanguage;
-		
+
 		// Check if browser language starts with 'zh' (Chinese)
 		if (browserLang.toLowerCase().startsWith('zh')) {
 			return 'zh';
 		}
-		
+
 		// Default to English for all other languages
 		return 'en';
 	}
@@ -187,7 +194,7 @@ class SettingsStore {
 		if (this.settings.theme.startsWith('custom:')) {
 			const themeId = this.settings.theme.slice(7); // Remove 'custom:' prefix
 			const success = customThemesStore.injectThemeCSS(themeId);
-			
+
 			if (!success) {
 				// If custom theme not found, fall back to default
 				console.warn(`Custom theme ${themeId} not found, falling back to default`);
@@ -198,7 +205,7 @@ class SettingsStore {
 		} else {
 			// Remove any injected custom theme CSS
 			customThemesStore.removeAllInjectedCSS();
-			
+
 			// Apply preset theme
 			document.documentElement.setAttribute('data-theme', this.settings.theme);
 		}

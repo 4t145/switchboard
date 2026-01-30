@@ -77,33 +77,33 @@
 	);
 </script>
 
-<div class="error-display card p-4 border-l-4 {errorStyle.borderClass} {className}">
+<div class="error-display card border-l-4 p-4 {errorStyle.borderClass} {className}">
 	<!-- Error header -->
 	<div class="flex items-start justify-between gap-3">
-		<div class="flex items-start gap-3 flex-1">
+		<div class="flex flex-1 items-start gap-3">
 			<!-- Icon -->
-			<div class="text-2xl mt-0.5">{errorStyle.icon}</div>
+			<div class="mt-0.5 text-2xl">{errorStyle.icon}</div>
 
 			<!-- Error content -->
-			<div class="flex-1 min-w-0">
+			<div class="min-w-0 flex-1">
 				<!-- Error type and status -->
-				<div class="flex items-center gap-2 flex-wrap mb-1">
+				<div class="mb-1 flex flex-wrap items-center gap-2">
 					<span class="badge {errorStyle.colorClass} text-xs font-semibold">
 						{errorTypeLabel}
 					</span>
 					{#if statusText}
-						<span class="text-xs text-surface-600-300-token font-mono">{statusText}</span>
+						<span class="text-surface-600-300-token font-mono text-xs">{statusText}</span>
 					{/if}
 				</div>
 
 				<!-- Error message -->
-				<p class="text-sm font-medium text-surface-900-50-token mb-1">
+				<p class="text-surface-900-50-token mb-1 text-sm font-medium">
 					{error.message}
 				</p>
 
 				<!-- URL if available -->
 				{#if error.url && showDetails}
-					<p class="text-xs text-surface-600-300-token font-mono truncate" title={error.url}>
+					<p class="text-surface-600-300-token truncate font-mono text-xs" title={error.url}>
 						{error.url}
 					</p>
 				{/if}
@@ -113,7 +113,7 @@
 					<div class="mt-3">
 						<button
 							type="button"
-							class="btn btn-sm variant-ghost-surface text-xs"
+							class="variant-ghost-surface btn btn-sm text-xs"
 							onclick={() => (isStackExpanded = !isStackExpanded)}
 						>
 							{isStackExpanded ? '▼' : '▶'}
@@ -121,14 +121,14 @@
 						</button>
 
 						{#if isStackExpanded}
-							<div class="mt-2 p-3 bg-surface-900-50-token rounded-md">
+							<div class="bg-surface-900-50-token mt-2 rounded-md p-3">
 								<!-- Error code -->
 								{#if error.errorStack.code}
 									<div class="mb-2">
-										<span class="text-xs font-semibold text-surface-400-600-token">
+										<span class="text-surface-400-600-token text-xs font-semibold">
 											{m.error_code()}:
 										</span>
-										<span class="text-xs font-mono text-surface-300-700-token ml-1">
+										<span class="text-surface-300-700-token ml-1 font-mono text-xs">
 											{error.errorStack.code}
 										</span>
 									</div>
@@ -137,22 +137,27 @@
 								<!-- Stack trace -->
 								{#if error.errorStack.stack}
 									<div class="mb-2">
-										<span class="text-xs font-semibold text-surface-400-600-token block mb-1">
+										<span class="text-surface-400-600-token mb-1 block text-xs font-semibold">
 											{m.error_stack_trace()}:
 										</span>
 										<pre
-											class="text-xs font-mono text-surface-300-700-token overflow-x-auto whitespace-pre-wrap break-words">{error.errorStack.stack}</pre>
+											class="text-surface-300-700-token overflow-x-auto font-mono text-xs break-words whitespace-pre-wrap">{error
+												.errorStack.stack}</pre>
 									</div>
 								{/if}
 
 								<!-- Additional details -->
 								{#if error.errorStack.details && Object.keys(error.errorStack.details).length > 0}
 									<div>
-										<span class="text-xs font-semibold text-surface-400-600-token block mb-1">
+										<span class="text-surface-400-600-token mb-1 block text-xs font-semibold">
 											{m.error_additional_details()}:
 										</span>
 										<pre
-											class="text-xs font-mono text-surface-300-700-token overflow-x-auto whitespace-pre-wrap break-words">{JSON.stringify(error.errorStack.details, null, 2)}</pre>
+											class="text-surface-300-700-token overflow-x-auto font-mono text-xs break-words whitespace-pre-wrap">{JSON.stringify(
+												error.errorStack.details,
+												null,
+												2
+											)}</pre>
 									</div>
 								{/if}
 							</div>
@@ -166,7 +171,7 @@
 		{#if dismissible && onDismiss}
 			<button
 				type="button"
-				class="btn-icon btn-icon-sm variant-ghost-surface"
+				class="variant-ghost-surface btn-icon btn-icon-sm"
 				onclick={onDismiss}
 				aria-label={m.error_dismiss()}
 			>
@@ -177,8 +182,8 @@
 
 	<!-- Action buttons -->
 	{#if showRetry}
-		<div class="flex justify-end mt-3 pt-3 border-t border-surface-300-600-token">
-			<button type="button" class="btn btn-sm variant-filled-primary" onclick={onRetry}>
+		<div class="border-surface-300-600-token mt-3 flex justify-end border-t pt-3">
+			<button type="button" class="variant-filled-primary btn btn-sm" onclick={onRetry}>
 				<span>🔄</span>
 				<span>{m.error_retry()}</span>
 			</button>

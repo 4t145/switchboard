@@ -1,6 +1,20 @@
 <script lang="ts">
-	import { Collapsible ,FileUpload } from '@skeletonlabs/skeleton-svelte';
-	import { Upload, FileText, ChevronDown, ChevronRight, CheckCircle, AlertTriangle, XCircle, FileIcon, Lock, Shield, Calendar, User, Key } from 'lucide-svelte';
+	import { Collapsible, FileUpload } from '@skeletonlabs/skeleton-svelte';
+	import {
+		Upload,
+		FileText,
+		ChevronDown,
+		ChevronRight,
+		CheckCircle,
+		AlertTriangle,
+		XCircle,
+		FileIcon,
+		Lock,
+		Shield,
+		Calendar,
+		User,
+		Key
+	} from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
 	import { X509Certificate } from '@peculiar/x509';
 
@@ -29,12 +43,14 @@
 
 	let {
 		value = $bindable(),
+		onValueChange = undefined,
 		label = 'PEM Certificate',
 		helperText = '',
 		required = false,
 		validationRules = []
 	} = $props<{
-		value: string ;
+		value: string;
+		onValueChange?: (value: string) => void;
 		label?: string;
 		helperText?: string;
 		required?: boolean;
@@ -51,10 +67,13 @@
 	let isCertificate = $derived(rawText.includes('-----BEGIN CERTIFICATE-----'));
 	let isPrivateKey = $derived(
 		rawText.includes('-----BEGIN PRIVATE KEY-----') ||
-		rawText.includes('-----BEGIN RSA PRIVATE KEY-----') ||
-		rawText.includes('-----BEGIN EC PRIVATE KEY-----')
+			rawText.includes('-----BEGIN RSA PRIVATE KEY-----') ||
+			rawText.includes('-----BEGIN EC PRIVATE KEY-----')
 	);
 
+	$effect(() => {
+		onValueChange?.(value);
+	});
 	// PEM validation regex patterns
 	const PEM_HEADER_REGEX = /-----BEGIN\s+([A-Z\s]+)-----/;
 	const PEM_FOOTER_REGEX = /-----END\s+([A-Z\s]+)-----/;
@@ -125,10 +144,15 @@
 	}
 
 	// Check if certificate is expired or expiring soon
-	function getCertStatus(validTo: string): { status: 'valid' | 'expiring' | 'expired'; message: string } {
+	function getCertStatus(validTo: string): {
+		status: 'valid' | 'expiring' | 'expired';
+		message: string;
+	} {
 		const expiryDate = new Date(validTo);
 		const now = new Date();
-		const daysUntilExpiry = Math.floor((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+		const daysUntilExpiry = Math.floor(
+			(expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+		);
 
 		if (daysUntilExpiry < 0) {
 			return { status: 'expired', message: 'Expired' };
@@ -160,7 +184,7 @@
 			validate: (text: string) => {
 				if (!text.trim()) return true;
 				const blocks = extractPems(text);
-				return blocks.every(block => validatePemBlock(block));
+				return blocks.every((block) => validatePemBlock(block));
 			},
 			message: 'All PEM blocks must have matching BEGIN/END headers'
 		}
@@ -223,20 +247,23 @@
 	}
 
 	function validatePemBlock(block: string): boolean {
-		const lines = block.split('\n').map(line => line.trim()).filter(line => line);
-		
+		const lines = block
+			.split('\n')
+			.map((line) => line.trim())
+			.filter((line) => line);
+
 		if (lines.length < 3) return false; // Must have at least BEGIN, content, END
-		
+
 		const beginMatch = lines[0].match(PEM_HEADER_REGEX);
 		const endMatch = lines[lines.length - 1].match(PEM_FOOTER_REGEX);
-		
+
 		if (!beginMatch || !endMatch) return false;
-		
+
 		// Check that BEGIN and END headers match
 		const beginType = beginMatch[1].trim();
 		const endType = endMatch[1].trim();
 		if (beginType !== endType) return false;
-		
+
 		// Check that content lines are valid base64
 		const contentLines = lines.slice(1, -1);
 		const content = contentLines.join('');
@@ -251,7 +278,7 @@
 	function handleFileSelect(e: Event) {
 		// Prevent the accordion from toggling when clicking the upload button
 		e.stopPropagation();
-		
+
 		const input = e.target as HTMLInputElement;
 		const file = input.files?.[0];
 		if (!file) return;
@@ -272,7 +299,7 @@
 	const id = crypto.randomUUID();
 </script>
 
-<Collapsible open={open} onOpenChange={(details) => (open = details.open)}>
+<Collapsible {open} onOpenChange={(details) => (open = details.open)}>
 	<Collapsible.Trigger class="flex w-full items-center justify-between py-2 text-left">
 		<div class="flex items-center gap-2">
 			<FileText size={20} />
@@ -301,20 +328,20 @@
 					<AlertTriangle size={16} class="text-warning-500" />
 				{/if}
 			{/if}
-			
+
 			{#if open}
 				<ChevronDown class="h-4 w-4 transition-transform duration-200" />
 			{:else}
 				<ChevronDown class="h-4 w-4 rotate-90 transition-transform duration-200" />
 			{/if}
 		</div>
-
 	</Collapsible.Trigger>
-	<Collapsible.Content class="flex flex-col w-full justify-between py-2 text-left">
-
+	<Collapsible.Content class="flex w-full flex-col justify-between py-2 text-left">
 		<!-- Textarea with validation styling -->
 		<textarea
-			class="textarea h-64 w-full font-mono text-xs {validationResult.isValid ? '' : 'border-error-500 focus:border-error-500'}"
+			class="textarea h-64 w-full font-mono text-xs {validationResult.isValid
+				? ''
+				: 'border-error-500 focus:border-error-500'}"
 			bind:value={rawText}
 			oninput={handleInput}
 			placeholder="Paste PEM content here (-----BEGIN...)"
@@ -348,51 +375,51 @@
 		<!-- Certificate Information Display -->
 		{#if certInfo}
 			{@const certStatus = getCertStatus(certInfo.validTo)}
-			<div class="mt-4 p-4 bg-surface-100 dark:bg-surface-800 rounded-lg border  space-y-3">
+			<div class="mt-4 space-y-3 bg-surface-100 p-4 dark:bg-surface-800">
 				<!-- Status Badge -->
 				<div class="flex items-center gap-2">
 					<Lock size={16} class="text-primary-500" />
-					<span class="font-medium text-sm">Certificate Information</span>
+					<span class="text-sm font-medium">Certificate Information</span>
 					<span
-						class="text-xs px-2 py-1 rounded font-medium ml-auto {certStatus.status === 'valid'
-							? 'bg-success-100 dark:bg-success-900 text-success-700 dark:text-success-300'
+						class={certStatus.status === 'valid'
+							? 'badge preset-filled-success-500'
 							: certStatus.status === 'expiring'
-								? 'bg-warning-100 dark:bg-warning-900 text-warning-700 dark:text-warning-300'
-								: 'bg-error-100 dark:bg-error-900 text-error-700 dark:text-error-300'}"
+								? 'badge preset-filled-warning-500'
+								: 'badge preset-filled-error-500'}
 					>
 						{certStatus.message}
 					</span>
 				</div>
 
 				<!-- Subject -->
-				<div class="text-xs space-y-1">
+				<div class="space-y-1 text-xs">
 					<div class="flex items-center gap-1.5 text-surface-600 dark:text-surface-400">
 						<User size={14} />
 						<span class="font-medium">Subject:</span>
 					</div>
-					<div class="pl-5 text-surface-700 dark:text-surface-300 font-mono text-xs break-all">
+					<div class="pl-5 font-mono text-xs break-all text-surface-700 dark:text-surface-300">
 						{certInfo.subject}
 					</div>
 				</div>
 
 				<!-- Issuer -->
-				<div class="text-xs space-y-1">
+				<div class="space-y-1 text-xs">
 					<div class="flex items-center gap-1.5 text-surface-600 dark:text-surface-400">
 						<Shield size={14} />
 						<span class="font-medium">Issuer:</span>
 					</div>
-					<div class="pl-5 text-surface-700 dark:text-surface-300 font-mono text-xs break-all">
+					<div class="pl-5 font-mono text-xs break-all text-surface-700 dark:text-surface-300">
 						{certInfo.issuer}
 					</div>
 				</div>
 
 				<!-- Validity Period -->
-				<div class="text-xs space-y-1">
+				<div class="space-y-1 text-xs">
 					<div class="flex items-center gap-1.5 text-surface-600 dark:text-surface-400">
 						<Calendar size={14} />
 						<span class="font-medium">Valid Period:</span>
 					</div>
-					<div class="pl-5 text-surface-700 dark:text-surface-300 space-y-0.5">
+					<div class="space-y-0.5 pl-5 text-surface-700 dark:text-surface-300">
 						<div>From: {formatDate(certInfo.validFrom)}</div>
 						<div>To: {formatDate(certInfo.validTo)}</div>
 					</div>
@@ -400,11 +427,11 @@
 
 				<!-- Subject Alternative Names -->
 				{#if certInfo.subjectAltNames && certInfo.subjectAltNames.length > 0}
-					<div class="text-xs space-y-1">
-						<div class="text-surface-600 dark:text-surface-400 font-medium">
+					<div class="space-y-1 text-xs">
+						<div class="font-medium text-surface-600 dark:text-surface-400">
 							Subject Alternative Names:
 						</div>
-						<div class="pl-5 text-surface-700 dark:text-surface-300 space-y-0.5">
+						<div class="space-y-0.5 pl-5 text-surface-700 dark:text-surface-300">
 							{#each certInfo.subjectAltNames as san}
 								<div class="font-mono text-xs">• {san}</div>
 							{/each}
@@ -415,38 +442,43 @@
 				<!-- Technical Details (Collapsible) -->
 				<details class="text-xs">
 					<summary
-						class="cursor-pointer text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium"
+						class="cursor-pointer font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
 					>
 						View technical details
 					</summary>
-					<div class="mt-2 pl-4 space-y-2 text-surface-700 dark:text-surface-300">
+					<div class="mt-2 space-y-2 pl-4 text-surface-700 dark:text-surface-300">
 						<div>
 							<span class="text-surface-600 dark:text-surface-400">Serial Number:</span>
-							<span class="font-mono ml-2 text-xs">{certInfo.serialNumber}</span>
+							<span class="ml-2 font-mono text-xs">{certInfo.serialNumber}</span>
 						</div>
 						<div>
 							<span class="text-surface-600 dark:text-surface-400">Signature Algorithm:</span>
-							<span class="font-mono ml-2 text-xs">{certInfo.signatureAlgorithm}</span>
+							<span class="ml-2 font-mono text-xs">{certInfo.signatureAlgorithm}</span>
 						</div>
 						<div>
 							<span class="text-surface-600 dark:text-surface-400">Public Key Algorithm:</span>
-							<span class="font-mono ml-2 text-xs">{certInfo.publicKeyAlgorithm}</span>
+							<span class="ml-2 font-mono text-xs">{certInfo.publicKeyAlgorithm}</span>
 						</div>
 					</div>
 				</details>
 			</div>
 		{:else if isCertificate && rawText.trim() && validationResult.isValid}
 			<!-- Certificate parsing failed -->
-			<div class="mt-4 p-3 bg-warning-100 dark:bg-warning-900 rounded-lg border border-warning-300 dark:border-warning-600">
-				<div class="flex items-center gap-2 text-warning-700 dark:text-warning-300 text-sm">
+			<div
+				class="mt-4 border border-warning-300 bg-warning-100 p-3 dark:border-warning-600 dark:bg-warning-900"
+			>
+				<div class="flex items-center gap-2 text-sm text-warning-700 dark:text-warning-300">
 					<AlertTriangle size={16} />
-					<span>Failed to parse certificate details. The PEM format is valid but certificate information cannot be extracted.</span>
+					<span
+						>Failed to parse certificate details. The PEM format is valid but certificate
+						information cannot be extracted.</span
+					>
 				</div>
 			</div>
 		{:else if isPrivateKey && rawText.trim()}
 			<!-- Private Key Info (No Parsing) -->
-			<div class="mt-4 p-3 bg-surface-100 dark:bg-surface-800 rounded-lg border ">
-				<div class="flex items-center gap-2 text-surface-700 dark:text-surface-300 text-sm">
+			<div class="mt-4 border bg-surface-100 p-3 dark:bg-surface-800">
+				<div class="flex items-center gap-2 text-sm text-surface-700 dark:text-surface-300">
 					<Key size={16} class="text-warning-500" />
 					<span>Private key detected (content details hidden for security)</span>
 				</div>

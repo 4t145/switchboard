@@ -8,17 +8,19 @@
 		ParenthesesIcon,
 		SearchIcon,
 		DatabaseIcon,
-
 		EditIcon,
-
-		ArrowRightIcon
-
-
-	} from 'lucide-svelte';
+		ArrowRightIcon,
+		XIcon
+	} from '@lucide/svelte';
 	import ObjectPages from '$lib/components/object-pages.svelte';
 	import LinkOrValueDisplay from '$lib/components/config/link-or-value-display.svelte';
 	import type { StorageObjectDescriptor } from '$lib/api/types';
-	import { FloatingPanel, Portal, SegmentedControl, ToggleGroup } from '@skeletonlabs/skeleton-svelte';
+	import {
+		FloatingPanel,
+		Portal,
+		SegmentedControl,
+		ToggleGroup
+	} from '@skeletonlabs/skeleton-svelte';
 	import DataTypeRenderer from '$lib/data-types/components/data-type-renderer.svelte';
 	import { dataTypeRegistry } from '$lib/data-types/registry';
 	import {
@@ -26,48 +28,55 @@
 		formatLink,
 		isLinkValue,
 		type LinkKind,
-
 		getScheme,
-
 		type ParsedLink
-
-
 	} from '$lib/utils/link-parser';
 	import { untrack, type Snippet } from 'svelte';
 
 	type Props<T = unknown> = {
 		value: T | string;
-		valueDataFormat: 'string' | 'object',
+		valueDataFormat: 'string' | 'object';
 		getDefaultLinkValue?: () => string;
 		getDefaultInlineValue: () => T;
 		editor: Snippet<[T, (saveValue: T) => void]>;
 	};
-	type EditorState = {
-		mode: 'reference';
-		parsedLink: ParsedLink;
-		remoteValue: {
-			status: 'loading';
-		} | {
-			status: 'loaded';
-			value: T;
-		} | {
-			status: 'error';
-			error: Error;
-		};
-	} | {
-		mode: 'inline';
-	}
+	type EditorState =
+		| {
+				mode: 'reference';
+				parsedLink: ParsedLink;
+				remoteValue:
+					| {
+							status: 'loading';
+					  }
+					| {
+							status: 'loaded';
+							value: T;
+					  }
+					| {
+							status: 'error';
+							error: Error;
+					  };
+		  }
+		| {
+				mode: 'inline';
+		  };
 	type EditorMode = EditorState['mode'];
 	type SelectedLinkScheme = 'storage' | 'file' | 'http' | 'https';
 	const DEFAULT_LINK_VALUE = 'storage://#';
-	let { value = $bindable(), valueDataFormat, getDefaultLinkValue = () => DEFAULT_LINK_VALUE, getDefaultInlineValue, editor }: Props<T> = $props();
+	let {
+		value = $bindable(),
+		valueDataFormat,
+		getDefaultLinkValue = () => DEFAULT_LINK_VALUE,
+		getDefaultInlineValue,
+		editor
+	}: Props<T> = $props();
 	async function resolveLinkToValue(link: string) {
 		try {
 			let resolvedValue: T;
 			if (valueDataFormat === 'object') {
-				resolvedValue = await api.resolve.link_to_object(link) as T
+				resolvedValue = (await api.resolve.link_to_object(link)) as T;
 			} else {
-				resolvedValue = await api.resolve.link_to_string(link) as T
+				resolvedValue = (await api.resolve.link_to_string(link)) as T;
 			}
 			if (editorState.mode === 'reference' && editorState.remoteValue.status === 'loading') {
 				editorState = {
@@ -76,10 +85,10 @@
 						status: 'loaded',
 						value: resolvedValue
 					}
-				}
+				};
 			}
 			return;
-		} catch(e) {
+		} catch (e) {
 			let error: Error;
 			if (e instanceof Error) {
 				error = e;
@@ -93,7 +102,7 @@
 						status: 'error',
 						error
 					}
-				}
+				};
 			}
 			return;
 		}
@@ -101,9 +110,9 @@
 	let editorState: EditorState = $derived.by(() => {
 		const parsedLink = parseLink(value);
 		if (parsedLink !== null) {
-			return { mode: 'reference', remoteValue: { status: 'loading' }, parsedLink  };
+			return { mode: 'reference', remoteValue: { status: 'loading' }, parsedLink };
 		} else {
-			return { mode: 'inline' }
+			return { mode: 'inline' };
 		}
 	});
 	$effect(() => {
@@ -120,6 +129,7 @@
 	let cachedInlineValue = $state<T | undefined>(undefined);
 	let linkLocationInput = $state<string>();
 	let linkLocationInputRef: HTMLInputElement | undefined = $state();
+	let editingReferenceValue = $state<T>();
 	const defaultInlineValue = $derived(getDefaultInlineValue());
 	function isInline(val: T | string): val is T {
 		return !isLinkValue(val);
@@ -137,21 +147,20 @@
 			if (cachedInlineValue) {
 				value = cachedInlineValue;
 			} else {
-				value = getDefaultInlineValue();	
+				value = getDefaultInlineValue();
 			}
 		}
 	}
 	function resetLinkScheme(scheme: SelectedLinkScheme) {
 		if (isInline(value)) return;
-		
 	}
 	function editLink() {
-		if (editorState.mode !== 'reference' ) return;
+		if (editorState.mode !== 'reference') return;
 		if (linkLocationInput === undefined) {
 			linkLocationInput = parsedLink?.location ?? '';
 		}
 		if (selectedLinkScheme === undefined) {
-			selectedLinkScheme = parsedLink?.scheme as SelectedLinkScheme ?? 'storage';
+			selectedLinkScheme = (parsedLink?.scheme as SelectedLinkScheme) ?? 'storage';
 		}
 		isEditingLink = true;
 	}
@@ -172,7 +181,7 @@
 			event.preventDefault();
 			const timeNow = Date.now();
 			console.debug('Escape key pressed in link input');
-			if (lastEscapePress && (timeNow - lastEscapePress) < 500) {
+			if (lastEscapePress && timeNow - lastEscapePress < 500) {
 				// Double escape detected, cancel editing
 				lastEscapePress = 0;
 				quitEditLink();
@@ -188,17 +197,19 @@
 	}
 </script>
 
-<div
-	class="card space-y-4"
->
-<!-- Header Controls -->
-	<div class="card ">
+<div class="space-y-4 card">
+	<!-- Header Controls -->
+	<div class="card">
 		<!-- Link Type Selector -->
 		<div class="flex flex-row justify-between gap-2">
 			<!-- Link Input Fields -->
-			<ToggleGroup multiple={false} value={[editorState.mode]} onValueChange={(details) => {
-				if (details.value[0]) switchEditorMode(details.value[0] as EditorMode);
-			}}>
+			<ToggleGroup
+				multiple={false}
+				value={[editorState.mode]}
+				onValueChange={(details) => {
+					if (details.value[0]) switchEditorMode(details.value[0] as EditorMode);
+				}}
+			>
 				<ToggleGroup.Item value="reference">
 					<LinkIcon class="inline-block size-4" />
 				</ToggleGroup.Item>
@@ -209,10 +220,7 @@
 			{#if editorState.mode === 'reference'}
 				<div class="input-group flex flex-grow">
 					{#if isEditingLink}
-						<select
-							bind:value={selectedLinkScheme}
-							class="ig-select preset-tonal max-w-[7.5rem]"
-						>
+						<select bind:value={selectedLinkScheme} class="ig-select max-w-[7.5rem] preset-tonal">
 							<option value="storage">storage</option>
 							<option value="file">file</option>
 							<option value="http">http</option>
@@ -232,20 +240,23 @@
 								<SearchIcon class="inline-block size-4" />
 							</button>
 						{/if}
+						<button type="button" class="ig-btn" onclick={quitEditLink}>
+							<XIcon class="inline-block size-4" />
+						</button>
 						<button type="button" class="ig-btn">
 							<ArrowRightIcon class="inline-block size-4" />
 						</button>
 					{:else}
-						<div class="ig-cell"> 
+						<div class="ig-cell">
 							{#if editorState.parsedLink.kind === 'storage'}
-								<DatabaseIcon class="inline-block size-4"/>
+								<DatabaseIcon class="inline-block size-4" />
 							{:else if editorState.parsedLink.kind === 'file'}
-								<FileText class="inline-block size-4"/>
+								<FileText class="inline-block size-4" />
 							{:else if editorState.parsedLink.kind === 'http'}
-								<Globe class="inline-block size-4"/>
+								<Globe class="inline-block size-4" />
 							{/if}
 						</div>
-						<input class="ig-input" type="text" readonly value={value} onfocus={editLink} />
+						<input class="ig-input" type="text" readonly {value} onfocus={editLink} />
 						<button type="button" class="ig-btn" onclick={editLink}>
 							<EditIcon class="inline-block size-4" />
 						</button>
@@ -260,9 +271,10 @@
 				</div>
 			{/if}
 		</div>
-	</div>  <!-- Close Link Configuration Card -->
+	</div>
+	<!-- Close Link Configuration Card -->
 	<!-- Content Area -->
-	<div class="card border">
+	<div class="card border p-2">
 		{#if editorState.mode === 'reference'}
 			{#if editorState.remoteValue.status === 'loading'}
 				<div class="p-4">
@@ -276,15 +288,15 @@
 					</div>
 				</div>
 			{:else if editorState.remoteValue.status === 'loaded'}
-				{@debug editor}
-				{@debug defaultInlineValue}
-				{@render editor(editorState.remoteValue.value, (saveValue: T) => {
-					value = saveValue;
+				{@render editor(editorState.remoteValue.value, (newValue: T) => {
+					editingReferenceValue = newValue;
 				})}
 			{/if}
+		{:else if editorState.mode === 'inline'}
+			{@render editor(value as T, (newValue: T) => {
+				value = newValue;
+			})}
 		{/if}
-
-		
 	</div>
 </div>
 <!-- <FloatingPanel

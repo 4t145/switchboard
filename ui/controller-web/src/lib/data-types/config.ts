@@ -74,5 +74,8 @@ export function registerDataTypes() {
 	});
 
 	const registeredTypes = dataTypeRegistry.getAllTypes();
-	console.log(`[DataTypes] Successfully registered ${registeredTypes.length} types:`, registeredTypes);
+	console.log(
+		`[DataTypes] Successfully registered ${registeredTypes.length} types:`,
+		registeredTypes
+	);
 }

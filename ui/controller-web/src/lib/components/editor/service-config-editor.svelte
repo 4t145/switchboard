@@ -17,7 +17,7 @@
 	function createService(): FileTcpServiceConfig {
 		const counter = config.tcp_services.length + 1;
 		let name = `service-${counter}`;
-		
+
 		// Ensure unique name
 		let suffix = counter;
 		while (config.tcp_services.some((s: FileTcpServiceConfig) => s.name === name)) {
@@ -38,7 +38,7 @@
 	function createTls(): FileStyleTls {
 		const counter = config.tls.length + 1;
 		let name = `tls-${counter}`;
-		
+
 		// Ensure unique name
 		let suffix = counter;
 		while (config.tls.some((t: FileStyleTls) => t.name === name)) {

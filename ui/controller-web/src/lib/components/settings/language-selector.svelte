@@ -20,7 +20,7 @@
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<div
-				class="card cursor-pointer border p-4 transition-all {settingsStore.language === lang.code
+				class="cursor-pointer card border p-4 transition-all {settingsStore.language === lang.code
 					? 'border-primary-500 bg-primary-50 ring-2 ring-primary-500 dark:bg-primary-900/20'
 					: 'hover:border-primary-300  dark:hover:border-primary-700'}"
 				onclick={() => (settingsStore.language = lang.code)}

@@ -5,6 +5,7 @@ A comprehensive error handling system for HTTP requests with visual error displa
 ## Overview
 
 This system provides:
+
 - **Type-safe error parsing** for network, HTTP, and internal server errors
 - **Visual error display component** with expandable details
 - **Automatic error detection** from fetch responses
@@ -13,16 +14,19 @@ This system provides:
 ## Files
 
 ### Core Files
+
 - `src/lib/types/http-error.ts` - TypeScript type definitions
 - `src/lib/utils/http-error-parser.ts` - Error parsing utilities
 - `src/lib/components/error-display.svelte` - Visual error display component
 
 ### Demo
+
 - `src/routes/admin/error-demo/+page.svelte` - Interactive demo page
 
 ## Error Types
 
 ### 1. Network Error
+
 Connection failures, timeouts, no internet connection.
 
 ```typescript
@@ -35,6 +39,7 @@ Connection failures, timeouts, no internet connection.
 ```
 
 ### 2. HTTP Error
+
 Non-2xx HTTP status codes (404, 401, 500, etc.)
 
 ```typescript
@@ -48,6 +53,7 @@ Non-2xx HTTP status codes (404, 401, 500, etc.)
 ```
 
 ### 3. Internal Error
+
 Server error with detailed stack trace via `x-error-stack` header.
 
 ```typescript
@@ -74,30 +80,25 @@ Use `fetchWithErrorHandling` for automatic error parsing:
 
 ```svelte
 <script>
-  import ErrorDisplay from '$lib/components/error-display.svelte';
-  import { fetchWithErrorHandling } from '$lib/utils/http-error-parser';
+	import ErrorDisplay from '$lib/components/error-display.svelte';
+	import { fetchWithErrorHandling } from '$lib/utils/http-error-parser';
 
-  let error = $state(null);
-  let data = $state(null);
+	let error = $state(null);
+	let data = $state(null);
 
-  async function loadData() {
-    error = null;
-    try {
-      const response = await fetchWithErrorHandling('/api/data');
-      data = await response.json();
-    } catch (err) {
-      error = err; // Already an HttpError
-    }
-  }
+	async function loadData() {
+		error = null;
+		try {
+			const response = await fetchWithErrorHandling('/api/data');
+			data = await response.json();
+		} catch (err) {
+			error = err; // Already an HttpError
+		}
+	}
 </script>
 
 {#if error}
-  <ErrorDisplay 
-    {error} 
-    onRetry={loadData} 
-    onDismiss={() => error = null}
-    dismissible 
-  />
+	<ErrorDisplay {error} onRetry={loadData} onDismiss={() => (error = null)} dismissible />
 {/if}
 ```
 
@@ -109,21 +110,21 @@ For custom fetch logic:
 import { parseResponseError, parseNetworkError } from '$lib/utils/http-error-parser';
 
 async function customFetch(url: string) {
-  try {
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw await parseResponseError(response);
-    }
-    
-    return response.json();
-  } catch (err) {
-    // If it's not already an HttpError, treat as network error
-    if (err instanceof Error && !('type' in err)) {
-      throw parseNetworkError(err, url);
-    }
-    throw err;
-  }
+	try {
+		const response = await fetch(url);
+
+		if (!response.ok) {
+			throw await parseResponseError(response);
+		}
+
+		return response.json();
+	} catch (err) {
+		// If it's not already an HttpError, treat as network error
+		if (err instanceof Error && !('type' in err)) {
+			throw parseNetworkError(err, url);
+		}
+		throw err;
+	}
 }
 ```
 
@@ -143,13 +144,13 @@ fn error_response(error: &AppError) -> Response {
         "stack": error.backtrace.to_string(),
         "details": error.details
     });
-    
+
     let mut headers = HeaderMap::new();
     headers.insert(
         "x-error-stack",
         HeaderValue::from_str(&error_stack.to_string()).unwrap()
     );
-    
+
     (StatusCode::INTERNAL_SERVER_ERROR, headers, "").into_response()
 }
 ```
@@ -160,12 +161,12 @@ fn error_response(error: &AppError) -> Response {
 
 ```typescript
 interface Props {
-  error: HttpError;           // Required: The error to display
-  onRetry?: () => void;       // Optional: Retry callback (shows retry button if retryable)
-  onDismiss?: () => void;     // Optional: Dismiss callback
-  dismissible?: boolean;      // Optional: Show dismiss button (default: false)
-  showDetails?: boolean;      // Optional: Show URL and stack (default: true)
-  class?: string;             // Optional: Additional CSS classes
+	error: HttpError; // Required: The error to display
+	onRetry?: () => void; // Optional: Retry callback (shows retry button if retryable)
+	onDismiss?: () => void; // Optional: Dismiss callback
+	dismissible?: boolean; // Optional: Show dismiss button (default: false)
+	showDetails?: boolean; // Optional: Show URL and stack (default: true)
+	class?: string; // Optional: Additional CSS classes
 }
 ```
 
@@ -201,26 +202,25 @@ isRetryableError(error: unknown): boolean
 ## Examples
 
 ### Basic Error Display
+
 ```svelte
 <ErrorDisplay {error} />
 ```
 
 ### With Retry and Dismiss
+
 ```svelte
-<ErrorDisplay 
-  {error} 
-  onRetry={handleRetry}
-  onDismiss={handleDismiss}
-  dismissible
-/>
+<ErrorDisplay {error} onRetry={handleRetry} onDismiss={handleDismiss} dismissible />
 ```
 
 ### Custom Styling
+
 ```svelte
 <ErrorDisplay {error} class="my-4 max-w-2xl" />
 ```
 
 ### Hide Details
+
 ```svelte
 <ErrorDisplay {error} showDetails={false} />
 ```
@@ -228,6 +228,7 @@ isRetryableError(error: unknown): boolean
 ## Demo
 
 Visit `/admin/error-demo` in the application to see:
+
 - Interactive examples of all error types
 - Usage code samples
 - Component API documentation
@@ -239,12 +240,12 @@ Error messages support i18n. Add translations in `messages/{lang}.json`:
 
 ```json
 {
-  "error_type_network": "Network Error",
-  "error_type_http": "HTTP Error",
-  "error_type_internal": "Internal Error",
-  "error_details_toggle": "Show Details",
-  "error_retry": "Retry",
-  "error_dismiss": "Dismiss"
+	"error_type_network": "Network Error",
+	"error_type_http": "HTTP Error",
+	"error_type_internal": "Internal Error",
+	"error_details_toggle": "Show Details",
+	"error_retry": "Retry",
+	"error_dismiss": "Dismiss"
 }
 ```
 
@@ -260,39 +261,43 @@ Error messages support i18n. Add translations in `messages/{lang}.json`:
 ## Error Recovery Patterns
 
 ### With Retry Logic
+
 ```svelte
 <script>
-  let retryCount = $state(0);
-  let maxRetries = 3;
+	let retryCount = $state(0);
+	let maxRetries = 3;
 
-  async function loadData() {
-    try {
-      const response = await fetchWithErrorHandling('/api/data');
-      return await response.json();
-    } catch (err) {
-      if (retryCount < maxRetries && isRetryableError(err)) {
-        retryCount++;
-        setTimeout(loadData, 1000 * retryCount); // Exponential backoff
-      } else {
-        error = err;
-      }
-    }
-  }
+	async function loadData() {
+		try {
+			const response = await fetchWithErrorHandling('/api/data');
+			return await response.json();
+		} catch (err) {
+			if (retryCount < maxRetries && isRetryableError(err)) {
+				retryCount++;
+				setTimeout(loadData, 1000 * retryCount); // Exponential backoff
+			} else {
+				error = err;
+			}
+		}
+	}
 </script>
 ```
 
 ### Global Error Handler
+
 ```typescript
 // src/lib/stores/errors.svelte.ts
 export function createErrorStore() {
-  let errors = $state<HttpError[]>([]);
-  
-  return {
-    get errors() { return errors; },
-    add: (error: HttpError) => errors.push(error),
-    remove: (index: number) => errors.splice(index, 1),
-    clear: () => errors = []
-  };
+	let errors = $state<HttpError[]>([]);
+
+	return {
+		get errors() {
+			return errors;
+		},
+		add: (error: HttpError) => errors.push(error),
+		remove: (index: number) => errors.splice(index, 1),
+		clear: () => (errors = [])
+	};
 }
 ```
 

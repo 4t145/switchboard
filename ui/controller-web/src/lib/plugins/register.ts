@@ -17,6 +17,7 @@ import {
 	responseHeaderModifyEditorPlugin,
 	requestRedirectEditorPlugin
 } from './providers/http/classes/filters';
+import { portForwardEditorPlugin } from './providers/pf';
 
 /**
  * Register all built-in plugins
@@ -29,20 +30,21 @@ export function registerAllPlugins() {
 	// Register Provider Editors
 	console.log('[Plugins] 📦 Registering provider editors...');
 	providerEditorRegistry.register(httpEditorPlugin);
+	providerEditorRegistry.register(portForwardEditorPlugin); 
 
 	// Register HTTP Class Editors - Nodes
 	console.log('[Plugins] 🔌 Registering HTTP class editors (nodes)...');
-	httpClassEditorRegistry.registerNode(routerEditorPlugin);
-	httpClassEditorRegistry.registerNode(reverseProxyEditorPlugin);
-	httpClassEditorRegistry.registerNode(directResponseEditorPlugin);
-	httpClassEditorRegistry.registerNode(staticResponseEditorPlugin);
+	// httpClassEditorRegistry.registerNode(routerEditorPlugin);
+	// httpClassEditorRegistry.registerNode(reverseProxyEditorPlugin);
+	// httpClassEditorRegistry.registerNode(directResponseEditorPlugin);
+	// httpClassEditorRegistry.registerNode(staticResponseEditorPlugin);
 
 	// Register HTTP Class Editors - Filters
 	console.log('[Plugins] 🔌 Registering HTTP class editors (filters)...');
 	httpClassEditorRegistry.registerNode(urlRewriteEditorPlugin);
-	httpClassEditorRegistry.registerNode(requestHeaderModifyEditorPlugin);
-	httpClassEditorRegistry.registerNode(responseHeaderModifyEditorPlugin);
-	httpClassEditorRegistry.registerNode(requestRedirectEditorPlugin);
+	// httpClassEditorRegistry.registerNode(requestHeaderModifyEditorPlugin);
+	// httpClassEditorRegistry.registerNode(responseHeaderModifyEditorPlugin);
+	// httpClassEditorRegistry.registerNode(requestRedirectEditorPlugin);
 
 	const elapsed = (performance.now() - startTime).toFixed(2);
 	console.log(`[Plugins] ✅ Built-in plugin registration complete (${elapsed}ms)`);

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { FileTcpServiceConfig } from '$lib/api/types/human_readable';
-	import { Network } from 'lucide-svelte';
+	import { Network } from '@lucide/svelte';
 
 	interface Props {
 		services: FileTcpServiceConfig[];
@@ -33,8 +33,8 @@
 </script>
 
 <div class="space-y-4">
-	<h2 class="h2 flex items-center gap-2">
-		<Network class="w-6 h-6" />
+	<h2 class="flex items-center gap-2 h2">
+		<Network class="h-6 w-6" />
 		Bindings
 		{#if bindings.length > 0}
 			<span class="text-sm font-normal text-surface-500 dark:text-surface-400">
@@ -44,8 +44,8 @@
 	</h2>
 
 	{#if bindings.length > 0}
-		<div class="card overflow-x-auto">
-			<table class="table table-hover">
+		<div class="overflow-x-auto card">
+			<table class="table-hover table">
 				<thead>
 					<tr>
 						<th>Bind Address</th>
@@ -59,33 +59,33 @@
 					{#each bindings as binding}
 						<tr>
 							<td>
-								<code class="text-sm bg-surface-200 dark:bg-surface-700 px-2 py-0.5 rounded">
+								<code class="rounded bg-surface-200 px-2 py-0.5 text-sm dark:bg-surface-700">
 									{binding.bindAddress}
 								</code>
 							</td>
 							<td>
 								<button
-									class="text-primary-500 hover:text-primary-600 dark:hover:text-primary-400 underline underline-offset-2 text-left"
+									class="text-left text-primary-500 underline underline-offset-2 hover:text-primary-600 dark:hover:text-primary-400"
 									onclick={() => jumpToService(binding.serviceName)}
 								>
 									{binding.serviceName}
 								</button>
 							</td>
 							<td>
-								<code class="text-xs bg-surface-200 dark:bg-surface-700 px-2 py-0.5 rounded">
+								<code class="rounded bg-surface-200 px-2 py-0.5 text-xs dark:bg-surface-700">
 									{binding.provider}
 								</code>
 							</td>
 							<td>
 								{#if binding.tls}
 									<button
-										class="text-primary-500 hover:text-primary-600 dark:hover:text-primary-400 underline underline-offset-2 text-left"
+										class="text-left text-primary-500 underline underline-offset-2 hover:text-primary-600 dark:hover:text-primary-400"
 										onclick={() => jumpToTls(binding.tls!)}
 									>
 										{binding.tls}
 									</button>
 								{:else}
-									<span class="text-surface-400 dark:text-surface-500 text-sm">-</span>
+									<span class="text-sm text-surface-400 dark:text-surface-500">-</span>
 								{/if}
 							</td>
 							<td>
@@ -94,7 +94,7 @@
 										{binding.description}
 									</span>
 								{:else}
-									<span class="text-surface-400 dark:text-surface-500 text-sm">-</span>
+									<span class="text-sm text-surface-400 dark:text-surface-500">-</span>
 								{/if}
 							</td>
 						</tr>

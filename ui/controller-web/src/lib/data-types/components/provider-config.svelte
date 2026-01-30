@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { DataTypeComponentProps } from '../registry';
 	import { providerEditorRegistry } from '$lib/plugins/registry';
-	import { AlertCircle } from 'lucide-svelte';
+	import { AlertCircle } from '@lucide/svelte';
 
 	let {
 		mode = 'edit',
@@ -51,7 +51,7 @@
 	{/if}
 {:else}
 	<!-- View 模式：只读显示 -->
-	<div class="card p-4 bg-surface-100 dark:bg-surface-800">
-		<pre class="text-xs font-mono overflow-x-auto">{JSON.stringify(value, null, 2)}</pre>
+	<div class="card bg-surface-100 p-4 dark:bg-surface-800">
+		<pre class="overflow-x-auto font-mono text-xs">{JSON.stringify(value, null, 2)}</pre>
 	</div>
 {/if}

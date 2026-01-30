@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Save, Loader2, CheckCircle2, AlertCircle } from 'lucide-svelte';
+	import { Save, Loader2, CheckCircle2, AlertCircle } from '@lucide/svelte';
 	import { Steps } from '@skeletonlabs/skeleton-svelte';
 	import StepSourceSelection from './step-source-selection.svelte';
 	import StepConfigEditor from './step-config-editor.svelte';
@@ -77,9 +77,7 @@
 
 		try {
 			// Call update_config API
-			const results = await api.kernelManager.updateConfig(
-				config as HumanReadableServiceConfig
-			);
+			const results = await api.kernelManager.updateConfig(config as HumanReadableServiceConfig);
 
 			// Check if all kernel updates succeeded
 			const failures = results.filter(([_, result]) => 'error' in result);
@@ -128,10 +126,10 @@
 			{#each stepDefinitions as step, index}
 				<Steps.Item {index}>
 					<Steps.Trigger
-						class="flex items-center gap-2 rounded px-3 py-2 transition-colors data-[current]:bg-primary-100 data-[current]:font-bold data-[current]:text-primary-700 data-[complete]:text-surface-600 data-[complete]:hover:bg-surface-200 data-[incomplete]:cursor-not-allowed data-[incomplete]:opacity-50 dark:data-[current]:bg-primary-900/30 dark:data-[current]:text-primary-300 dark:data-[complete]:text-surface-300 dark:data-[complete]:hover:bg-surface-800 dark:data-[incomplete]:text-surface-500"
+						class="flex items-center gap-2 rounded px-3 py-2 transition-colors data-[complete]:text-surface-600 data-[complete]:hover:bg-surface-200 data-[current]:bg-primary-100 data-[current]:font-bold data-[current]:text-primary-700 data-[incomplete]:cursor-not-allowed data-[incomplete]:opacity-50 dark:data-[complete]:text-surface-300 dark:data-[complete]:hover:bg-surface-800 dark:data-[current]:bg-primary-900/30 dark:data-[current]:text-primary-300 dark:data-[incomplete]:text-surface-500"
 					>
 						<Steps.Indicator
-							class="flex h-6 w-6 items-center justify-center rounded-full border text-xs data-[current]:border-primary-500 data-[current]:bg-primary-500 data-[current]:text-white data-[complete]:border-primary-500 data-[complete]:bg-primary-500 data-[complete]:text-white data-[incomplete]:border-surface-400"
+							class="flex h-6 w-6 items-center justify-center rounded-full border text-xs data-[complete]:border-primary-500 data-[complete]:bg-primary-500 data-[complete]:text-white data-[current]:border-primary-500 data-[current]:bg-primary-500 data-[current]:text-white data-[incomplete]:border-surface-400"
 						>
 							{index + 1}
 						</Steps.Indicator>
@@ -147,11 +145,9 @@
 		<!-- Optional Summary -->
 		<div class="flex items-center">
 			{#if currentStep > 0 && sourceSummary}
-				<div
-					class="hidden items-center border-l pl-4 md:flex "
-				>
+				<div class="hidden items-center border-l pl-4 md:flex">
 					<span class="mr-2 text-xs text-surface-500">Source:</span>
-					<span class="preset-tonal-secondary badge text-xs">{sourceSummary}</span>
+					<span class="badge preset-tonal-secondary text-xs">{sourceSummary}</span>
 				</div>
 			{/if}
 		</div>
@@ -194,13 +190,17 @@
 	>
 		<!-- Deploy Status Messages -->
 		{#if deploySuccess}
-			<div class="mb-3 flex items-center gap-2 rounded bg-success-100 p-3 text-success-700 dark:bg-success-900 dark:text-success-300">
+			<div
+				class="mb-3 flex items-center gap-2 rounded bg-success-100 p-3 text-success-700 dark:bg-success-900 dark:text-success-300"
+			>
 				<CheckCircle2 class="h-5 w-5 flex-shrink-0" />
 				<span>配置已成功部署到所有 kernels！</span>
 			</div>
 		{:else if deployError}
-			<div class="mb-3 flex items-start gap-2 rounded bg-error-100 p-3 text-error-700 dark:bg-error-900 dark:text-error-300">
-				<AlertCircle class="h-5 w-5 flex-shrink-0 mt-0.5" />
+			<div
+				class="mb-3 flex items-start gap-2 rounded bg-error-100 p-3 text-error-700 dark:bg-error-900 dark:text-error-300"
+			>
+				<AlertCircle class="mt-0.5 h-5 w-5 flex-shrink-0" />
 				<div class="text-sm">
 					<div class="font-semibold">部署失败</div>
 					<pre class="mt-1 text-xs whitespace-pre-wrap">{deployError}</pre>
@@ -212,12 +212,20 @@
 			<div>
 				{#if currentStep === 0 && sourceMode !== 'select'}
 					<!-- In a sub-step: show Cancel button -->
-					<button class="preset-ghost-surface btn" onclick={handleCancelSubStep} disabled={isLoadingSource}>
+					<button
+						class="preset-ghost-surface btn"
+						onclick={handleCancelSubStep}
+						disabled={isLoadingSource}
+					>
 						取消
 					</button>
 				{:else if currentStep > 0}
 					<!-- In step 2: show Back to source button -->
-					<button class="preset-ghost-surface btn" onclick={handleGoBackToSource} disabled={isDeploying}>
+					<button
+						class="preset-ghost-surface btn"
+						onclick={handleGoBackToSource}
+						disabled={isDeploying}
+					>
 						← 返回选择源
 					</button>
 				{/if}

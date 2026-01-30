@@ -49,9 +49,10 @@ export function parseThemeCSS(cssContent: string, fileName: string = ''): Parsed
 	}
 
 	// Validate CSS structure - should contain Skeleton theme variables
-	const hasSkeletonVars = cssContent.includes('--color-primary-') || 
-	                        cssContent.includes('--base-font-') ||
-	                        cssContent.includes('--heading-font-');
+	const hasSkeletonVars =
+		cssContent.includes('--color-primary-') ||
+		cssContent.includes('--base-font-') ||
+		cssContent.includes('--heading-font-');
 
 	if (!hasSkeletonVars) {
 		return {
@@ -88,7 +89,7 @@ export function extractColors(css: string): string[] {
 	for (const shade of shadesToExtract) {
 		const regex = new RegExp(`--color-primary-${shade}:\\s*([^;]+);`, 'i');
 		const match = css.match(regex);
-		
+
 		if (match && match[1]) {
 			const colorValue = match[1].trim();
 			// Convert oklch to hex approximation or use as-is
@@ -114,7 +115,7 @@ function convertToDisplayColor(colorValue: string): string {
 	if (colorValue.startsWith('#') || colorValue.startsWith('rgb')) {
 		return colorValue;
 	}
-	
+
 	// For oklch and other formats, we'll return a CSS variable reference
 	// The browser will handle the actual color display
 	return colorValue;
@@ -141,14 +142,17 @@ export function sanitizeCSS(css: string): string {
 
 	// Only allow [data-theme='xxx'] selectors and standard CSS
 	// This is a basic check - in production, you might want more sophisticated validation
-	
+
 	return sanitized;
 }
 
 /**
  * Validate that a theme name is unique and safe
  */
-export function validateThemeName(name: string, existingNames: string[]): { valid: boolean; error?: string } {
+export function validateThemeName(
+	name: string,
+	existingNames: string[]
+): { valid: boolean; error?: string } {
 	if (!name || name.trim().length === 0) {
 		return { valid: false, error: 'Theme name cannot be empty' };
 	}
@@ -163,7 +167,7 @@ export function validateThemeName(name: string, existingNames: string[]): { vali
 	}
 
 	// Check for duplicates (case-insensitive)
-	if (existingNames.some(existing => existing.toLowerCase() === name.toLowerCase())) {
+	if (existingNames.some((existing) => existing.toLowerCase() === name.toLowerCase())) {
 		return { valid: false, error: 'A theme with this name already exists' };
 	}
 
@@ -181,5 +185,5 @@ export function generateThemeId(): string {
  * Validate file type
  */
 export function validateFileType(file: File): boolean {
-	return file.name.toLowerCase().endsWith('.css') && file.type === 'text/css' || file.type === '';
+	return (file.name.toLowerCase().endsWith('.css') && file.type === 'text/css') || file.type === '';
 }

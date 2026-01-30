@@ -1,8 +1,6 @@
 type OutputInterface = {
-    filters: string[];
-    target: string;
-}
+	filters: string[];
+	target: string;
+};
 
-export type {
-    OutputInterface
-}
+export type { OutputInterface };

@@ -26,4 +26,3 @@
 		<div class="text-center text-xs text-gray-500">版本 1.0.0 - 基于 Rust & SvelteKit</div>
 	</div>
 </div>
-

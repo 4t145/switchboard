@@ -10,26 +10,21 @@
 		readonly?: boolean;
 	};
 
-	let {
-		value = $bindable(),
-		classId,
-		instanceId,
-		readonly = false
-	}: Props = $props();
+	let { value = $bindable(), classId, instanceId, readonly = false }: Props = $props();
 
-	let plugin = $derived(httpClassEditorRegistry.get(classId)) ;
+	let plugin = $derived(httpClassEditorRegistry.get(classId));
 </script>
 
 {#if plugin}
-	{#snippet editor(value: unknown, onSave: (saveValue: unknown) => void) }
-		{@const Editor=plugin.component}
-		<Editor {value} {instanceId} {readonly} {onSave}></Editor>
+	{#snippet editor(value: unknown, onValueChange: (saveValue: unknown) => void)}
+		{@const Editor = plugin.component}
+		<Editor {value} {instanceId} {readonly} {onValueChange}></Editor>
 	{/snippet}
 	<LinkOrValueEditor
 		bind:value
 		valueDataFormat="object"
 		getDefaultInlineValue={plugin.createDefaultConfig}
-		editor={editor}
+		{editor}
 	/>
 {:else}
 	<div class="alert alert-warning">

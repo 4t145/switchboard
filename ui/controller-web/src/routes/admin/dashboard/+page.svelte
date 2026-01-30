@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import type { HumanReadableServiceConfig } from '$lib/api/types/human_readable';
 	import { getCurrentConfig } from '$lib/api/config';
-	import { RefreshCw, AlertCircle, Server, Lock, Loader2, Network } from 'lucide-svelte';
+	import { RefreshCw, AlertCircle, Server, Lock, Loader2, Network } from '@lucide/svelte';
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import ServicesTab from '$lib/components/config/tabs/services-tab.svelte';
 	import BindingsTab from '$lib/components/config/tabs/bindings-tab.svelte';
@@ -81,23 +81,19 @@
 	}
 </script>
 
-<div class="container mx-auto p-6 space-y-6">
+<div class="container mx-auto space-y-6 p-6">
 	<!-- Header -->
-	<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+	<div class="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
 		<div>
 			<h1 class="h1">Configuration Dashboard</h1>
 			{#if lastUpdated}
-				<p class="text-sm text-surface-500 dark:text-surface-400 mt-1">
+				<p class="mt-1 text-sm text-surface-500 dark:text-surface-400">
 					Last updated: {lastUpdated.toLocaleTimeString()}
 				</p>
 			{/if}
 		</div>
-		<button
-			class="btn preset-tonal-primary btn-sm gap-2"
-			onclick={loadConfig}
-			disabled={loading}
-		>
-			<RefreshCw class="w-4 h-4 {loading ? 'animate-spin' : ''}" />
+		<button class="btn gap-2 preset-tonal-primary btn-sm" onclick={loadConfig} disabled={loading}>
+			<RefreshCw class="h-4 w-4 {loading ? 'animate-spin' : ''}" />
 			Refresh
 		</button>
 	</div>
@@ -106,27 +102,27 @@
 		<!-- Initial loading state -->
 		<div class="flex items-center justify-center py-12">
 			<div class="flex items-center gap-3">
-				<Loader2 class="w-6 h-6 animate-spin text-primary-500" />
+				<Loader2 class="h-6 w-6 animate-spin text-primary-500" />
 				<span class="text-lg text-surface-600 dark:text-surface-400">Loading configuration...</span>
 			</div>
 		</div>
 	{:else if error}
 		<!-- Error state -->
 		<div class="alert preset-filled-error-container">
-			<AlertCircle class="w-5 h-5" />
+			<AlertCircle class="h-5 w-5" />
 			<div>
 				<h3 class="font-semibold">Failed to load configuration</h3>
-				<p class="text-sm mt-1">{error}</p>
+				<p class="mt-1 text-sm">{error}</p>
 			</div>
 		</div>
 	{:else if !config}
 		<!-- Empty state -->
 		<div class="card p-8 text-center">
 			<div class="flex flex-col items-center gap-4">
-				<AlertCircle class="w-12 h-12 text-surface-400" />
+				<AlertCircle class="h-12 w-12 text-surface-400" />
 				<div>
 					<h3 class="h3 text-surface-700 dark:text-surface-300">No configuration loaded</h3>
-					<p class="text-surface-500 dark:text-surface-400 mt-2">
+					<p class="mt-2 text-surface-500 dark:text-surface-400">
 						Start the controller with a configuration file to view it here.
 					</p>
 				</div>
@@ -134,23 +130,23 @@
 		</div>
 	{:else}
 		<!-- Statistics cards -->
-		<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-			<div class="card p-4 flex items-center gap-3">
-				<Server class="w-8 h-8 text-primary-500" />
+		<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+			<div class="flex items-center gap-3 card p-4">
+				<Server class="h-8 w-8 text-primary-500" />
 				<div>
 					<div class="text-2xl font-bold">{servicesCount}</div>
 					<div class="text-sm text-surface-600 dark:text-surface-400">TCP Services</div>
 				</div>
 			</div>
-			<div class="card p-4 flex items-center gap-3">
-				<Network class="w-8 h-8 text-secondary-500" />
+			<div class="flex items-center gap-3 card p-4">
+				<Network class="h-8 w-8 text-secondary-500" />
 				<div>
 					<div class="text-2xl font-bold">{bindsCount}</div>
 					<div class="text-sm text-surface-600 dark:text-surface-400">Bindings</div>
 				</div>
 			</div>
-			<div class="card p-4 flex items-center gap-3">
-				<Lock class="w-8 h-8 text-tertiary-500" />
+			<div class="flex items-center gap-3 card p-4">
+				<Lock class="h-8 w-8 text-tertiary-500" />
 				<div>
 					<div class="text-2xl font-bold">{tlsCount}</div>
 					<div class="text-sm text-surface-600 dark:text-surface-400">TLS Configs</div>
@@ -162,15 +158,15 @@
 		<Tabs value={activeTab} onValueChange={(details) => handleTabChange(details.value)}>
 			<Tabs.List class="mb-6">
 				<Tabs.Trigger value="services" class="flex items-center gap-2">
-					<Server class="w-4 h-4" />
+					<Server class="h-4 w-4" />
 					Services ({servicesCount})
 				</Tabs.Trigger>
 				<Tabs.Trigger value="bindings" class="flex items-center gap-2">
-					<Network class="w-4 h-4" />
+					<Network class="h-4 w-4" />
 					Bindings ({bindsCount})
 				</Tabs.Trigger>
 				<Tabs.Trigger value="tls" class="flex items-center gap-2">
-					<Lock class="w-4 h-4" />
+					<Lock class="h-4 w-4" />
 					TLS ({tlsCount})
 				</Tabs.Trigger>
 				<Tabs.Indicator />
@@ -185,7 +181,13 @@
 			</Tabs.Content>
 
 			<Tabs.Content value="tls">
-				<TlsTab tlsConfigs={config.tls} services={config.tcp_services} {highlightTls} {jumpTarget} {jumpToService} />
+				<TlsTab
+					tlsConfigs={config.tls}
+					services={config.tcp_services}
+					{highlightTls}
+					{jumpTarget}
+					{jumpToService}
+				/>
 			</Tabs.Content>
 		</Tabs>
 	{/if}

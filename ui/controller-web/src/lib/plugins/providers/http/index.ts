@@ -5,16 +5,15 @@ import type { HttpConfig } from './types';
 /**
  * HTTP Provider Editor Plugin
  */
-export const httpEditorPlugin: ProviderEditorPlugin = {
+export const httpEditorPlugin: ProviderEditorPlugin<HttpConfig> = {
 	provider: 'http',
 	displayName: 'HTTP Service',
 	component: HttpEditor,
-	
+
 	createDefaultConfig(): HttpConfig {
 		return {
 			flow: {
-				entrypoint: { node: 'main' },
-				instances: {},
+				entrypoint: 'router',
 				nodes: {},
 				filters: {},
 				options: {}
@@ -25,7 +24,7 @@ export const httpEditorPlugin: ProviderEditorPlugin = {
 		};
 	},
 
-	validate(config: any) {
+	validate(config: HttpConfig) {
 		const errors: string[] = [];
 
 		if (!config.flow) {

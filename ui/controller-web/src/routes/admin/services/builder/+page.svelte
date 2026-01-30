@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import FlowchartEditor from '$lib/components/sbh-flow/FlowchartEditor.svelte';
 	import type { FlowchartState, NodeType } from '$lib/types/sbh-flow';
 
 	let flowchartState: FlowchartState = $state({
@@ -49,7 +48,5 @@
 
 	<div
 		class="h-[calc(100vh-200px)] overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700"
-	>
-		<FlowchartEditor />
-	</div>
+	></div>
 </div>

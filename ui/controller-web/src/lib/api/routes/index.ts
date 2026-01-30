@@ -4,7 +4,11 @@ import { kernelManagerApi } from './kernel_manager';
 import { resolveApi } from './resolve';
 import { storageApi } from './storage';
 
-export async function fetchJson<T>(path: string, init: RequestInit = {}, query: URLSearchParams = new URLSearchParams()): Promise<T> {
+export async function fetchJson<T>(
+	path: string,
+	init: RequestInit = {},
+	query: URLSearchParams = new URLSearchParams()
+): Promise<T> {
 	if (query.toString()) {
 		path += `?${query.toString()}`;
 	}
@@ -19,7 +23,11 @@ export async function fetchJson<T>(path: string, init: RequestInit = {}, query: 
 	return (await response.json()) as T;
 }
 
-export async function fetchQuery<T>(path: string, query: URLSearchParams = new URLSearchParams(), init: RequestInit = {}): Promise<T> {
+export async function fetchQuery<T>(
+	path: string,
+	query: URLSearchParams = new URLSearchParams(),
+	init: RequestInit = {}
+): Promise<T> {
 	if (query.toString()) {
 		path += `?${query.toString()}`;
 	}
@@ -27,7 +35,11 @@ export async function fetchQuery<T>(path: string, query: URLSearchParams = new U
 	response = await catchAndThrowHttpError(response);
 	return (await response.json()) as T;
 }
-export async function fetchText(url: string, init: RequestInit = {}, query: URLSearchParams = new URLSearchParams()): Promise<string> {
+export async function fetchText(
+	url: string,
+	init: RequestInit = {},
+	query: URLSearchParams = new URLSearchParams()
+): Promise<string> {
 	let urlWithParams = url;
 	if (query.toString()) {
 		urlWithParams += `?${query.toString()}`;

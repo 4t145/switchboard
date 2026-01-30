@@ -14,9 +14,7 @@
 	{#await api.kernelManager.listKernels()}
 		<div>Loading...</div>
 	{:then kernels}
-		{#each Object.entries(kernels) as [addr, kernel]}
-			
-		{/each}
+		{#each Object.entries(kernels) as [addr, kernel]}{/each}
 	{/await}
 </div>
 

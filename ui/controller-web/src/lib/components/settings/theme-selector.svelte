@@ -7,11 +7,14 @@
 	const msg = m as any;
 
 	// Get preset theme entries as array
-	const presetThemeEntries = Object.entries(PRESET_THEMES) as [PresetThemeName, typeof PRESET_THEMES[PresetThemeName]][];
-	
+	const presetThemeEntries = Object.entries(PRESET_THEMES) as [
+		PresetThemeName,
+		(typeof PRESET_THEMES)[PresetThemeName]
+	][];
+
 	// Get custom themes reactively
 	let customThemes = $derived(customThemesStore.getAllThemes());
-	
+
 	// Map preset theme keys to translated names
 	const getPresetThemeName = (key: PresetThemeName): string => {
 		const map: Record<PresetThemeName, () => string> = {
@@ -25,7 +28,7 @@
 		};
 		return map[key]();
 	};
-	
+
 	const getModeText = (): string => {
 		return settingsStore.isDarkMode ? msg.settings_darkmode_dark() : msg.settings_darkmode_light();
 	};
@@ -33,7 +36,7 @@
 	// Get current preview data
 	const getCurrentPreviewData = (): { name: string; colors: string[] } => {
 		const currentTheme = settingsStore.theme;
-		
+
 		// Check if it's a custom theme
 		if (currentTheme.startsWith('custom:')) {
 			const themeId = currentTheme.slice(7);
@@ -42,13 +45,13 @@
 				return { name: customTheme.name, colors: customTheme.colors };
 			}
 		}
-		
+
 		// Preset theme or fallback
 		if (currentTheme in PRESET_THEMES) {
 			const key = currentTheme as PresetThemeName;
 			return { name: getPresetThemeName(key), colors: PRESET_THEMES[key].colors };
 		}
-		
+
 		// Fallback to vintage
 		return { name: getPresetThemeName('astro'), colors: PRESET_THEMES.astro.colors };
 	};
@@ -85,7 +88,7 @@
 	</div>
 
 	<!-- Theme Preview -->
-	<div class="card border p-4 ">
+	<div class="card border p-4">
 		<div class="mb-2 text-sm font-medium opacity-75">{msg.settings_theme_preview()}</div>
 		<div class="flex gap-2">
 			{#each previewData.colors as color}

@@ -15,7 +15,7 @@
 <script lang="ts">
 	import { api } from '$lib/api/routes';
 	import type { ObjectFilter } from '$lib/api/routes/storage';
-	import { ArrowDownIcon, ArrowUpDownIcon, BrushCleaningIcon, SearchIcon } from 'lucide-svelte';
+	import { ArrowDownIcon, ArrowUpDownIcon, BrushCleaningIcon, SearchIcon } from '@lucide/svelte';
 	const dataTypeOptions = [
 		{ label: 'Service Config', value: 'ServiceConfig' },
 		{ label: 'Pem', value: 'pem' }

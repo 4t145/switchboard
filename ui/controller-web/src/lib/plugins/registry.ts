@@ -16,9 +16,9 @@ class ProviderEditorRegistry {
 	/**
 	 * Register a provider editor plugin
 	 */
-	register(plugin: ProviderEditorPlugin) {
+	register<T>(plugin: ProviderEditorPlugin<T>) {
 		const isUpdate = this.plugins.has(plugin.provider);
-		this.plugins.set(plugin.provider, plugin);
+		this.plugins.set(plugin.provider, plugin as ProviderEditorPlugin);
 		this.store.set(this.plugins);
 
 		if (isUpdate) {
@@ -153,7 +153,10 @@ class HttpClassEditorRegistry {
 	 * Get a plugin by class ID
 	 */
 	get<T extends HttpClassEditorPlugin = HttpClassEditorPlugin>(classId: string): T | undefined {
-		const plugin = this.nodes.get(classId) as T | undefined ?? this.filters.get(classId) as T | undefined ?? undefined;
+		const plugin =
+			(this.nodes.get(classId) as T | undefined) ??
+			(this.filters.get(classId) as T | undefined) ??
+			undefined;
 		if (!plugin) {
 			console.debug(`[HttpClassEditorRegistry] Plugin not found for class: ${classId}`);
 		}
@@ -175,7 +178,7 @@ class HttpClassEditorRegistry {
 		}
 		return plugin;
 	}
-	
+
 	/**
 	 * Get all registered node plugins
 	 */

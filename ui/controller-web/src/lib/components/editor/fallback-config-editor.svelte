@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { AlertCircle, Copy, ChevronDown } from 'lucide-svelte';
+	import { AlertCircle, Copy, ChevronDown } from '@lucide/svelte';
 
 	type Props = {
 		value: any;
@@ -8,12 +8,7 @@
 		readonly?: boolean;
 	};
 
-	let {
-		value = $bindable(),
-		classId,
-		instanceType = 'node',
-		readonly = false
-	}: Props = $props();
+	let { value = $bindable(), classId, instanceType = 'node', readonly = false }: Props = $props();
 
 	// JSON 编辑状态
 	let jsonString = $state('');
@@ -94,10 +89,13 @@
 		</div>
 		<div class="alert-message flex-1">
 			<h4 class="font-semibold">插件编辑器未找到</h4>
-			<p class="text-sm mt-1">
-				未找到 <code class="code text-xs">{classId}</code> 类型的编辑器插件（{instanceType === 'node' ? '节点' : '过滤器'}）。
+			<p class="mt-1 text-sm">
+				未找到 <code class="code text-xs">{classId}</code> 类型的编辑器插件（{instanceType ===
+				'node'
+					? '节点'
+					: '过滤器'}）。
 			</p>
-			<p class="text-xs mt-2 text-warning-700 dark:text-warning-300">
+			<p class="mt-2 text-xs text-warning-700 dark:text-warning-300">
 				你可以使用下方的 JSON 编辑器手动编辑配置，或切换到 Reference 模式引用外部配置文件。
 			</p>
 		</div>
@@ -109,7 +107,7 @@
 			<label class="label-text font-semibold">配置 JSON</label>
 			<button
 				type="button"
-				class="btn btn-sm preset-tonal-surface"
+				class="btn preset-tonal-surface btn-sm"
 				onclick={formatJson}
 				disabled={readonly || !!parseError}
 			>
@@ -123,12 +121,12 @@
 			rows="16"
 			bind:value={jsonString}
 			onblur={handleJsonChange}
-			placeholder="{JSON.stringify({}, null, 2)}"
+			placeholder={JSON.stringify({}, null, 2)}
 			disabled={readonly}
 		></textarea>
 
 		{#if parseError}
-			<div class="text-xs text-error-600 dark:text-error-400 flex items-start gap-1">
+			<div class="flex items-start gap-1 text-xs text-error-600 dark:text-error-400">
 				<AlertCircle size={14} class="mt-0.5 flex-shrink-0" />
 				<span>JSON 解析错误: {parseError}</span>
 			</div>
@@ -139,7 +137,7 @@
 	<div class="card preset-outlined">
 		<button
 			type="button"
-			class="w-full p-3 flex items-center justify-between text-left hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+			class="flex w-full items-center justify-between p-3 text-left transition-colors hover:bg-surface-100 dark:hover:bg-surface-800"
 			onclick={() => (showPluginGuide = !showPluginGuide)}
 		>
 			<span class="text-sm font-semibold">需要更好的编辑体验？</span>
@@ -151,14 +149,14 @@
 		</button>
 
 		{#if showPluginGuide}
-			<div class="px-3 pb-3 space-y-3 text-sm">
+			<div class="space-y-3 px-3 pb-3 text-sm">
 				<p class="text-xs text-surface-600 dark:text-surface-400">
 					如果你是插件开发者，可以通过以下方式注册专用编辑器：
 				</p>
 
 				<div class="relative">
-					<pre
-						class="code-block text-xs !pr-12 overflow-x-auto"><code>{`window.SwitchboardPluginAPI.registerHttpClassEditor({
+					<pre class="code-block overflow-x-auto !pr-12 text-xs"><code
+							>{`window.SwitchboardPluginAPI.registerHttpClassEditor({
   classId: '${classId}',
   type: '${instanceType}',
   component: YourEditorComponent,
@@ -167,11 +165,12 @@
   createDefaultConfig: () => ({
     // Your default config here
   })
-});`}</code></pre>
+});`}</code
+						></pre>
 
 					<button
 						type="button"
-						class="btn-icon btn-icon-sm absolute top-2 right-2"
+						class="absolute top-2 right-2 btn-icon btn-icon-sm"
 						onclick={copyPluginCode}
 						title="复制代码"
 					>
@@ -179,9 +178,9 @@
 					</button>
 				</div>
 
-				<div class="text-xs text-surface-600 dark:text-surface-400 space-y-1">
+				<div class="space-y-1 text-xs text-surface-600 dark:text-surface-400">
 					<p class="font-semibold">插件开发资源：</p>
-					<ul class="list-disc list-inside ml-2 space-y-1">
+					<ul class="ml-2 list-inside list-disc space-y-1">
 						<li>参考现有插件实现：<code class="code">lib/plugins/providers/http/classes/</code></li>
 						<li>使用 Skeleton UI 组件库构建界面</li>
 						<li>通过 <code class="code">window.SwitchboardPluginAPI</code> 访问共享依赖</li>
@@ -192,9 +191,11 @@
 	</div>
 
 	<!-- 快速操作提示 -->
-	<div class="text-xs text-surface-600 dark:text-surface-400 bg-surface-100 dark:bg-surface-800 p-3 rounded">
-		<p class="font-semibold mb-1">💡 提示</p>
-		<ul class="list-disc list-inside space-y-1 ml-2">
+	<div
+		class="rounded bg-surface-100 p-3 text-xs text-surface-600 dark:bg-surface-800 dark:text-surface-400"
+	>
+		<p class="mb-1 font-semibold">💡 提示</p>
+		<ul class="ml-2 list-inside list-disc space-y-1">
 			<li>编辑完成后点击其他区域以保存更改</li>
 			<li>可以使用 "格式化" 按钮美化 JSON 代码</li>
 			<li>切换到 <strong>Reference 模式</strong>可引用外部配置文件</li>

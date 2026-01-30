@@ -38,12 +38,12 @@
 	<Component {mode} bind:value {...restProps} />
 {:else}
 	<!-- 降级处理：未注册的类型 -->
-	<div class="card p-4 preset-filled-warning">
-		<p class="text-sm font-semibold mb-2">⚠️ 未注册的数据类型: {type}</p>
+	<div class="preset-filled-warning card p-4">
+		<p class="mb-2 text-sm font-semibold">⚠️ 未注册的数据类型: {type}</p>
 		{#if mode === 'edit'}
 			<textarea class="textarea font-mono text-xs" bind:value rows={6}></textarea>
 		{:else}
-			<pre class="text-xs font-mono overflow-x-auto">{JSON.stringify(value, null, 2)}</pre>
+			<pre class="overflow-x-auto font-mono text-xs">{JSON.stringify(value, null, 2)}</pre>
 		{/if}
 	</div>
 {/if}

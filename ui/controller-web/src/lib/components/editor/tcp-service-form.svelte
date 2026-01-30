@@ -1,8 +1,9 @@
 <script lang="ts">
 	import ProviderConfigEditor from './provider-config-editor.svelte';
-	import { Code, Plus, Trash2 } from 'lucide-svelte';
+	import { Code, Plus, Trash2 } from '@lucide/svelte';
 	import type { FileTcpServiceConfig, FileBind } from '$lib/api/types';
 	import { onMount } from 'svelte';
+	import SocketAddrEditor from './socket-addr-editor.svelte';
 	type Props = {
 		value: FileTcpServiceConfig;
 		tlsKeys: string[];
@@ -10,7 +11,7 @@
 	let { value = $bindable(), tlsKeys = [] }: Props = $props();
 
 	// Mock provider list for now
-	const providers = ['Static', 'Kubernetes', 'Consul', 'Custom'];
+	const providers = ['http', 'pf'];
 	onMount(() => {
 		$inspect('TCP Service Form initialized with value:', value);
 	});
@@ -43,7 +44,8 @@
 
 	<label class="label">
 		<span class="label-text">Description</span>
-		<textarea class="textarea-bordered textarea h-20" bind:value={value.description}></textarea>
+		<textarea class="textarea-bordered textarea h-20" bind:value={value.description} placeholder="Description..."></textarea>
+	
 	</label>
 
 	<!-- Binds & Routes -->
@@ -51,7 +53,7 @@
 		class="card border border-surface-200 bg-surface-50 p-4 dark:border-surface-700 dark:bg-surface-900/50"
 	>
 		<div class="mb-4 flex items-center justify-between">
-			<h4 class="h4 font-bold">Listeners & Routes</h4>
+			<h4 class="h4 font-bold">Binds <span >({value.binds.length})</span></h4>
 			<button class="preset-filled-secondary btn btn-sm" onclick={addBind}>
 				<Plus size={14} /> Add Bind
 			</button>
@@ -63,18 +65,11 @@
 
 		<div class="space-y-3">
 			{#each value.binds as bind, i}
-				<div
-					class="flex items-start gap-4 card border p-3 "
-				>
+				<div class="flex items-start gap-4 card border p-3">
 					<div class="grid flex-1 grid-cols-1 gap-4 md:grid-cols-2">
 						<label class="label">
 							<span class="label-text text-xs">Bind Address</span>
-							<input
-								class="input-sm input"
-								type="text"
-								bind:value={bind.bind}
-								placeholder="0.0.0.0:8080"
-							/>
+							<SocketAddrEditor bind:value={bind.bind} placeholder="0.0.0.0:80" required />
 						</label>
 
 						<label class="label">
@@ -98,7 +93,7 @@
 						</label>
 					</div>
 					<button
-						class="preset-tonal-error mt-6 btn-icon btn-icon-sm"
+						class="mt-6 btn-icon btn-icon-sm preset-tonal-error"
 						onclick={() => removeBind(i)}
 					>
 						<Trash2 size={16} />
@@ -114,9 +109,6 @@
 		<h4 class="mb-2 flex items-center gap-2 h4 font-bold">
 			<Code size={16} /> Config
 		</h4>
-		<ProviderConfigEditor
-			bind:value={value.config}
-			bind:provider={value.provider}
-		/>
+		<ProviderConfigEditor bind:value={value.config} bind:provider={value.provider} />
 	</div>
 </div>

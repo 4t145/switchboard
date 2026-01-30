@@ -8,7 +8,7 @@ export type DataTypeComponentProps<T, P extends Record<string, unknown>> = {
 	value?: T;
 	disabled?: boolean;
 	readonly?: boolean;
-} & P	
+} & P;
 
 /**
  * 数据类型元信息
@@ -28,7 +28,7 @@ export type DataTypeMetadata<T, P extends Record<string, unknown>> = {
 
 	/** 数据格式（用于 LinkOrValue 解析） */
 	dataFormat: 'string' | 'object';
-}
+};
 
 export type UnknownDataTypeMetadata = DataTypeMetadata<unknown, Record<string, unknown>>;
 /**
