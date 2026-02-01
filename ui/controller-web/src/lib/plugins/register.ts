@@ -8,7 +8,7 @@ import { httpEditorPlugin } from './providers/http';
 import {
 	reverseProxyEditorPlugin,
 	routerEditorPlugin,
-	directResponseEditorPlugin,
+	staticResponseEditorPlugin,
 	staticResponseEditorPlugin
 } from './providers/http/classes/nodes';
 import {
@@ -34,14 +34,13 @@ export function registerAllPlugins() {
 
 	// Register HTTP Class Editors - Nodes
 	console.log('[Plugins] 🔌 Registering HTTP class editors (nodes)...');
-	// httpClassEditorRegistry.registerNode(routerEditorPlugin);
-	// httpClassEditorRegistry.registerNode(reverseProxyEditorPlugin);
-	// httpClassEditorRegistry.registerNode(directResponseEditorPlugin);
-	// httpClassEditorRegistry.registerNode(staticResponseEditorPlugin);
+	httpClassEditorRegistry.registerNode(routerEditorPlugin);
+	httpClassEditorRegistry.registerNode(reverseProxyEditorPlugin);
+	httpClassEditorRegistry.registerNode(staticResponseEditorPlugin);
 
 	// Register HTTP Class Editors - Filters
 	console.log('[Plugins] 🔌 Registering HTTP class editors (filters)...');
-	httpClassEditorRegistry.registerNode(urlRewriteEditorPlugin);
+	httpClassEditorRegistry.registerFilter(urlRewriteEditorPlugin);
 	// httpClassEditorRegistry.registerNode(requestHeaderModifyEditorPlugin);
 	// httpClassEditorRegistry.registerNode(responseHeaderModifyEditorPlugin);
 	// httpClassEditorRegistry.registerNode(requestRedirectEditorPlugin);

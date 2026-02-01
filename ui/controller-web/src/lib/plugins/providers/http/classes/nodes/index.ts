@@ -6,20 +6,9 @@ import type {
 	InputInfo
 } from '$lib/plugins/types';
 import { NodeTarget } from '../../types';
-import ReverseProxyEditor from './reverse-proxy-editor.svelte';
-import RouterEditor from './router-editor.svelte';
-
-export type RuleSet = {
-	target: string;
-	rules: string[][];
-};
-export type PathRoute = {
-	[path: string]: string | RuleSet;
-};
-export type HttpRouterConfig = {
-	hostname: Record<string, PathRoute>;
-	output: Record<string, OutputInterface>;
-};
+import ReverseProxyEditor, { type ReverseProxyConfig } from './reverse-proxy-editor.svelte';
+import RouterEditor, { type RouterConfig } from './router-editor.svelte';
+import StaticResponseEditor, { type StaticResponseConfig } from './static-response-editor.svelte';
 
 const DefaultInputInfo: InputInfo = {
 	port: '$default',
@@ -29,7 +18,7 @@ const DefaultInputInfo: InputInfo = {
 /**
  * Router Node Editor Plugin
  */
-export const routerEditorPlugin: HttpNodeClassPlugin<HttpRouterConfig> = {
+export const routerEditorPlugin: HttpNodeClassPlugin<RouterConfig> = {
 	classId: 'router',
 	type: 'node',
 	displayName: 'Router',
@@ -45,7 +34,7 @@ export const routerEditorPlugin: HttpNodeClassPlugin<HttpRouterConfig> = {
 		};
 	},
 
-	extractOutputs(config: HttpRouterConfig): OutputInfo[] {
+	extractOutputs(config: RouterConfig): OutputInfo[] {
 		console.log('Extracting outputs from router config:', config);
 		if (!config.output || typeof config.output !== 'object') {
 			return [];
@@ -67,7 +56,7 @@ export const routerEditorPlugin: HttpNodeClassPlugin<HttpRouterConfig> = {
 			}
 		];
 	},
-	validate(config: HttpRouterConfig) {
+	validate(config: RouterConfig) {
 		const errors: string[] = [];
 		const warnings: string[] = [];
 
@@ -80,7 +69,7 @@ export const routerEditorPlugin: HttpNodeClassPlugin<HttpRouterConfig> = {
 		// const hostnameRoutes = Object.values(config.hostname || {});
 		// const pathRoutes = Object.values(config.path || {});
 
-		// [...hostnameRoutes, ...pathRoutes].forEach((port: HttpRouterConfig) => {
+		// [...hostnameRoutes, ...pathRoutes].forEach((port: RouterConfig) => {
 		// 	if (port && !outputPorts.has(port) && port !== '$default') {
 		// 		warnings.push(`Route references undefined output port: ${port}`);
 		// 	}
@@ -97,7 +86,7 @@ export const routerEditorPlugin: HttpNodeClassPlugin<HttpRouterConfig> = {
 /**
  * Reverse Proxy Node Editor Plugin
  */
-export const reverseProxyEditorPlugin: HttpClassEditorPlugin = {
+export const reverseProxyEditorPlugin: HttpNodeClassPlugin<ReverseProxyConfig> = {
 	classId: 'reverse-proxy',
 	type: 'node',
 	displayName: 'Reverse Proxy',
@@ -151,20 +140,20 @@ export const reverseProxyEditorPlugin: HttpClassEditorPlugin = {
 /**
  * Direct Response Node Editor Plugin
  */
-export const directResponseEditorPlugin: HttpClassEditorPlugin = {
-	classId: 'direct-response',
+export const staticResponseEditorPlugin: HttpNodeClassPlugin<StaticResponseConfig> = {
+	classId: 'static-response',
 	type: 'node',
-	displayName: 'Direct Response',
+	displayName: 'Static Response',
 	icon: 'FileText',
 	description: 'Return a static HTTP response',
-	component: ReverseProxyEditor, // TODO: Create dedicated editor
+	component: StaticResponseEditor, // TODO: Create dedicated editor
 
 	createDefaultConfig() {
 		return {
-			status: 200,
-			headers: {},
+			status_code: 200,
+			headers: [],
 			body: ''
-		};
+		}
 	},
 
 	// Direct response is a terminal node
@@ -179,37 +168,5 @@ export const directResponseEditorPlugin: HttpClassEditorPlugin = {
 				...DefaultInputInfo
 			}
 		];
-	}
-};
-
-/**
- * Static Response Node Editor Plugin (alias for direct-response)
- */
-export const staticResponseEditorPlugin: HttpClassEditorPlugin = {
-	classId: 'static-response',
-	type: 'node',
-	displayName: 'Static Response',
-	icon: 'FileText',
-	description: 'Return a static HTTP response',
-	component: ReverseProxyEditor, // TODO: Create dedicated editor
-
-	createDefaultConfig() {
-		return {
-			status: 200,
-			headers: {},
-			body: ''
-		};
-	},
-
-	extractInputs(): InputInfo[] {
-		// Single default input
-		return [
-			{
-				...DefaultInputInfo
-			}
-		];
-	},
-	extractOutputs(): OutputInfo[] {
-		return [];
 	}
 };

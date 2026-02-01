@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { HttpClassEditorProps } from "$lib/plugins/types";
+
 	type TimeoutDuration = number | string | 'Never';
 
 	export type ReverseProxyConfig = {
@@ -8,12 +10,8 @@
 		pool_idle_timeout?: TimeoutDuration;
 		https_only: boolean;
 	};
-
-	type Props = {
-		value: ReverseProxyConfig;
-		instanceId?: string;
-		readonly?: boolean;
-	};
+	
+	type Props = HttpClassEditorProps<ReverseProxyConfig>;
 
 	let { value = $bindable(), readonly = false }: Props = $props();
 

@@ -1,10 +1,10 @@
-import type { HttpClassEditorPlugin } from '$lib/plugins/types';
+import type { HttpFilterClassPlugin } from '$lib/plugins/types';
 import UrlRewriteEditor, { type UrlRewriteFilterConfig } from './url-rewrite-editor.svelte';
 
 /**
  * URL Rewrite Filter Editor Plugin
  */
-export const urlRewriteEditorPlugin: HttpClassEditorPlugin<UrlRewriteFilterConfig> = {
+export const urlRewriteEditorPlugin: HttpFilterClassPlugin<UrlRewriteFilterConfig> = {
 	classId: 'url-rewrite',
 	type: 'filter',
 	displayName: 'URL Rewrite',
@@ -36,7 +36,7 @@ export const urlRewriteEditorPlugin: HttpClassEditorPlugin<UrlRewriteFilterConfi
 /**
  * Request Header Modify Filter Editor Plugin
  */
-export const requestHeaderModifyEditorPlugin: HttpClassEditorPlugin = {
+export const requestHeaderModifyEditorPlugin: HttpFilterClassPlugin = {
 	classId: 'request-header-modify',
 	type: 'filter',
 	displayName: 'Request Headers',
@@ -55,7 +55,7 @@ export const requestHeaderModifyEditorPlugin: HttpClassEditorPlugin = {
 /**
  * Response Header Modify Filter Editor Plugin
  */
-export const responseHeaderModifyEditorPlugin: HttpClassEditorPlugin = {
+export const responseHeaderModifyEditorPlugin: HttpFilterClassPlugin = {
 	classId: 'response-header-modify',
 	type: 'filter',
 	displayName: 'Response Headers',
@@ -74,7 +74,7 @@ export const responseHeaderModifyEditorPlugin: HttpClassEditorPlugin = {
 /**
  * Request Redirect Filter Editor Plugin
  */
-export const requestRedirectEditorPlugin: HttpClassEditorPlugin = {
+export const requestRedirectEditorPlugin: HttpFilterClassPlugin = {
 	classId: 'request-redirect',
 	type: 'filter',
 	displayName: 'Redirect',
