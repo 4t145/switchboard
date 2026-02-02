@@ -11,6 +11,7 @@ export * from './human_readable';
 export * from './listener';
 export * from './tcp_service';
 export * as Http from './http/index';
+export * from './time-duration';
 import type { Listener } from './listener';
 import type { TcpRoute } from './tcp_route';
 import type { TcpService } from './tcp_service';

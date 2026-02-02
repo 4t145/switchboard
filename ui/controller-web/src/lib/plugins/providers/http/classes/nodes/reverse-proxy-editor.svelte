@@ -1,13 +1,13 @@
 <script lang="ts">
+	import type { TimeDuration } from "$lib/api/types";
+	import TimeDurationEditor from "$lib/components/editor/time-duration-editor.svelte";
 	import type { HttpClassEditorProps } from "$lib/plugins/types";
-
-	type TimeoutDuration = number | string | 'Never';
 
 	export type ReverseProxyConfig = {
 		backend: string;
 		scheme: string;
-		timeout: TimeoutDuration;
-		pool_idle_timeout?: TimeoutDuration;
+		timeout: TimeDuration;
+		pool_idle_timeout?: TimeDuration;
 		https_only: boolean;
 	};
 	
@@ -42,6 +42,7 @@
 			class:input-error={backendError}
 			type="text"
 			bind:value={value.backend}
+			required
 			placeholder="example.com:8080"
 			disabled={readonly}
 		/>
@@ -58,7 +59,14 @@
 			<option value="https">HTTPS</option>
 		</select>
 	</label>
-
+	<label class="label">
+		<span class="label-text">Timeout</span>
+		<TimeDurationEditor bind:value={value.timeout} disabled={readonly} required />
+	</label>
+	<label class="label">
+		<span class="label-text">Pool Idle Timeout (optional)</span>
+		<TimeDurationEditor bind:value={value.pool_idle_timeout} disabled={readonly} />
+	</label>
 	<!-- HTTPS Only -->
 	<label class="label flex items-center gap-2">
 		<input

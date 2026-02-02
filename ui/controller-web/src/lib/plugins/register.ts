@@ -9,7 +9,6 @@ import {
 	reverseProxyEditorPlugin,
 	routerEditorPlugin,
 	staticResponseEditorPlugin,
-	staticResponseEditorPlugin
 } from './providers/http/classes/nodes';
 import {
 	urlRewriteEditorPlugin,

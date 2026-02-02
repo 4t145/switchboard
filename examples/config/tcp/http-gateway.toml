@@ -15,11 +15,11 @@ class = "reverse-proxy"
 config = "file://examples/config/tcp/http-gateway/frontend-service.toml"
 
 [flow.nodes."not-found-page"]
-class = "direct-response"
+class = "static-response"
 config = "file://examples/config/tcp/http-gateway/not-found-page.toml"
 
 [flow.nodes."i-am-healthy"]
-class = "direct-response"
+class = "static-response"
 config = "file://examples/config/tcp/http-gateway/i-am-healthy.toml"
 
 [flow.filters."rewrite-rest"]

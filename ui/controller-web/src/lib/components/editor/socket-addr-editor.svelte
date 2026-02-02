@@ -75,6 +75,7 @@
         if (isSocketAddr(result)) {
             // Normalize the input value
             value = formatSocketAddr(result);
+            inputElement.setCustomValidity('');
             validationError = null;
         } else {
             validationError = result;
