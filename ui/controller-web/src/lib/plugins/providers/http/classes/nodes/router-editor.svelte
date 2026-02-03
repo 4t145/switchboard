@@ -1,7 +1,22 @@
 <script lang="ts">
 	import type { HttpClassEditorProps } from '$lib/plugins/types';
-	import { createTreeViewCollection, TreeView } from '@skeletonlabs/skeleton-svelte';
-	import { GlobeIcon, FolderIcon, TargetIcon, FileJsonIcon, ArrowRightIcon } from '@lucide/svelte';
+	import { createTreeViewCollection, TagsInput, TreeView } from '@skeletonlabs/skeleton-svelte';
+	import {
+		GlobeIcon,
+		FolderIcon,
+		TargetIcon,
+		FileJsonIcon,
+		ArrowRightIcon,
+		SlashIcon,
+		DeleteIcon,
+
+		LogOutIcon,
+
+		PlusIcon
+
+
+	} from '@lucide/svelte';
+	import TableListEditor, { type RowParams, type ListOperations } from '$lib/components/editor/table-list-editor.svelte';
 
 	export type PathTree = {
 		[pattern: string]: RuleBucket;
@@ -17,7 +32,7 @@
 		output: {
 			[port: string]: {
 				target: string;
-				filters: string[];
+				filters?: string[];
 			};
 		};
 		hostname: {
@@ -122,37 +137,27 @@
 			if (node.kind === 'hostname') return node.paths;
 			if (node.kind === 'path') return node.rules;
 			return [];
+		},
+		nodeToChildrenCount: (node: TreeNode): number => {
+			if (node.kind === 'root') return node.hostnames.length;
+			if (node.kind === 'hostname') return node.paths.length;
+			if (node.kind === 'path') return node.rules.length;
+			return 0;
 		}
 	};
 
-	let rawTree = $derived(buildTree(value));
+	let rawTree = $derived.by(() => {
+		$inspect(value, 'RouterConfig value changed');
+		return buildTree(value);
+	});
 	let treeCollection = $derived(
 		createTreeViewCollection<TreeNode>({
 			...nodeHelpers,
 			rootNode: rawTree
 		})
 	);
-
+	let selectedNode: TreeNode | null = $state(null);
 	let selectedValue = $state<string[]>([]);
-	let selectedNode = $derived.by(() => {
-		if (selectedValue.length === 0) return null;
-		// Simple lookup - in a real app with large trees, might want a map
-		// But here we can just traverse or use the collection's internal map if exposed,
-		// Recalculating by traversing the rawTree for the selected ID:
-		const id = selectedValue[0];
-		if (id === 'root') return rawTree;
-
-		for (const h of rawTree.hostnames) {
-			if (h.id === id) return h;
-			for (const p of h.paths) {
-				if (p.id === id) return p;
-				for (const r of p.rules) {
-					if (r.id === id) return r;
-				}
-			}
-		}
-		return null;
-	});
 </script>
 
 {#snippet treeNode(node: TreeNode, indexPath: number[])}
@@ -182,7 +187,6 @@
 				<TreeView.BranchControl>
 					<TreeView.BranchIndicator />
 					<TreeView.BranchText>
-						<FolderIcon class="mr-2 size-4 text-surface-500" />
 						{node.pattern}
 					</TreeView.BranchText>
 				</TreeView.BranchControl>
@@ -196,12 +200,12 @@
 		{:else if node.kind === 'rule_bucket'}
 			<TreeView.Item>
 				<div class="flex w-full items-center gap-2">
-					<TargetIcon class="size-4 text-primary-500" />
-					<span class="font-mono text-sm text-primary-600 dark:text-primary-400">{node.target}</span
+					<LogOutIcon class="size-4 text-primary-500" />
+					<span class="font-mono text-sm text-primary-500">{node.target}</span
 					>
 
 					{#if node.rules.length > 0}
-						<span class="variant-soft-secondary ml-auto badge text-xs">
+						<span class="badge ml-auto text-xs preset-filled-secondary-500">
 							{node.rules.length} rules
 						</span>
 					{/if}
@@ -211,19 +215,52 @@
 	</TreeView.NodeProvider>
 {/snippet}
 
+<div>
+	<!--  Output editor -->
+	<label class="label">
+		<span class="label-text font-medium">Output Ports</span>
+	</label>
+	<div class="space-y-2 mb-4">
+		{#each Object.entries(value.output || {}) as [port, portConfig], index (port)}
+			<div class="grid grid-cols-[1fr_auto] gap-2 items-center">
+				<div class="grid grid-cols-[100px_1fr] gap-2 text-sm">
+					<div class="font-bold opacity-60">Port:</div>
+					<div class="font-mono">{port}</div>
+					<div class="font-bold opacity-60">Target:</div>
+					<div class="font-mono">{portConfig.target}</div>
+					<div class="font-bold opacity-60">Filters:</div>
+					<div>
+						{#if !portConfig.filters || portConfig.filters.length === 0}
+							<span class="text-sm opacity-50">No filters</span>
+						{:else}
+							<span class="font-mono text-sm">{portConfig.filters.join(', ')}</span>
+						{/if}
+					</div>
+				</div>
+			</div>
+		{/each}
+	</div>
+</div>
 <div class="flex h-[500px] gap-4">
+	<!-- Router editor -->
 	<!-- Left Side: Tree View -->
 	<div class="w-1/3 overflow-y-auto border-r border-surface-500/30 pr-4">
-		<TreeView 
-			collection={treeCollection} 
+		<TreeView
+			collection={treeCollection}
 			selectionMode="single"
-			bind:selectedValue
+			{selectedValue}
+			onSelectionChange={(selection) => {
+				selectedValue = selection.selectedValue;
+				if (selection.selectedNodes.length === 0) {
+					selectedNode = null;
+				} else {
+					selectedNode = selection.selectedNodes[0] as TreeNode;
+				}
+			}}
 		>
 			<TreeView.Tree>
 				<!-- Start rendering from root children -->
-				{#each treeCollection.rootNode.hostnames as host, i}
-					{@render treeNode(host, [i])}
-				{/each}
+				{@render treeNode(treeCollection.rootNode, [])}
 			</TreeView.Tree>
 		</TreeView>
 	</div>
@@ -232,7 +269,7 @@
 	<div class="flex-1 overflow-y-auto pl-4">
 		{#if selectedNode}
 			<div class="space-y-4">
-				<h4 class="h4">Details</h4>
+				<h4 class="h4">{selectedNode.id}</h4>
 				{#if selectedNode.kind === 'hostname'}
 					<div class="grid grid-cols-[100px_1fr] gap-2 text-sm">
 						<div class="font-bold opacity-60">Type:</div>
@@ -251,43 +288,65 @@
 					</div>
 				{:else if selectedNode.kind === 'rule_bucket'}
 					<div class="grid grid-cols-[100px_1fr] gap-2 text-sm">
-						<div class="font-bold opacity-60">Type:</div>
-						<div>Target Rule</div>
-						<div class="font-bold opacity-60">Target:</div>
+						<div class="font-bold opacity-60">Output Port:</div>
 						<div class="font-mono text-primary-500">{selectedNode.target}</div>
 					</div>
-					
-					{#if selectedNode.rules.length > 0}
-						<div class="mt-3">
-							<div class="font-bold opacity-60 text-xs uppercase mb-1">Rules applied</div>
-							<div class="table-container">
-								<table class="table table-compact table-hover w-full text-xs">
-									<thead>
-										<tr>
-											<th>Type</th>
-											<th>Key</th>
-											<th>Value</th>
-										</tr>
-									</thead>
-									<tbody>
-										{#each selectedNode.rules as rule}
-											<tr>
-												{#each rule as part}
-													<td>{part}</td>
+					{#snippet row({ deleteItem, updateItem, value }: RowParams<string[]>)}
+						<tr class="">
+							<td class="w-1/1">
+								<TagsInput
+									{value}
+									disabled={readonly}
+									onValueChange={(details) => updateItem(details.value)}
+								>
+									<TagsInput.Control>
+										<TagsInput.Context>
+											{#snippet children(tagsInput)}
+												{#each tagsInput().value as value, index (index)}
+													<TagsInput.Item {value} {index}>
+														<TagsInput.ItemPreview>
+															<TagsInput.ItemText>{value}</TagsInput.ItemText>
+															<TagsInput.ItemDeleteTrigger />
+														</TagsInput.ItemPreview>
+														<TagsInput.ItemInput />
+													</TagsInput.Item>
 												{/each}
-												<!-- Fill remaining cells if rule doesn't have 3 parts -->
-												{#if rule.length < 3}
-													<td colspan={3 - rule.length}></td>
-												{/if}
-											</tr>
-										{/each}
-									</tbody>
-								</table>
-							</div>
-						</div>
-					{:else}
-						<div class="text-xs opacity-50 mt-2 italic">No additional rules configured</div>
-					{/if}
+											{/snippet}
+										</TagsInput.Context>
+										<TagsInput.Input placeholder="Add a rule" />
+									</TagsInput.Control>
+									<TagsInput.HiddenInput />
+								</TagsInput>
+							</td>
+							<td >
+								<button type="button" class="btn-icon preset-tonal-error" onclick={(e) => deleteItem()}>
+									<DeleteIcon  />
+								</button>
+							</td>
+						</tr>
+					{/snippet}
+					{#snippet footer({ addNewItem, value }:ListOperations<string[]> )}
+						<tr>
+							<td>
+								
+								{#if value.length === 0}
+									<span class="text-sm opacity-50 mt-1">No rules defined. All requests match.</span>
+								{:else}
+									<span class="font-medium text-sm"> {value.length} rules</span>
+								{/if}
+							</td>
+							<td >
+								<button
+									type="button"
+									class="btn-icon preset-tonal-primary"
+									onclick={() => addNewItem([])}
+								>
+									<PlusIcon class="size-4" />
+								</button>
+							</td>
+						</tr>
+					{/snippet}
+					<TableListEditor value={selectedNode.rules} {row} {footer}></TableListEditor>
 				{/if}
 			</div>
 		{:else}

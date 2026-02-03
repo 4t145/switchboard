@@ -169,13 +169,13 @@
 			<div class="btn-group">
 				{#if !readonly}
 					<button
-						class="btn-primary btn btn-sm"
+						class="btn-icon preset-outlined-surface-200-800"
 						onclick={() => {
 							selectedInstance ? createOrOpenEditPanel(selectedInstance) : void 0;
 						}}
 						disabled={selectedInstance === undefined}
 					>
-						<SquarePenIcon class="mr-2 size-4" />
+						<SquarePenIcon class="size-4" />
 					</button>
 				{/if}
 			</div>

@@ -3,6 +3,7 @@
 		value: T;
 	} & ItemOperations<T>;
 	export type ListOperations<T> = {
+		value: T[];
 		setFilter: (filter: ((item: T) => boolean) | null) => void;
 		addNewItem: (item: T) => void;
 		updateByIndex: (index: number, newValue: T) => void;
@@ -75,7 +76,10 @@
 
 		{#if header}
 			<thead>
-				{@render header(listOperation)}
+				{@render header({
+					...listOperation,
+					value
+				})}
 			</thead>
 		{/if}
 		<tbody>
@@ -89,7 +93,10 @@
 		</tbody>
 		{#if footer}
 			<tfoot>
-				{@render footer(listOperation)}
+				{@render footer({
+					...listOperation,
+					value
+				})}
 			</tfoot>
 		{/if}
 	</table>
