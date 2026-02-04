@@ -1,4 +1,4 @@
-import { getHttpClassEditorPlugin } from '$lib/plugins/registry';
+import { getHttpClassEditorPlugin } from '$lib/plugins/providers/http';
 import { isLinkValue } from '$lib/utils/link-parser';
 import {
 	type FlowConfig,
@@ -8,7 +8,7 @@ import {
 	type NodeTargetObject
 } from '../types';
 import { api } from '$lib/api/routes';
-import type { InputInfo, OutputInfo } from '$lib/plugins/types';
+import type { InputInfo, OutputInfo } from '../classes';
 
 function getOutputs(nodeId: string, node: InstanceDataWithoutType<unknown>): OutputInfo[] {
 	const plugin = getHttpClassEditorPlugin(node.class);

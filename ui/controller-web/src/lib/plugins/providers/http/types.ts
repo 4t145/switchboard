@@ -1,3 +1,4 @@
+
 export type HttpVersion = 'auto' | 'http1' | 'http2';
 
 export interface ServerConfig {
@@ -98,3 +99,41 @@ export interface ClassData {
 export type WithOutputs<C> = {
 	output?: Record<NodePort, NodeOutput>;
 } & C;
+
+
+export type FilterOptions = {
+	id: string,
+	filterClass: string,
+}
+
+export type NodeTargetOptions = {
+	node: string,
+	// default to '$default'
+	interface?: string,
+	nodeClass: string,
+}
+
+export function nodeTargetOptionsToValue(option: NodeTargetOptions): string {
+	if (!option.interface || option.interface === '$default') {
+		return option.node;
+	} else {
+		return `${option.node}:${option.interface}`;
+	}
+}
+export type HttpEditorContext = {
+	filterOptions: FilterOptions[];
+	nodeTargetOptions: NodeTargetOptions[];
+}
+export function flowConfigToHttpEditorContext(config: FlowConfig<unknown>): HttpEditorContext {
+	return {
+		filterOptions: config.filters ? Object.entries(config.filters).map(([id, filter]) => ({
+			id,
+			filterClass: filter.class,
+		})) : [],
+		nodeTargetOptions: config.nodes ? Object.entries(config.nodes).map(([id, node]) => ({
+			node: id,
+			nodeClass: node.class,
+		})) : [],
+	};
+}
+

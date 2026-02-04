@@ -1,4 +1,4 @@
-import type { HttpFilterClassPlugin } from '$lib/plugins/types';
+import type { HttpFilterClassPlugin } from '..';
 import UrlRewriteEditor, { type UrlRewriteFilterConfig } from './url-rewrite-editor.svelte';
 
 /**

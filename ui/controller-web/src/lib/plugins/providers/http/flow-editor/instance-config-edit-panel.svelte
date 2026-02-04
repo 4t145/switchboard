@@ -11,15 +11,15 @@
 	} from '@lucide/svelte';
 
 	import InstanceConfigEditor from './instance-config-editor.svelte';
-	import type { InstanceDataWithoutType } from '../types';
+	import type { HttpEditorContext, InstanceDataWithoutType } from '../types';
 	import { dialogQuery } from '$lib/components/dialog';
-	import type { Component, } from 'svelte';
-	import { preventDefault } from 'svelte/legacy';
-	let { value, onValueSave, instanceType, instanceId } = $props<{
+	import type { Component } from 'svelte';
+	let { value, onValueSave, instanceType, instanceId, httpEditorContext } = $props<{
 		value: InstanceDataWithoutType;
 		onValueSave: (value: InstanceDataWithoutType) => void;
 		instanceType: 'node' | 'filter';
 		instanceId: string;
+		httpEditorContext: HttpEditorContext;
 	}>();
 	export function closeWithoutSaving() {
 		editDialogOpen = false;
@@ -29,8 +29,8 @@
 		editDialogOpen = false;
 	}
 	export function focus() {
-        open();
-    }
+		open();
+	}
 	let editDialogOpen = $state(true);
 	function open() {
 		editDialogOpen = true;
@@ -108,23 +108,35 @@
 							<FloatingPanel.StageTrigger stage="default">
 								<MinimizeIcon class="size-4" />
 							</FloatingPanel.StageTrigger>
-                            <button type="button" class="btn-icon hover:preset-tonal" aria-label="Close panel">
-                                <XIcon class="size-4" onclick={(e) => { e.preventDefault(); onOpenChange({ open: false }); }} />
-                            </button>
+							<button
+								type="button"
+								class="btn-icon hover:preset-tonal"
+								aria-label="Close panel"
+								onclick={(e) => {
+									e.preventDefault();
+									onOpenChange({ open: false });
+								}}
+							>
+								<XIcon class="size-4" />
+							</button>
 						</FloatingPanel.Control>
 					</FloatingPanel.Header>
 				</FloatingPanel.DragTrigger>
 				<FloatingPanel.Body class="flex flex-col justify-between bg-surface-100-900">
-					<content class="h-full w-full overflow-auto ">
-						<InstanceConfigEditor {instanceId} bind:config={value} {instanceType}
+					<content class="h-full w-full overflow-auto">
+						<InstanceConfigEditor
+							{instanceId}
+							bind:config={value}
+							{instanceType}
+							{httpEditorContext}
 						></InstanceConfigEditor>
 					</content>
-                    <footer class="mt-4 flex justify-end gap-2 pb-[48px]">
-                        <button class="btn preset-tonal-secondary" onclick={closeWithoutSaving}>
-                            Cancel
-                        </button>
-                        <button class="btn preset-tonal-primary" onclick={saveAndClose}> Save </button>
-                    </footer>
+					<footer class="mt-4 flex justify-end gap-2 pb-[48px]">
+						<button class="btn preset-tonal-secondary" onclick={closeWithoutSaving}>
+							Cancel
+						</button>
+						<button class="btn preset-tonal-primary" onclick={saveAndClose}> Save </button>
+					</footer>
 				</FloatingPanel.Body>
 				<FloatingPanel.ResizeTrigger axis="se" />
 			</FloatingPanel.Content>

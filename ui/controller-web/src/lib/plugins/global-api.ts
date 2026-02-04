@@ -1,11 +1,12 @@
-import type { ProviderEditorPlugin, HttpClassEditorPlugin } from './types';
-import { providerEditorRegistry, httpClassEditorRegistry } from './registry';
+import type { ProviderEditorPlugin } from './types';
+import { providerEditorRegistry } from './registry';
 
 // Import Skeleton UI components to expose to plugins
 import * as SkeletonComponents from '@skeletonlabs/skeleton-svelte';
 
 // Import Lucide icons to expose to plugins
 import * as LucideIcons from '@lucide/svelte';
+import { httpClassEditorRegistry, type HttpClassEditorPlugin } from './providers/http/classes';
 
 /**
  * Validation utilities

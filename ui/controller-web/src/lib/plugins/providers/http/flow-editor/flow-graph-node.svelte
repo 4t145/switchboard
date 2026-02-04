@@ -9,7 +9,6 @@
 		SquareIcon
 	} from '@lucide/svelte';
 	import '@xyflow/svelte/dist/style.css';
-	import type { InputInfo } from '$lib/plugins/types';
 	import type { FlowGraph, FlowGraphNode } from './flow-view-builder';
 	import { Collapsible, Listbox } from '@skeletonlabs/skeleton-svelte';
 	type NodeData = {

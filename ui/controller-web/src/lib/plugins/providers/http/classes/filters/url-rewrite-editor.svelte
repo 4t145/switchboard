@@ -1,5 +1,6 @@
 <script lang="ts">
-	import type { HttpClassEditorProps } from '$lib/plugins/types';
+	import type { HttpClassEditorProps } from "..";
+
 
 	export type UrlRewriteFilterConfig = {
 		path: string | null;

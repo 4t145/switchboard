@@ -3,7 +3,7 @@
 		type RowParams,
 		type ListOperations
 	} from '$lib/components/editor/table-list-editor.svelte';
-	import type { HttpClassEditorProps } from '$lib/plugins/types';
+	import type { HttpClassEditorProps } from '../';
 	import { CrossIcon, DeleteIcon, PlusIcon } from '@lucide/svelte';
 	type HeaderPair = [string, string];
 	export type StaticResponseConfig = {

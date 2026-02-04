@@ -66,9 +66,6 @@
 		updateByIndex,
 		deleteByIndex
 	};
-	$effect(() => {
-		onChange?.(value);
-	});
 </script>
 
 <div class="table-wrap">

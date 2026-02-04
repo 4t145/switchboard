@@ -1,7 +1,14 @@
 <script lang="ts">
-	import type { FlowConfig, HttpConfig, InstanceDataWithoutType, ServerConfig } from './types';
+	import {
+		flowConfigToHttpEditorContext,
+		type FlowConfig,
+		type HttpConfig,
+		type HttpEditorContext,
+		type InstanceDataWithoutType,
+		type ServerConfig
+	} from './types';
 	import FlowEditor from './flow-editor/flow-editor.svelte';
-	import { mount, onDestroy, unmount, untrack } from 'svelte';
+	import { mount, onDestroy, setContext, unmount, untrack } from 'svelte';
 	import {
 		buildFlowGraph,
 		FlowGraph,
@@ -27,6 +34,16 @@
 	$effect(() => {
 		onValueChange(value);
 	});
+	$effect(() => {
+		value.server = serverConfig;
+	});
+	$effect(() => {
+		untrack(() => updateGraphState(value.flow));
+	});
+	
+	let httpEditorContext: HttpEditorContext = $derived(
+		flowConfigToHttpEditorContext(value.flow)
+	);
 	type ViewMode = 'list' | 'tree' | 'graph';
 	type GraphState =
 		| {
@@ -73,16 +90,13 @@
 		}
 		return undefined;
 	}
-	let selectedInstanceData = $derived(getSelectedInstanceData(selectedInstance!));
-	let editDialogOpen = $state(false);
 	let serverConfig: ServerConfig = $state(
 		value.server ?? {
 			version: 'auto'
 		}
 	);
-	$effect(() => {
-		value.server = serverConfig;
-	});
+
+
 	async function updateGraphState(flow: FlowConfig) {
 		if (graphState.type === 'building') {
 			console.warn('Ignoring edits to flow while building graph');
@@ -107,9 +121,6 @@
 		}
 	}
 
-	$effect(() => {
-		untrack(() => updateGraphState(value.flow));
-	});
 	let panels: Record<string, InstanceConfigEditPanel> = $state({});
 	function createOrOpenEditPanel(selection: FlowTreeViewInstanceSelection) {
 		let selectedInstance = getSelectedInstanceData(selection);
@@ -134,10 +145,11 @@
 					instanceType,
 					instanceId,
 					value: selectedInstance,
+					httpEditorContext,
 					onValueSave
 				}
 			});
-			
+
 			panels[instanceId] = panel;
 		}
 	}

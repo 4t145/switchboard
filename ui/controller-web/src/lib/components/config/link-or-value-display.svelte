@@ -3,7 +3,6 @@
 	import { resolveLink, resolveLinkAsString } from '$lib/api/resolve';
 	import { Accordion } from '@skeletonlabs/skeleton-svelte';
 	import { Link as LinkIcon, AlertCircle, Loader2, ChevronDown } from '@lucide/svelte';
-	import DataTypeRenderer from '$lib/data-types/components/data-type-renderer.svelte';
 
 	interface Props<T> {
 		value: T;
@@ -137,13 +136,13 @@
 							<!-- Custom content display -->
 							{@render customDisplay({ content: resolvedContent })}
 						{:else if dataType}
-							<!-- Use data type renderer for view mode -->
+							<!-- Use data type renderer for view mode
 							<DataTypeRenderer
 								type={dataType}
 								mode="view"
 								value={resolvedContent}
 								{...editorProps}
-							/>
+							/> -->
 						{:else}
 							<!-- Default content display -->
 							<div class="overflow-x-auto rounded bg-surface-100 p-4 dark:bg-surface-800">
@@ -161,7 +160,7 @@
 		{@render customDisplay({ content: value })}
 	{:else if dataType}
 		<!-- Use data type renderer for view mode -->
-		<DataTypeRenderer type={dataType} mode="view" {value} {...editorProps} />
+		<!-- <DataTypeRenderer type={dataType} mode="view" {value} {...editorProps} /> -->
 	{:else}
 		<!-- Default value display -->
 		<code class="rounded bg-surface-200 px-2 py-0.5 font-mono text-sm dark:bg-surface-700">

@@ -1,7 +1,7 @@
 import type { ProviderEditorPlugin } from '../../types';
 import HttpEditor from './http-editor.svelte';
 import type { HttpConfig } from './types';
-
+export { httpClassEditorRegistry, getHttpClassEditorPlugin } from './classes';
 /**
  * HTTP Provider Editor Plugin
  */

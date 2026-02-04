@@ -21,8 +21,6 @@
 		SegmentedControl,
 		ToggleGroup
 	} from '@skeletonlabs/skeleton-svelte';
-	import DataTypeRenderer from '$lib/data-types/components/data-type-renderer.svelte';
-	import { dataTypeRegistry } from '$lib/data-types/registry';
 	import {
 		parseLink,
 		formatLink,

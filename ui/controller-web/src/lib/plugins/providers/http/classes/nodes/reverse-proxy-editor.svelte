@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { TimeDuration } from "$lib/api/types";
 	import TimeDurationEditor from "$lib/components/editor/time-duration-editor.svelte";
-	import type { HttpClassEditorProps } from "$lib/plugins/types";
+	import type { HttpClassEditorProps } from "../";
 
 	export type ReverseProxyConfig = {
 		backend: string;

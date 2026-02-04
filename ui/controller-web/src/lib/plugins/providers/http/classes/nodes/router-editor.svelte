@@ -1,22 +1,22 @@
 <script lang="ts">
-	import type { HttpClassEditorProps } from '$lib/plugins/types';
+	import type { HttpClassEditorProps } from '../';
 	import { createTreeViewCollection, TagsInput, TreeView } from '@skeletonlabs/skeleton-svelte';
 	import {
 		GlobeIcon,
 		FolderIcon,
 		TargetIcon,
-		FileJsonIcon,
 		ArrowRightIcon,
 		SlashIcon,
 		DeleteIcon,
-
 		LogOutIcon,
-
 		PlusIcon
-
-
 	} from '@lucide/svelte';
-	import TableListEditor, { type RowParams, type ListOperations } from '$lib/components/editor/table-list-editor.svelte';
+	import TableListEditor, {
+		type RowParams,
+		type ListOperations,
+		type ItemOperations
+	} from '$lib/components/editor/table-list-editor.svelte';
+	import TargetSelector from '../../target-selector.svelte';
 
 	export type PathTree = {
 		[pattern: string]: RuleBucket;
@@ -27,13 +27,13 @@
 				target: string;
 		  }
 		| string;
-
+	export type OutputItem = {
+		target: string;
+		filters?: string[];
+	};
 	export type RouterConfig = {
 		output: {
-			[port: string]: {
-				target: string;
-				filters?: string[];
-			};
+			[port: string]: OutputItem;
 		};
 		hostname: {
 			[pattern: string]: PathTree;
@@ -42,7 +42,7 @@
 
 	type Props = HttpClassEditorProps<RouterConfig>;
 
-	let { value = $bindable(), readonly = false }: Props = $props();
+	let { value = $bindable(), readonly = false, httpEditorContext }: Props = $props();
 
 	// Internal Node Types with ID
 	type TreeNode = RootNode | HostNameNode | PathNode | RuleBucketNode;
@@ -158,6 +158,33 @@
 	);
 	let selectedNode: TreeNode | null = $state(null);
 	let selectedValue = $state<string[]>([]);
+
+	let outputAsTable = $derived.by(() => {
+		const output = value.output || {};
+		return Object.entries(output).map(([port, config]) => ({
+			port,
+			...config
+		}));
+	});
+
+	function outputTableAsOutput(
+		table: {
+			port: string;
+			target: string;
+			filters?: string[];
+		}[]
+	) {
+		return table.reduce(
+			(acc, item) => {
+				acc[item.port] = {
+					target: item.target,
+					filters: item.filters
+				};
+				return acc;
+			},
+			{} as { [port: string]: OutputItem }
+		);
+	}
 </script>
 
 {#snippet treeNode(node: TreeNode, indexPath: number[])}
@@ -201,11 +228,10 @@
 			<TreeView.Item>
 				<div class="flex w-full items-center gap-2">
 					<LogOutIcon class="size-4 text-primary-500" />
-					<span class="font-mono text-sm text-primary-500">{node.target}</span
-					>
+					<span class="font-mono text-sm text-primary-500">{node.target}</span>
 
 					{#if node.rules.length > 0}
-						<span class="badge ml-auto text-xs preset-filled-secondary-500">
+						<span class="ml-auto badge preset-filled-secondary-500 text-xs">
 							{node.rules.length} rules
 						</span>
 					{/if}
@@ -220,25 +246,109 @@
 	<label class="label">
 		<span class="label-text font-medium">Output Ports</span>
 	</label>
-	<div class="space-y-2 mb-4">
-		{#each Object.entries(value.output || {}) as [port, portConfig], index (port)}
-			<div class="grid grid-cols-[1fr_auto] gap-2 items-center">
-				<div class="grid grid-cols-[100px_1fr] gap-2 text-sm">
-					<div class="font-bold opacity-60">Port:</div>
-					<div class="font-mono">{port}</div>
-					<div class="font-bold opacity-60">Target:</div>
-					<div class="font-mono">{portConfig.target}</div>
-					<div class="font-bold opacity-60">Filters:</div>
-					<div>
-						{#if !portConfig.filters || portConfig.filters.length === 0}
-							<span class="text-sm opacity-50">No filters</span>
-						{:else}
-							<span class="font-mono text-sm">{portConfig.filters.join(', ')}</span>
-						{/if}
-					</div>
-				</div>
-			</div>
-		{/each}
+	<div class="mb-4 space-y-2">
+		{#snippet row({
+			deleteItem,
+			updateItem,
+			value
+		}: RowParams<
+			OutputItem & {
+				port: string;
+			}
+		>)}
+			<tr>
+				<td>
+					<input
+						type="text"
+						class="input-sm input w-full font-mono"
+						readonly={readonly}
+						value={value.port}
+						onchange={({ currentTarget: { value: port } }) => updateItem({ ...value, port })}
+					/>
+				</td>
+				<td> <TargetSelector {httpEditorContext} value={value.target} onChange={(target) => {
+					if (target !== undefined) {
+						updateItem({ ...value, target });
+					}
+				}}></TargetSelector> </td>
+				<td> 
+					<TagsInput
+						value={value.filters}
+						disabled={readonly}
+						onValueChange={(details) => updateItem({ ...value, filters: details.value })}
+					>
+						<TagsInput.Control>
+							<TagsInput.Context>
+								{#snippet children(tagsInput)}
+									{#each tagsInput().value as value, index (index)}
+										<TagsInput.Item {value} {index}>
+											<TagsInput.ItemPreview>
+												<TagsInput.ItemText>{value}</TagsInput.ItemText>
+												<TagsInput.ItemDeleteTrigger />
+											</TagsInput.ItemPreview>
+											<TagsInput.ItemInput />
+										</TagsInput.Item>
+									{/each}
+								{/snippet}
+							</TagsInput.Context>
+							<TagsInput.Input placeholder="Add a filter" />
+						</TagsInput.Control>
+						<TagsInput.HiddenInput />
+					</TagsInput>
+				</td>
+				<td>
+					<button
+						type="button"
+						class="btn-icon preset-tonal-error"
+						onclick={(e) => deleteItem()}
+						disabled={readonly}
+					>
+						<DeleteIcon />
+					</button>
+				</td>
+			</tr>
+		{/snippet}
+		{#snippet header()}
+			<tr>
+				<th>Port</th>
+				<th>Target</th>
+				<th>Filters</th>
+				<th>Operations</th>
+			</tr>
+		{/snippet}
+		{#snippet footer({ value, addNewItem }: ListOperations<OutputItem & { port: string }>)}
+			<tr>
+				<td colspan="3">
+					
+				</td>
+				<td>
+					<button
+						type="button"
+						class="btn-icon preset-tonal-primary"
+						onclick={() =>
+							addNewItem({
+								port: `port${value.length + 1}`,
+								target: '',
+								filters: []
+							})}
+					>
+						<PlusIcon class="size-4" />
+					</button>
+				</td>
+			</tr>
+		{/snippet}
+		<TableListEditor
+			value={outputAsTable}
+			{row}
+			{header}
+			{footer}
+			onChange={(newTable) => {
+				value = {
+					...value,
+					output: outputTableAsOutput(newTable)
+				};
+			}}
+		></TableListEditor>
 	</div>
 </div>
 <div class="flex h-[500px] gap-4">
@@ -318,24 +428,27 @@
 									<TagsInput.HiddenInput />
 								</TagsInput>
 							</td>
-							<td >
-								<button type="button" class="btn-icon preset-tonal-error" onclick={(e) => deleteItem()}>
-									<DeleteIcon  />
+							<td>
+								<button
+									type="button"
+									class="btn-icon preset-tonal-error"
+									onclick={(e) => deleteItem()}
+								>
+									<DeleteIcon />
 								</button>
 							</td>
 						</tr>
 					{/snippet}
-					{#snippet footer({ addNewItem, value }:ListOperations<string[]> )}
+					{#snippet footer({ addNewItem, value }: ListOperations<string[]>)}
 						<tr>
 							<td>
-								
 								{#if value.length === 0}
-									<span class="text-sm opacity-50 mt-1">No rules defined. All requests match.</span>
+									<span class="mt-1 text-sm opacity-50">No rules defined. All requests match.</span>
 								{:else}
-									<span class="font-medium text-sm"> {value.length} rules</span>
+									<span class="text-sm font-medium"> {value.length} rules</span>
 								{/if}
 							</td>
-							<td >
+							<td>
 								<button
 									type="button"
 									class="btn-icon preset-tonal-primary"
