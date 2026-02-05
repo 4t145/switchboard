@@ -17,6 +17,7 @@
 		type ItemOperations
 	} from '$lib/components/editor/table-list-editor.svelte';
 	import TargetSelector from '../../target-selector.svelte';
+	import FilterSelector from '../../filter-selector.svelte';
 
 	export type PathTree = {
 		[pattern: string]: RuleBucket;
@@ -247,108 +248,94 @@
 		<span class="label-text font-medium">Output Ports</span>
 	</label>
 	<div class="mb-4 space-y-2">
-		{#snippet row({
-			deleteItem,
-			updateItem,
-			value
-		}: RowParams<
-			OutputItem & {
-				port: string;
-			}
-		>)}
-			<tr>
-				<td>
-					<input
-						type="text"
-						class="input-sm input w-full font-mono"
-						readonly={readonly}
-						value={value.port}
-						onchange={({ currentTarget: { value: port } }) => updateItem({ ...value, port })}
-					/>
-				</td>
-				<td> <TargetSelector {httpEditorContext} value={value.target} onChange={(target) => {
-					if (target !== undefined) {
-						updateItem({ ...value, target });
-					}
-				}}></TargetSelector> </td>
-				<td> 
-					<TagsInput
-						value={value.filters}
-						disabled={readonly}
-						onValueChange={(details) => updateItem({ ...value, filters: details.value })}
-					>
-						<TagsInput.Control>
-							<TagsInput.Context>
-								{#snippet children(tagsInput)}
-									{#each tagsInput().value as value, index (index)}
-										<TagsInput.Item {value} {index}>
-											<TagsInput.ItemPreview>
-												<TagsInput.ItemText>{value}</TagsInput.ItemText>
-												<TagsInput.ItemDeleteTrigger />
-											</TagsInput.ItemPreview>
-											<TagsInput.ItemInput />
-										</TagsInput.Item>
-									{/each}
-								{/snippet}
-							</TagsInput.Context>
-							<TagsInput.Input placeholder="Add a filter" />
-						</TagsInput.Control>
-						<TagsInput.HiddenInput />
-					</TagsInput>
-				</td>
-				<td>
-					<button
-						type="button"
-						class="btn-icon preset-tonal-error"
-						onclick={(e) => deleteItem()}
-						disabled={readonly}
-					>
-						<DeleteIcon />
-					</button>
-				</td>
-			</tr>
-		{/snippet}
-		{#snippet header()}
-			<tr>
-				<th>Port</th>
-				<th>Target</th>
-				<th>Filters</th>
-				<th>Operations</th>
-			</tr>
-		{/snippet}
-		{#snippet footer({ value, addNewItem }: ListOperations<OutputItem & { port: string }>)}
-			<tr>
-				<td colspan="3">
-					
-				</td>
-				<td>
-					<button
-						type="button"
-						class="btn-icon preset-tonal-primary"
-						onclick={() =>
-							addNewItem({
-								port: `port${value.length + 1}`,
-								target: '',
-								filters: []
-							})}
-					>
-						<PlusIcon class="size-4" />
-					</button>
-				</td>
-			</tr>
-		{/snippet}
 		<TableListEditor
 			value={outputAsTable}
-			{row}
-			{header}
-			{footer}
 			onChange={(newTable) => {
 				value = {
 					...value,
 					output: outputTableAsOutput(newTable)
 				};
 			}}
-		></TableListEditor>
+		>
+			{#snippet row({
+				deleteItem,
+				updateItem,
+				value
+			}: RowParams<
+				OutputItem & {
+					port: string;
+				}
+			>)}
+				<tr>
+					<td>
+						<input
+							type="text"
+							class="input-sm input w-full font-mono"
+							{readonly}
+							value={value.port}
+							onchange={({ currentTarget: { value: port } }) => updateItem({ ...value, port })}
+						/>
+					</td>
+					<td>
+						<TargetSelector
+							{httpEditorContext}
+							value={value.target}
+							onChange={(target) => {
+								if (target !== undefined) {
+									updateItem({ ...value, target });
+								}
+							}}
+						></TargetSelector>
+					</td>
+					<td>
+						<FilterSelector
+							{httpEditorContext}
+							value={value.filters || []}
+							onChange={(filters) => {
+								updateItem({ ...value, filters });
+							}}
+						></FilterSelector>
+					</td>
+					<td>
+						<button
+							type="button"
+							class="btn-icon preset-tonal-error"
+							onclick={(e) => deleteItem()}
+							disabled={readonly}
+						>
+							<DeleteIcon />
+						</button>
+					</td>
+				</tr>
+			{/snippet}
+			{#snippet header()}
+				<tr>
+					<th>Port</th>
+					<th>Target</th>
+					<th>Filters</th>
+					<th>Operations</th>
+				</tr>
+			{/snippet}
+			{#snippet footer({ value, addNewItem }: ListOperations<OutputItem & { port: string }>)}
+				<tr>
+					<td colspan="3"> </td>
+					<td>
+						<button
+							type="button"
+							class="btn-icon preset-tonal-primary"
+							onclick={() =>
+								addNewItem({
+									port: `port${value.length + 1}`,
+									target: '',
+									filters: []
+								})}
+						>
+							<PlusIcon class="size-4" />
+						</button>
+					</td>
+				</tr>
+			{/snippet}
+		</TableListEditor>
 	</div>
 </div>
 <div class="flex h-[500px] gap-4">
@@ -401,65 +388,69 @@
 						<div class="font-bold opacity-60">Output Port:</div>
 						<div class="font-mono text-primary-500">{selectedNode.target}</div>
 					</div>
-					{#snippet row({ deleteItem, updateItem, value }: RowParams<string[]>)}
-						<tr class="">
-							<td class="w-1/1">
-								<TagsInput
-									{value}
-									disabled={readonly}
-									onValueChange={(details) => updateItem(details.value)}
-								>
-									<TagsInput.Control>
-										<TagsInput.Context>
-											{#snippet children(tagsInput)}
-												{#each tagsInput().value as value, index (index)}
-													<TagsInput.Item {value} {index}>
-														<TagsInput.ItemPreview>
-															<TagsInput.ItemText>{value}</TagsInput.ItemText>
-															<TagsInput.ItemDeleteTrigger />
-														</TagsInput.ItemPreview>
-														<TagsInput.ItemInput />
-													</TagsInput.Item>
-												{/each}
-											{/snippet}
-										</TagsInput.Context>
-										<TagsInput.Input placeholder="Add a rule" />
-									</TagsInput.Control>
-									<TagsInput.HiddenInput />
-								</TagsInput>
-							</td>
-							<td>
-								<button
-									type="button"
-									class="btn-icon preset-tonal-error"
-									onclick={(e) => deleteItem()}
-								>
-									<DeleteIcon />
-								</button>
-							</td>
-						</tr>
-					{/snippet}
-					{#snippet footer({ addNewItem, value }: ListOperations<string[]>)}
-						<tr>
-							<td>
-								{#if value.length === 0}
-									<span class="mt-1 text-sm opacity-50">No rules defined. All requests match.</span>
-								{:else}
-									<span class="text-sm font-medium"> {value.length} rules</span>
-								{/if}
-							</td>
-							<td>
-								<button
-									type="button"
-									class="btn-icon preset-tonal-primary"
-									onclick={() => addNewItem([])}
-								>
-									<PlusIcon class="size-4" />
-								</button>
-							</td>
-						</tr>
-					{/snippet}
-					<TableListEditor value={selectedNode.rules} {row} {footer}></TableListEditor>
+
+					<TableListEditor value={selectedNode.rules}>
+						{#snippet row({ deleteItem, updateItem, value }: RowParams<string[]>)}
+							<tr class="">
+								<td class="w-1/1">
+									<TagsInput
+										{value}
+										disabled={readonly}
+										onValueChange={(details) => updateItem(details.value)}
+									>
+										<TagsInput.Control>
+											<TagsInput.Context>
+												{#snippet children(tagsInput)}
+													{#each tagsInput().value as value, index (index)}
+														<TagsInput.Item {value} {index}>
+															<TagsInput.ItemPreview>
+																<TagsInput.ItemText>{value}</TagsInput.ItemText>
+																<TagsInput.ItemDeleteTrigger />
+															</TagsInput.ItemPreview>
+															<TagsInput.ItemInput />
+														</TagsInput.Item>
+													{/each}
+												{/snippet}
+											</TagsInput.Context>
+											<TagsInput.Input placeholder="Add a rule" />
+										</TagsInput.Control>
+										<TagsInput.HiddenInput />
+									</TagsInput>
+								</td>
+								<td>
+									<button
+										type="button"
+										class="btn-icon preset-tonal-error"
+										onclick={(e) => deleteItem()}
+									>
+										<DeleteIcon />
+									</button>
+								</td>
+							</tr>
+						{/snippet}
+						{#snippet footer({ addNewItem, value }: ListOperations<string[]>)}
+							<tr>
+								<td>
+									{#if value.length === 0}
+										<span class="mt-1 text-sm opacity-50"
+											>No rules defined. All requests match.</span
+										>
+									{:else}
+										<span class="text-sm font-medium"> {value.length} rules</span>
+									{/if}
+								</td>
+								<td>
+									<button
+										type="button"
+										class="btn-icon preset-tonal-primary"
+										onclick={() => addNewItem([])}
+									>
+										<PlusIcon class="size-4" />
+									</button>
+								</td>
+							</tr>
+						{/snippet}
+					</TableListEditor>
 				{/if}
 			</div>
 		{:else}

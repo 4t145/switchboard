@@ -49,7 +49,11 @@
 					</Dialog.CloseTrigger>
 				</header>
 				<Dialog.Description>
-					{message}
+					{#if typeof message === 'string'}
+						<p>{message}</p>
+					{:else}
+						{@render message()}
+					{/if}
 				</Dialog.Description>
 				<footer class="flex justify-end gap-2">
 					{#each Object.entries(options as Record<string, DialogOption>) as [value, option]}

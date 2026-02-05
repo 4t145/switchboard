@@ -1,5 +1,5 @@
 import { type IconProps } from '@lucide/svelte';
-import { mount, unmount, type Component } from 'svelte';
+import { mount, unmount, type Component, type Snippet } from 'svelte';
 import QueryDialogComponent from './query-dialog.svelte';
 
 export type DialogOption = {
@@ -9,7 +9,7 @@ export type DialogOption = {
 };
 export type DialogQuery<Options extends string> = {
 	title: string;
-	message: string;
+	message: string | Snippet<[]>;
 	options: Record<Options, DialogOption>;
 	role?: 'dialog' | 'alertdialog';
 };
