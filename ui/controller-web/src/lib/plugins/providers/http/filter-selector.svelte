@@ -94,7 +94,8 @@
 			message: queryAddFilter,
 			options: {
 				confirm: {
-					class: 'btn preset-tonal-primary'
+					class: 'btn preset-tonal-primary',
+					label: 'Confirm'
 				}
 			},
 			role: 'dialog'

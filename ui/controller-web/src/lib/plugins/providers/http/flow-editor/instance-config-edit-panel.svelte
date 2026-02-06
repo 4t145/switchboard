@@ -122,7 +122,7 @@
 						</FloatingPanel.Control>
 					</FloatingPanel.Header>
 				</FloatingPanel.DragTrigger>
-				<FloatingPanel.Body class="flex flex-col justify-between bg-surface-100-900">
+				<FloatingPanel.Body class="flex flex-col justify-between bg-surface-50-950">
 					<content class="h-full w-full overflow-auto">
 						<InstanceConfigEditor
 							{instanceId}

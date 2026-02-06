@@ -2,7 +2,7 @@
 	import TableListEditor, {
 		type RowParams,
 		type ListOperations
-	} from '$lib/components/editor/table-list-editor.svelte';
+	} from '$lib/components/common/table-list-editor.svelte';
 	import type { HttpClassEditorProps } from '../';
 	import { CrossIcon, DeleteIcon, PlusIcon } from '@lucide/svelte';
 	type HeaderPair = [string, string];

@@ -80,7 +80,7 @@
 		}}
 		selectionMode="single"
 	>
-		<TreeView.Tree>
+		<TreeView.Tree class="w-full">
 			{#if collection.rootNode.type === 'root'}
 				{@render treeNode(collection.rootNode.node_entrypoint, [0])}
 				{#if collection.rootNode.orphans.nodes.length > 0}

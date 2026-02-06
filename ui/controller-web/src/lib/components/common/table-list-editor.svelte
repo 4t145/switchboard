@@ -1,6 +1,7 @@
 <script module lang="ts">
 	export type RowParams<T> = {
 		value: T;
+		index: number;
 	} & ItemOperations<T>;
 	export type ListOperations<T> = {
 		value: T[];
@@ -83,13 +84,14 @@
 			{#each view as indexedItem (indexedItem.index)}
 				{@render row({
 					value: indexedItem.item,
+					index: indexedItem.index,
 					updateItem: (newValue: T) => updateByIndex(indexedItem.index, newValue),
 					deleteItem: () => deleteByIndex(indexedItem.index)
 				})}
 			{/each}
 		</tbody>
 		{#if footer}
-			<tfoot>
+			<tfoot class="!bg-transparent">
 				{@render footer({
 					...listOperation,
 					value

@@ -4,7 +4,7 @@
 	import type { FileTcpServiceConfig, FileBind } from '$lib/api/types';
 	import { onMount } from 'svelte';
 	import SocketAddrEditor from './socket-addr-editor.svelte';
-	import TableListEditor, { type RowParams, type ListOperations } from './table-list-editor.svelte';
+	import TableListEditor, { type RowParams, type ListOperations } from '../common/table-list-editor.svelte';
 	type Props = {
 		value: FileTcpServiceConfig;
 		tlsKeys: string[];
@@ -102,13 +102,14 @@
 
 	{#snippet footer({ addNewItem }: ListOperations<FileBind>)}
 		<tr>
-			<td colspan="4" class="text-end">
+			<td colspan="3"></td>
+			<td >
 				<button
 					type="button"
-					class="btn preset-outlined-primary-500 btn-sm"
+					class=" btn-icon btn-icon-sm preset-tonal-surface"
 					onclick={() => addNewItem({ bind: '', tls: undefined, description: '' })}
 				>
-					<Plus class="size-4"></Plus>Add Bind</button
+					<Plus class="size-4"></Plus></button
 				>
 			</td>
 		</tr>

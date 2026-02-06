@@ -9,7 +9,7 @@
 	import TlsConfigForm from './tls-config-form.svelte';
 	import ListEditor from '$lib/components/common/list-editor.svelte';
 
-	let { config = $bindable() } = $props<{ config: HumanReadableServiceConfig }>();
+	let { config = $bindable() }: { config: HumanReadableServiceConfig } = $props();
 
 	let activeTab = $state<'services' | 'tls'>('services');
 
