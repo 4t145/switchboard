@@ -7,7 +7,8 @@
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import TcpServiceForm from './tcp-service-form.svelte';
 	import TlsConfigForm from './tls-config-form.svelte';
-	import ListEditor from '$lib/components/common/list-editor.svelte';
+	import ListEditor from '../common/list-editor.svelte';
+	import { PlusIcon } from '@lucide/svelte';
 
 	let { config = $bindable() }: { config: HumanReadableServiceConfig } = $props();
 
@@ -90,45 +91,43 @@
 
 		<Tabs.Content value="services" class="flex-1 overflow-hidden">
 			<div class="h-full">
-				<ListEditor
-					bind:items={config.tcp_services}
-					title="TCP Services"
-					getItemName={getServiceName}
-					createItem={createService}
-					responsive={true}
-					mobileMode="stack"
-				>
-					{#snippet renderEditor(service: FileTcpServiceConfig, index: number)}
-						<!-- Key forces component recreation when switching items -->
-						{#key index}
-							<TcpServiceForm
-								bind:value={config.tcp_services[index]}
-								tlsKeys={config.tls.map((t: FileStyleTls) => t.name)}
+				<ListEditor value={config.tcp_services}>
+					{#snippet control(api)}
+						<div>
+							<input
+								type="text"
+								class="btn"
+								onchange={(evt) => {
+									const value = evt.currentTarget.value;
+									if (value && value.length > 0) {
+										api.setFilter((item) =>
+											item.name.toLowerCase().includes(evt.currentTarget.value.toLowerCase())
+										);
+									} else {
+										api.setFilter(null);
+									}
+								}}
+								placeholder="Filter services..."
 							/>
-						{/key}
+							<button type="button" class="btn"><PlusIcon /></button>
+						</div>
+					{/snippet}
+					{#snippet item(itemApi)}
+						<button
+							onclick={() => {
+								itemApi.selected = !itemApi.selected;
+							}}
+							class={`btn ${itemApi.selected ? 'preset-filled-surface-200-800 ' : 'preset-outlined-surface-200-800'}`}
+						>
+							{itemApi.value.name}
+						</button>
 					{/snippet}
 				</ListEditor>
 			</div>
 		</Tabs.Content>
 
 		<Tabs.Content value="tls" class="flex-1 overflow-hidden">
-			<div class="h-full">
-				<ListEditor
-					bind:items={config.tls}
-					title="TLS Configurations"
-					getItemName={getTlsName}
-					createItem={createTls}
-					responsive={true}
-					mobileMode="stack"
-				>
-					{#snippet renderEditor(tls: FileStyleTls, index: number)}
-						<!-- Key forces component recreation when switching items -->
-						{#key index}
-							<TlsConfigForm bind:value={config.tls[index]} />
-						{/key}
-					{/snippet}
-				</ListEditor>
-			</div>
+			<div class="h-full"></div>
 		</Tabs.Content>
 	</Tabs>
 </div>
