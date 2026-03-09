@@ -1,9 +1,9 @@
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, sync::Arc, time::Duration};
 
 use registry::Registry;
+use switchboard_file_resolver::FileResolver;
 use switchboard_model::kernel::{KernelState, KernelStateKind};
 use switchboard_service::tcp::TcpListener;
-use switchboard_file_resolver::FileResolver;
 pub mod config;
 pub mod controller;
 pub mod registry;
@@ -14,6 +14,16 @@ use tokio::sync::RwLock;
 
 use crate::{config::KernelConfig, switchboard::tcp::TcpSwitchboard};
 
+const DEFAULT_PREPARE_TTL_SECS: u64 = 60;
+
+#[derive(Clone)]
+pub(crate) struct PendingConfigTransaction {
+    pub transaction_id: String,
+    pub target_version: String,
+    pub config: model::ServiceConfig,
+    pub expires_at: std::time::Instant,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     // #[error("Controller Connection error: {0}")]
@@ -22,6 +32,14 @@ pub enum Error {
     TcpSwitchboardError(#[from] crate::switchboard::tcp::TcpSwitchboardError),
     #[error("Fetch service config error: {0}")]
     ResolveConfigFileError(#[from] crate::config::ResolveConfigFileError),
+    #[error("config transaction not found: {0}")]
+    ConfigTransactionNotFound(String),
+    #[error("config transaction expired: {0}")]
+    ConfigTransactionExpired(String),
+    #[error("config transaction mismatch, expected {expected}, got {actual}")]
+    ConfigTransactionMismatch { expected: String, actual: String },
+    #[error("config version mismatch, expected {expected}, got {actual}")]
+    ConfigVersionMismatch { expected: String, actual: String },
     // #[error("Config service error: {0}")]
     // ConfigError(C::Error),
 }
@@ -38,6 +56,7 @@ pub struct KernelContext {
     // pub(crate) controller_handle: Arc<RwLock<Option<controller::listener::ListenerHandle>>>,
     pub(crate) controller_listener_handle:
         Arc<RwLock<Option<controller::listener::ListenerHandle>>>,
+    pub(crate) pending_config_transaction: Arc<RwLock<Option<PendingConfigTransaction>>>,
 }
 
 impl KernelContext {
@@ -49,6 +68,7 @@ impl KernelContext {
             current_config: Arc::new(RwLock::new(model::ServiceConfig::default())),
             // controller_handle: Arc::new(tokio::sync::RwLock::new(None)),
             controller_listener_handle: Arc::new(tokio::sync::RwLock::new(None)),
+            pending_config_transaction: Arc::new(tokio::sync::RwLock::new(None)),
             tcp_switchboard: Arc::new(RwLock::new(TcpSwitchboard::new_halted())),
             state,
             state_receiver,
@@ -61,7 +81,10 @@ impl KernelContext {
     pub async fn fetch_config_locally(&self) -> Result<Option<model::ServiceConfig>, Error> {
         if let Some(config_path) = &self.kernel_config.config {
             if let Some(link) = config_path.as_link() {
-                tracing::info!("Loading service config from file: {}", link.to_string_lossy());
+                tracing::info!(
+                    "Loading service config from file: {}",
+                    link.to_string_lossy()
+                );
             }
             let config = crate::config::fetch_config(config_path.clone(), &FileResolver).await?;
             Ok(Some(config))
@@ -83,10 +106,15 @@ impl KernelContext {
         }
         // listen controller requests
         {
-            self.spawn_controller_listener().await;
+            let listener_handle = self.spawn_controller_listener().await;
+            *self.controller_listener_handle.write().await = Some(listener_handle);
         }
         Ok(())
     }
+    /// Load and apply a service config to the running switchboard.
+    ///
+    /// # Errors
+    /// Returns an error when switchboard router/listener update fails.
     pub async fn load_config(&self, sb_config: model::ServiceConfig) -> Result<(), Error> {
         // lock it up, make sure inner state unchanged during loading process
         let mut wg = self.tcp_switchboard.write().await;
@@ -176,10 +204,8 @@ impl KernelContext {
         Ok(())
     }
     pub fn set_state(&self, state: KernelState) {
-        {
-            self.state
-                .send(state)
-                .expect("shouldn't fail since we hold a receiver");
+        if let Err(err) = self.state.send(state) {
+            tracing::warn!("Failed to publish kernel state update: {}", err);
         }
     }
 
@@ -196,6 +222,118 @@ impl KernelContext {
             config_version: new_config_version,
         });
         self.set_state(running_state);
+        Ok(())
+    }
+
+    /// Prepare a configuration transaction on this kernel.
+    ///
+    /// # Errors
+    /// Returns an error when version does not match the config digest.
+    pub async fn prepare_config(
+        &self,
+        transaction_id: String,
+        config: model::ServiceConfig,
+        expected_version: String,
+        ttl_secs: Option<u64>,
+    ) -> Result<(), Error> {
+        {
+            let pending = self.pending_config_transaction.read().await;
+            if let Some(existing) = pending.as_ref() {
+                if existing.transaction_id == transaction_id
+                    && existing.target_version == expected_version
+                {
+                    return Ok(());
+                }
+                return Err(Error::ConfigTransactionMismatch {
+                    expected: existing.transaction_id.clone(),
+                    actual: transaction_id,
+                });
+            }
+        }
+        let target_version = config.digest_sha256_base64();
+        if target_version != expected_version {
+            return Err(Error::ConfigVersionMismatch {
+                expected: expected_version,
+                actual: target_version,
+            });
+        }
+        let preparing_state = KernelState::new(KernelStateKind::Preparing {
+            transaction_id: transaction_id.clone(),
+            target_version: expected_version.clone(),
+        });
+        self.set_state(preparing_state);
+        let ttl = ttl_secs.unwrap_or(DEFAULT_PREPARE_TTL_SECS);
+        let pending = PendingConfigTransaction {
+            transaction_id: transaction_id.clone(),
+            target_version: expected_version.clone(),
+            config,
+            expires_at: std::time::Instant::now() + Duration::from_secs(ttl),
+        };
+        *self.pending_config_transaction.write().await = Some(pending);
+        let prepared_state = KernelState::new(KernelStateKind::Prepared {
+            transaction_id,
+            target_version: expected_version,
+        });
+        self.set_state(prepared_state);
+        Ok(())
+    }
+
+    /// Commit a previously prepared transaction and apply it.
+    ///
+    /// # Errors
+    /// Returns an error when transaction is missing, expired, mismatched, or apply fails.
+    pub async fn commit_config(
+        &self,
+        transaction_id: &str,
+        expected_version: &str,
+    ) -> Result<(), Error> {
+        let config = {
+            let mut pending_lock = self.pending_config_transaction.write().await;
+            let pending = pending_lock
+                .as_ref()
+                .ok_or_else(|| Error::ConfigTransactionNotFound(transaction_id.to_string()))?;
+            if pending.transaction_id != transaction_id {
+                return Err(Error::ConfigTransactionMismatch {
+                    expected: pending.transaction_id.clone(),
+                    actual: transaction_id.to_string(),
+                });
+            }
+            if pending.target_version != expected_version {
+                return Err(Error::ConfigVersionMismatch {
+                    expected: pending.target_version.clone(),
+                    actual: expected_version.to_string(),
+                });
+            }
+            if std::time::Instant::now() > pending.expires_at {
+                return Err(Error::ConfigTransactionExpired(transaction_id.to_string()));
+            }
+            let config = pending.config.clone();
+            pending_lock.take();
+            config
+        };
+        self.set_state(KernelState::new(KernelStateKind::Committing {
+            transaction_id: transaction_id.to_string(),
+            target_version: expected_version.to_string(),
+        }));
+        self.update_config(config).await
+    }
+
+    /// Abort a prepared config transaction.
+    ///
+    /// # Errors
+    /// Returns an error when transaction is missing or mismatched.
+    pub async fn abort_config(&self, transaction_id: &str) -> Result<(), Error> {
+        let mut pending_lock = self.pending_config_transaction.write().await;
+        let pending = pending_lock
+            .as_ref()
+            .ok_or_else(|| Error::ConfigTransactionNotFound(transaction_id.to_string()))?;
+        if pending.transaction_id != transaction_id {
+            return Err(Error::ConfigTransactionMismatch {
+                expected: pending.transaction_id.clone(),
+                actual: transaction_id.to_string(),
+            });
+        }
+        pending_lock.take();
         Ok(())
     }
     pub async fn shutdown(&self) {

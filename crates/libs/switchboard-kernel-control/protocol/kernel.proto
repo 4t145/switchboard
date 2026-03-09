@@ -7,6 +7,12 @@ service KernelService {
   // UpdateConfig updates the kernel configuration
   // based on the provided format, version, and config data.
   rpc UpdateConfig (UpdateConfigRequest) returns (UpdateConfigResponse);
+  // PrepareConfig validates and stages config without applying it.
+  rpc PrepareConfig (PrepareConfigRequest) returns (PrepareConfigResponse);
+  // CommitConfig applies the previously prepared config transaction.
+  rpc CommitConfig (CommitConfigRequest) returns (CommitConfigResponse);
+  // AbortConfig aborts a prepared config transaction.
+  rpc AbortConfig (AbortConfigRequest) returns (AbortConfigResponse);
   // WatchStatus streams the current status of the kernel.
   rpc WatchStatus(WatchStatusRequest) returns (stream KernelState);
   // GetKernelInfo retrieves information about the kernel.
@@ -32,6 +38,45 @@ message UpdateConfigResponse {
   }
 }
 
+message PrepareConfigRequest {
+  string format = 1;
+  string version = 2;
+  string txn_id = 3;
+  bytes config = 4;
+  uint64 ttl_secs = 5;
+}
+
+message PrepareConfigResponse {
+  oneof result {
+    Empty success = 1;
+    ErrorStack error = 2;
+  }
+}
+
+message CommitConfigRequest {
+  string txn_id = 1;
+  string version = 2;
+}
+
+message CommitConfigResponse {
+  oneof result {
+    Empty success = 1;
+    ErrorStack error = 2;
+  }
+}
+
+message AbortConfigRequest {
+  string txn_id = 1;
+  string reason = 2;
+}
+
+message AbortConfigResponse {
+  oneof result {
+    Empty success = 1;
+    ErrorStack error = 2;
+  }
+}
+
 message WatchStatusRequest {
 
 }
@@ -49,6 +94,21 @@ message UpdatingState {
   string updating_to_version = 2;
 }
 
+message PreparingState {
+  string transaction_id = 1;
+  string target_version = 2;
+}
+
+message PreparedState {
+  string transaction_id = 1;
+  string target_version = 2;
+}
+
+message CommittingState {
+  string transaction_id = 1;
+  string target_version = 2;
+}
+
 message ShuttingDownState {
 
 }
@@ -64,6 +124,9 @@ message KernelStateKind {
     UpdatingState       updating       = 3;
     ShuttingDownState   shutting_down  = 4;
     StoppedState        stopped        = 5;
+    PreparingState      preparing      = 6;
+    PreparedState       prepared       = 7;
+    CommittingState     committing     = 8;
   }
 }
 

@@ -1,15 +1,14 @@
 use std::{future::ready, pin::Pin, time::Duration};
 
-use switchboard_kernel_control::{
-    kernel::{
-        kernel_service_server::{KernelService, KernelServiceServer},
-        *,
-    },
-    tonic_health,
+use switchboard_kernel_control::kernel::{
+    kernel_service_server::{KernelService, KernelServiceServer},
+    *,
 };
 use switchboard_model::ServiceConfig;
 
 use crate::KernelContext;
+
+const CONFIG_FORMAT_BINCODE: &str = "bincode";
 
 #[derive(Clone)]
 pub(crate) struct KernelServiceImpl {
@@ -44,6 +43,53 @@ impl StatusStream {
     }
 }
 
+fn response_success() -> UpdateConfigResponse {
+    UpdateConfigResponse {
+        result: Some(update_config_response::Result::Success(Empty {})),
+    }
+}
+
+fn response_error_from_stack(
+    error_stack: switchboard_model::error::ErrorStack,
+) -> UpdateConfigResponse {
+    UpdateConfigResponse {
+        result: Some(update_config_response::Result::Error(error_stack.into())),
+    }
+}
+
+fn decode_config_or_status(
+    format: &str,
+    config_data: &[u8],
+) -> Result<ServiceConfig, tonic::Status> {
+    if format != CONFIG_FORMAT_BINCODE {
+        return Err(tonic::Status::invalid_argument(format!(
+            "only bincode format is supported currently, but got format {}",
+            format
+        )));
+    }
+    bincode::decode_from_slice(config_data, bincode::config::standard())
+        .map(|(config, _)| config)
+        .map_err(|e| {
+            tonic::Status::invalid_argument(format!(
+                "Failed to decode config data in format {}: {}",
+                format, e
+            ))
+        })
+}
+
+fn validate_version_or_status(
+    controller_send_version: &str,
+    local_calculated_version: &str,
+) -> Result<(), tonic::Status> {
+    if controller_send_version != local_calculated_version {
+        return Err(tonic::Status::invalid_argument(format!(
+            "Config version mismatch: controller sent version {}, but calculated version is {}",
+            controller_send_version, local_calculated_version
+        )));
+    }
+    Ok(())
+}
+
 impl tokio_stream::Stream for StatusStream {
     type Item = Result<KernelState, tonic::Status>;
 
@@ -56,7 +102,10 @@ impl tokio_stream::Stream for StatusStream {
             .kernel_context
             .state_receiver
             .has_changed()
-            .expect("state channel has been closed unexpectedly")
+            .unwrap_or_else(|err| {
+                tracing::warn!("State channel status check failed: {}", err);
+                false
+            })
         {
             let state = this.kernel_context.get_state();
             let status: KernelState = state.into();
@@ -117,51 +166,149 @@ impl KernelService for KernelServiceImpl {
     {
         let request = request.into_inner();
         let format = request.format;
-        let config_data = request.config;
-        let controller_send_version = request.version;
-        // check if format is bincode 
-        if format != "bincode" {
-            let status = tonic::Status::invalid_argument(format!(
-                    "only bincode format is supported currently, but got format {}",
-                    format
-                ));
-                return Box::pin(ready(Err(status)));
-        }
-        // parse config
-        let decode_result = bincode::decode_from_slice(&config_data, bincode::config::standard());
-        let config: ServiceConfig = match decode_result {
-            Err(e) => {
-                let status = tonic::Status::invalid_argument(format!(
-                    "Failed to decode config data in format {}: {}",
-                    format, e
-                ));
-                return Box::pin(ready(Err(status)));
-            }
-            Ok((config, _)) => config,
+        let config = match decode_config_or_status(&format, &request.config) {
+            Ok(config) => config,
+            Err(status) => return Box::pin(ready(Err(status))),
         };
         let local_calculated_version = config.digest_sha256_base64();
-        if controller_send_version != local_calculated_version {
-            let status = tonic::Status::invalid_argument(format!(
-                "Config version mismatch: controller sent version {}, but calculated version is {}",
-                controller_send_version, local_calculated_version
-            ));
+        if let Err(status) = validate_version_or_status(&request.version, &local_calculated_version)
+        {
             return Box::pin(ready(Err(status)));
         }
         Box::pin(async move {
             let update_result = self.kernel_context.update_config(config).await;
             match update_result {
-                Ok(_) => {
-                    let response = UpdateConfigResponse { 
-                        result: Some(switchboard_kernel_control::kernel::update_config_response::Result::Success(Empty {})) 
-                    };
-                    Ok(tonic::Response::new(response))
+                Ok(_) => Ok(tonic::Response::new(response_success())),
+                Err(e) => {
+                    let error_stack = switchboard_model::error::ErrorStack::from_std(e);
+                    Ok(tonic::Response::new(response_error_from_stack(error_stack)))
                 }
+            }
+        })
+    }
+
+    fn prepare_config<'life0, 'async_trait>(
+        &'life0 self,
+        request: tonic::Request<PrepareConfigRequest>,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = std::result::Result<
+                        tonic::Response<PrepareConfigResponse>,
+                        tonic::Status,
+                    >,
+                > + Send
+                + 'async_trait,
+        >,
+    >
+    where
+        'life0: 'async_trait,
+        Self: 'async_trait,
+    {
+        let request = request.into_inner();
+        let format = request.format;
+        let config = match decode_config_or_status(&format, &request.config) {
+            Ok(config) => config,
+            Err(status) => return Box::pin(ready(Err(status))),
+        };
+        let local_calculated_version = config.digest_sha256_base64();
+        if let Err(status) = validate_version_or_status(&request.version, &local_calculated_version)
+        {
+            return Box::pin(ready(Err(status)));
+        }
+        let txn_id = request.txn_id;
+        let version = request.version;
+        let ttl_secs = if request.ttl_secs == 0 {
+            None
+        } else {
+            Some(request.ttl_secs)
+        };
+        Box::pin(async move {
+            match self
+                .kernel_context
+                .prepare_config(txn_id, config, version, ttl_secs)
+                .await
+            {
+                Ok(_) => Ok(tonic::Response::new(PrepareConfigResponse {
+                    result: Some(prepare_config_response::Result::Success(Empty {})),
+                })),
                 Err(e) => {
                     let error_stack = switchboard_model::error::ErrorStack::from_std(e).into();
-                    let response = UpdateConfigResponse { 
-                        result: Some(switchboard_kernel_control::kernel::update_config_response::Result::Error(error_stack)) 
-                    };
-                    Ok(tonic::Response::new(response))
+                    Ok(tonic::Response::new(PrepareConfigResponse {
+                        result: Some(prepare_config_response::Result::Error(error_stack)),
+                    }))
+                }
+            }
+        })
+    }
+
+    fn commit_config<'life0, 'async_trait>(
+        &'life0 self,
+        request: tonic::Request<CommitConfigRequest>,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = std::result::Result<
+                        tonic::Response<CommitConfigResponse>,
+                        tonic::Status,
+                    >,
+                > + Send
+                + 'async_trait,
+        >,
+    >
+    where
+        'life0: 'async_trait,
+        Self: 'async_trait,
+    {
+        let request = request.into_inner();
+        Box::pin(async move {
+            match self
+                .kernel_context
+                .commit_config(&request.txn_id, &request.version)
+                .await
+            {
+                Ok(_) => Ok(tonic::Response::new(CommitConfigResponse {
+                    result: Some(commit_config_response::Result::Success(Empty {})),
+                })),
+                Err(e) => {
+                    let error_stack = switchboard_model::error::ErrorStack::from_std(e).into();
+                    Ok(tonic::Response::new(CommitConfigResponse {
+                        result: Some(commit_config_response::Result::Error(error_stack)),
+                    }))
+                }
+            }
+        })
+    }
+
+    fn abort_config<'life0, 'async_trait>(
+        &'life0 self,
+        request: tonic::Request<AbortConfigRequest>,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = std::result::Result<
+                        tonic::Response<AbortConfigResponse>,
+                        tonic::Status,
+                    >,
+                > + Send
+                + 'async_trait,
+        >,
+    >
+    where
+        'life0: 'async_trait,
+        Self: 'async_trait,
+    {
+        let request = request.into_inner();
+        Box::pin(async move {
+            match self.kernel_context.abort_config(&request.txn_id).await {
+                Ok(_) => Ok(tonic::Response::new(AbortConfigResponse {
+                    result: Some(abort_config_response::Result::Success(Empty {})),
+                })),
+                Err(e) => {
+                    let error_stack = switchboard_model::error::ErrorStack::from_std(e).into();
+                    Ok(tonic::Response::new(AbortConfigResponse {
+                        result: Some(abort_config_response::Result::Error(error_stack)),
+                    }))
                 }
             }
         })

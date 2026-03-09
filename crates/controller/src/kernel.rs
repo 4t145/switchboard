@@ -1,6 +1,6 @@
 mod discovery;
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     fmt::Display,
     str::FromStr,
     sync::Arc,
@@ -13,9 +13,11 @@ pub use connection::*;
 use futures::FutureExt;
 use serde::Serialize;
 use switchboard_model::{
-    error::ErrorStack,
+    error::{ErrorStack, ResultObject},
     kernel::{KernelConnectionAndState, KernelInfoAndState},
 };
+
+const ROLLOUT_ABORT_REASON: &str = "all_or_nothing rollout failed";
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum KernelAddr {
     Uds(Arc<std::path::Path>),
@@ -172,12 +174,188 @@ impl KernelManager {
         task_set.join_all().await.into_iter().collect()
     }
 
+    /// Prepare a configuration transaction on all tracked kernels.
+    ///
+    /// # Errors
+    /// Each element may contain transport or kernel-side prepare errors.
+    pub async fn prepare_config(
+        &self,
+        transaction_id: &str,
+        new_config: switchboard_model::ServiceConfig,
+    ) -> Vec<(KernelAddr, Result<(), KernelGrpcConnectionError>)> {
+        let kernel_addrs = self.kernels.keys().cloned().collect::<Vec<_>>();
+        self.prepare_config_for(transaction_id, new_config, &kernel_addrs)
+            .await
+    }
+
+    /// Prepare a configuration transaction for selected kernels.
+    ///
+    /// # Errors
+    /// Each element may contain transport or kernel-side prepare errors.
+    pub async fn prepare_config_for(
+        &self,
+        transaction_id: &str,
+        new_config: switchboard_model::ServiceConfig,
+        kernel_addrs: &[KernelAddr],
+    ) -> Vec<(KernelAddr, Result<(), KernelGrpcConnectionError>)> {
+        let mut task_set = tokio::task::JoinSet::new();
+        let new_config = Arc::new(new_config);
+        let mut results = Vec::new();
+        let selected = kernel_addrs.iter().cloned().collect::<HashSet<_>>();
+        for addr in &selected {
+            let Some(kernel) = self.kernels.get(addr) else {
+                results.push((
+                    addr.clone(),
+                    Err(KernelGrpcConnectionError::KernelNotConnected),
+                ));
+                continue;
+            };
+            if let Some(handle) = kernel.get_connected_handle() {
+                let addr = addr.clone();
+                let config = new_config.clone();
+                let transaction_id = transaction_id.to_string();
+                let mut handle = handle.clone();
+                task_set.spawn(async move {
+                    handle
+                        .prepare_config(&transaction_id, config.as_ref())
+                        .map(|result| (addr, result))
+                        .await
+                });
+            } else {
+                results.push((
+                    addr.clone(),
+                    Err(KernelGrpcConnectionError::KernelNotConnected),
+                ));
+            }
+        }
+        results.extend(task_set.join_all().await);
+        results
+    }
+
+    /// Commit a prepared configuration transaction on all tracked kernels.
+    ///
+    /// # Errors
+    /// Each element may contain transport or kernel-side commit errors.
+    pub async fn commit_config(
+        &self,
+        transaction_id: &str,
+        version: &str,
+    ) -> Vec<(KernelAddr, Result<(), KernelGrpcConnectionError>)> {
+        let kernel_addrs = self.kernels.keys().cloned().collect::<Vec<_>>();
+        self.commit_config_for(transaction_id, version, &kernel_addrs)
+            .await
+    }
+
+    /// Commit a prepared configuration transaction for selected kernels.
+    ///
+    /// # Errors
+    /// Each element may contain transport or kernel-side commit errors.
+    pub async fn commit_config_for(
+        &self,
+        transaction_id: &str,
+        version: &str,
+        kernel_addrs: &[KernelAddr],
+    ) -> Vec<(KernelAddr, Result<(), KernelGrpcConnectionError>)> {
+        let mut task_set = tokio::task::JoinSet::new();
+        let mut results = Vec::new();
+        let selected = kernel_addrs.iter().cloned().collect::<HashSet<_>>();
+        for addr in &selected {
+            let Some(kernel) = self.kernels.get(addr) else {
+                results.push((
+                    addr.clone(),
+                    Err(KernelGrpcConnectionError::KernelNotConnected),
+                ));
+                continue;
+            };
+            if let Some(handle) = kernel.get_connected_handle() {
+                let addr = addr.clone();
+                let transaction_id = transaction_id.to_string();
+                let version = version.to_string();
+                let mut handle = handle.clone();
+                task_set.spawn(async move {
+                    handle
+                        .commit_config(&transaction_id, &version)
+                        .map(|result| (addr, result))
+                        .await
+                });
+            } else {
+                results.push((
+                    addr.clone(),
+                    Err(KernelGrpcConnectionError::KernelNotConnected),
+                ));
+            }
+        }
+        results.extend(task_set.join_all().await);
+        results
+    }
+
+    /// Abort a prepared configuration transaction for selected kernels.
+    ///
+    /// # Errors
+    /// Each element may contain transport or kernel-side abort errors.
+    pub async fn abort_config_for(
+        &self,
+        transaction_id: &str,
+        kernel_addrs: &[KernelAddr],
+    ) -> Vec<(KernelAddr, Result<(), KernelGrpcConnectionError>)> {
+        let mut task_set = tokio::task::JoinSet::new();
+        let mut results = Vec::new();
+        for addr in kernel_addrs {
+            let Some(kernel) = self.kernels.get(addr) else {
+                results.push((
+                    addr.clone(),
+                    Err(KernelGrpcConnectionError::KernelNotConnected),
+                ));
+                continue;
+            };
+            if let Some(handle) = kernel.get_connected_handle() {
+                let addr = addr.clone();
+                let transaction_id = transaction_id.to_string();
+                let mut handle = handle.clone();
+                task_set.spawn(async move {
+                    handle
+                        .abort_config(&transaction_id, ROLLOUT_ABORT_REASON)
+                        .map(|result| (addr, result))
+                        .await
+                });
+            } else {
+                results.push((
+                    addr.clone(),
+                    Err(KernelGrpcConnectionError::KernelNotConnected),
+                ));
+            }
+        }
+        results.extend(task_set.join_all().await);
+        results
+    }
+
     pub async fn shutdown_all(&mut self) {
         let addrs: Vec<KernelAddr> = self.kernels.keys().cloned().collect();
         for addr in addrs {
             self.remove_kernel(&addr).await;
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum RolloutStatus {
+    Succeeded,
+    Failed { phase: &'static str },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ConfigRolloutReport {
+    pub transaction_id: String,
+    pub all_or_nothing: bool,
+    pub status: RolloutStatus,
+    pub prepare_results: Vec<(KernelAddr, ResultObject<()>)>,
+    pub commit_results: Vec<(KernelAddr, ResultObject<()>)>,
+    pub abort_results: Vec<(KernelAddr, ResultObject<()>)>,
+    pub rollback_transaction_id: Option<String>,
+    pub rollback_prepare_results: Vec<(KernelAddr, ResultObject<()>)>,
+    pub rollback_commit_results: Vec<(KernelAddr, ResultObject<()>)>,
+    pub rollback_abort_results: Vec<(KernelAddr, ResultObject<()>)>,
 }
 #[derive(Clone)]
 pub struct KernelHandle {

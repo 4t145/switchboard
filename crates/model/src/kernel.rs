@@ -61,6 +61,18 @@ pub enum KernelStateKind {
         original_config_version: String,
         new_config_version: String,
     },
+    Preparing {
+        transaction_id: String,
+        target_version: String,
+    },
+    Prepared {
+        transaction_id: String,
+        target_version: String,
+    },
+    Committing {
+        transaction_id: String,
+        target_version: String,
+    },
     ShuttingDown,
     Stopped,
 }

@@ -1,6 +1,8 @@
 use switchboard_model::{self as model, chrono::DateTime};
 
-use crate::kernel::{KernelStateKind, RunningState};
+use crate::kernel::{
+    CommittingState, KernelStateKind, PreparedState, PreparingState, RunningState,
+};
 
 impl From<super::kernel::KernelInfo> for model::kernel::KernelInfo {
     fn from(info: super::kernel::KernelInfo) -> Self {
@@ -109,6 +111,24 @@ impl TryFrom<super::kernel::KernelState> for model::kernel::KernelState {
                         new_config_version: update.updating_to_version,
                     }
                 }
+                Some(super::kernel::kernel_state_kind::Kind::Preparing(preparing)) => {
+                    model::kernel::KernelStateKind::Preparing {
+                        transaction_id: preparing.transaction_id,
+                        target_version: preparing.target_version,
+                    }
+                }
+                Some(super::kernel::kernel_state_kind::Kind::Prepared(prepared)) => {
+                    model::kernel::KernelStateKind::Prepared {
+                        transaction_id: prepared.transaction_id,
+                        target_version: prepared.target_version,
+                    }
+                }
+                Some(super::kernel::kernel_state_kind::Kind::Committing(committing)) => {
+                    model::kernel::KernelStateKind::Committing {
+                        transaction_id: committing.transaction_id,
+                        target_version: committing.target_version,
+                    }
+                }
                 Some(super::kernel::kernel_state_kind::Kind::ShuttingDown(_)) => {
                     model::kernel::KernelStateKind::ShuttingDown
                 }
@@ -139,6 +159,27 @@ impl From<model::kernel::KernelState> for super::kernel::KernelState {
             } => super::kernel::kernel_state_kind::Kind::Updating(super::kernel::UpdatingState {
                 current_version: original_config_version,
                 updating_to_version: new_config_version,
+            }),
+            model::kernel::KernelStateKind::Preparing {
+                transaction_id,
+                target_version,
+            } => super::kernel::kernel_state_kind::Kind::Preparing(PreparingState {
+                transaction_id,
+                target_version,
+            }),
+            model::kernel::KernelStateKind::Prepared {
+                transaction_id,
+                target_version,
+            } => super::kernel::kernel_state_kind::Kind::Prepared(PreparedState {
+                transaction_id,
+                target_version,
+            }),
+            model::kernel::KernelStateKind::Committing {
+                transaction_id,
+                target_version,
+            } => super::kernel::kernel_state_kind::Kind::Committing(CommittingState {
+                transaction_id,
+                target_version,
             }),
             model::kernel::KernelStateKind::ShuttingDown => {
                 super::kernel::kernel_state_kind::Kind::ShuttingDown(

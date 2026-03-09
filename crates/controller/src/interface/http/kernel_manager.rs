@@ -3,15 +3,10 @@ use std::collections::BTreeMap;
 use axum::{Json, extract::State, response::Response};
 use switchboard_link_or_value::LinkOrValue;
 use switchboard_model::{
-    SerdeValue, error::ResultObject, kernel::KernelConnectionAndState,
-    resolve::file_style::ResolveConfigFileError,
+    SerdeValue, kernel::KernelConnectionAndState, resolve::file_style::ResolveConfigFileError,
 };
 
-use crate::{
-    interface::http::HttpState,
-    kernel::{KernelAddr, KernelGrpcConnectionError},
-    link_resolver::Link,
-};
+use crate::{interface::http::HttpState, kernel::KernelAddr, link_resolver::Link};
 
 pub async fn get_kernel_states(
     State(state): State<HttpState>,
@@ -39,11 +34,7 @@ pub async fn update_config(
             .controller_context
             .update_config(standard_config)
             .await;
-        let string_results: Vec<(KernelAddr, ResultObject<()>)> = results
-            .into_iter()
-            .map(|(addr, result)| (addr, ResultObject::from(result)))
-            .collect();
-        Ok::<_, ResolveConfigFileError>(string_results)
+        Ok::<_, ResolveConfigFileError>(results)
     };
     super::result_to_json_response(process.await)
 }

@@ -17,14 +17,25 @@ pub struct KernelGrpcConnection {
     pub state_updater: tokio::sync::watch::Sender<KernelState>,
 }
 
+const CONFIG_FORMAT_BINCODE: &str = "bincode";
+const DEFAULT_PREPARE_TTL_SECS: u64 = 60;
+
 #[derive(Debug, thiserror::Error)]
 pub enum KernelGrpcConnectionError {
+    #[error("Kernel is not connected")]
+    KernelNotConnected,
     #[error("gRPC connection error: {0}")]
     GrpcConnectError(#[from] tonic::transport::Error),
     #[error("gRPC request error: {0}")]
     GrpcRequestError(#[from] tonic::Status),
     #[error("Kernel update config error: {0}")]
     UpdateConfigError(#[from] ErrorStack),
+    #[error("Kernel prepare config error: {0}")]
+    PrepareConfigError(ErrorStack),
+    #[error("Kernel commit config error: {0}")]
+    CommitConfigError(ErrorStack),
+    #[error("Kernel abort config error: {0}")]
+    AbortConfigError(ErrorStack),
     #[error("Kernel state parse error: {0}")]
     StateParseError(#[from] switchboard_kernel_control::TryFromProtoKernelStateError),
 }
@@ -100,11 +111,10 @@ impl KernelGrpcConnection {
         new_config: &switchboard_model::ServiceConfig,
     ) -> Result<(), KernelGrpcConnectionError> {
         let version = new_config.digest_sha256_base64();
-        const FORMAT: &str = "bincode";
         let config_bytes = bincode::encode_to_vec(new_config, bincode::config::standard())
             .map_err(|e| tonic::Status::internal(format!("Config encode error: {}", e)))?;
         let request = switchboard_kernel_control::kernel::UpdateConfigRequest {
-            format: FORMAT.to_string(),
+            format: CONFIG_FORMAT_BINCODE.to_string(),
             config: config_bytes.to_vec(),
             version,
         };
@@ -121,6 +131,102 @@ impl KernelGrpcConnection {
             }
             None => Err(KernelGrpcConnectionError::GrpcRequestError(
                 tonic::Status::internal("Kernel returned empty result on config update"),
+            )),
+        }
+    }
+
+    /// Prepare a configuration transaction on kernel without applying it.
+    ///
+    /// # Errors
+    /// Returns an error when the gRPC request fails or kernel rejects preparation.
+    pub async fn prepare_config(
+        &mut self,
+        transaction_id: &str,
+        new_config: &switchboard_model::ServiceConfig,
+    ) -> Result<(), KernelGrpcConnectionError> {
+        let version = new_config.digest_sha256_base64();
+        let config_bytes = bincode::encode_to_vec(new_config, bincode::config::standard())
+            .map_err(|e| tonic::Status::internal(format!("Config encode error: {}", e)))?;
+        let request = switchboard_kernel_control::kernel::PrepareConfigRequest {
+            format: CONFIG_FORMAT_BINCODE.to_string(),
+            config: config_bytes,
+            version,
+            txn_id: transaction_id.to_string(),
+            ttl_secs: DEFAULT_PREPARE_TTL_SECS,
+        };
+        let response = self.client.prepare_config(request).await?.into_inner();
+        match response.result {
+            Some(switchboard_kernel_control::kernel::prepare_config_response::Result::Success(
+                _,
+            )) => Ok(()),
+            Some(switchboard_kernel_control::kernel::prepare_config_response::Result::Error(
+                error_stack,
+            )) => {
+                let error_stack: ErrorStack = error_stack.into();
+                Err(KernelGrpcConnectionError::PrepareConfigError(error_stack))
+            }
+            None => Err(KernelGrpcConnectionError::GrpcRequestError(
+                tonic::Status::internal("Kernel returned empty result on config prepare"),
+            )),
+        }
+    }
+
+    /// Commit a prepared configuration transaction on kernel.
+    ///
+    /// # Errors
+    /// Returns an error when the gRPC request fails or kernel rejects commit.
+    pub async fn commit_config(
+        &mut self,
+        transaction_id: &str,
+        version: &str,
+    ) -> Result<(), KernelGrpcConnectionError> {
+        let request = switchboard_kernel_control::kernel::CommitConfigRequest {
+            txn_id: transaction_id.to_string(),
+            version: version.to_string(),
+        };
+        let response = self.client.commit_config(request).await?.into_inner();
+        match response.result {
+            Some(switchboard_kernel_control::kernel::commit_config_response::Result::Success(
+                _,
+            )) => Ok(()),
+            Some(switchboard_kernel_control::kernel::commit_config_response::Result::Error(
+                error_stack,
+            )) => {
+                let error_stack: ErrorStack = error_stack.into();
+                Err(KernelGrpcConnectionError::CommitConfigError(error_stack))
+            }
+            None => Err(KernelGrpcConnectionError::GrpcRequestError(
+                tonic::Status::internal("Kernel returned empty result on config commit"),
+            )),
+        }
+    }
+
+    /// Abort a prepared configuration transaction on kernel.
+    ///
+    /// # Errors
+    /// Returns an error when the gRPC request fails or kernel rejects abort.
+    pub async fn abort_config(
+        &mut self,
+        transaction_id: &str,
+        reason: &str,
+    ) -> Result<(), KernelGrpcConnectionError> {
+        let request = switchboard_kernel_control::kernel::AbortConfigRequest {
+            txn_id: transaction_id.to_string(),
+            reason: reason.to_string(),
+        };
+        let response = self.client.abort_config(request).await?.into_inner();
+        match response.result {
+            Some(switchboard_kernel_control::kernel::abort_config_response::Result::Success(_)) => {
+                Ok(())
+            }
+            Some(switchboard_kernel_control::kernel::abort_config_response::Result::Error(
+                error_stack,
+            )) => {
+                let error_stack: ErrorStack = error_stack.into();
+                Err(KernelGrpcConnectionError::AbortConfigError(error_stack))
+            }
+            None => Err(KernelGrpcConnectionError::GrpcRequestError(
+                tonic::Status::internal("Kernel returned empty result on config abort"),
             )),
         }
     }
