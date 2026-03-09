@@ -1,6 +1,5 @@
 use std::{future::ready, pin::Pin, time::Duration};
 
-use switchboard_custom_config::formats::decode_bytes;
 use switchboard_kernel_control::{
     kernel::{
         kernel_service_server::{KernelService, KernelServiceServer},
@@ -120,8 +119,16 @@ impl KernelService for KernelServiceImpl {
         let format = request.format;
         let config_data = request.config;
         let controller_send_version = request.version;
+        // check if format is bincode 
+        if format != "bincode" {
+            let status = tonic::Status::invalid_argument(format!(
+                    "only bincode format is supported currently, but got format {}",
+                    format
+                ));
+                return Box::pin(ready(Err(status)));
+        }
         // parse config
-        let decode_result = decode_bytes(&format, config_data.into());
+        let decode_result = bincode::decode_from_slice(&config_data, bincode::config::standard());
         let config: ServiceConfig = match decode_result {
             Err(e) => {
                 let status = tonic::Status::invalid_argument(format!(
@@ -130,7 +137,7 @@ impl KernelService for KernelServiceImpl {
                 ));
                 return Box::pin(ready(Err(status)));
             }
-            Ok(config) => config,
+            Ok((config, _)) => config,
         };
         let local_calculated_version = config.digest_sha256_base64();
         if controller_send_version != local_calculated_version {

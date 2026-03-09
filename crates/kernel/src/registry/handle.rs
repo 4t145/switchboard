@@ -1,11 +1,8 @@
 use std::net::SocketAddr;
 
-use switchboard_custom_config::ConfigWithFormat;
-use switchboard_model::Tls;
 use switchboard_service::SerdeValue;
 // use switchboard_service::tcp::RunningTcpService;
 
-use super::RegistryError;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TcpServiceInfo {
@@ -21,9 +18,3 @@ pub struct TcpServiceInfo {
     pub bind_description: Option<String>,
     pub service_description: Option<String>,
 }
-
-// #[derive(Debug)]
-// pub struct TcpServiceHandle {
-//     pub service: Result<RunningTcpService, RegistryError>,
-//     pub info: TcpServiceInfo,
-// }

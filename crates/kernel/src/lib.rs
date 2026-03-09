@@ -1,10 +1,9 @@
 use std::{collections::HashSet, sync::Arc};
 
 use registry::Registry;
-use switchboard_custom_config::FsLinkResolver;
 use switchboard_model::kernel::{KernelState, KernelStateKind};
 use switchboard_service::tcp::TcpListener;
-
+use switchboard_file_resolver::FileResolver;
 pub mod config;
 pub mod controller;
 pub mod registry;
@@ -62,9 +61,9 @@ impl KernelContext {
     pub async fn fetch_config_locally(&self) -> Result<Option<model::ServiceConfig>, Error> {
         if let Some(config_path) = &self.kernel_config.config {
             if let Some(link) = config_path.as_link() {
-                tracing::info!("Loading service config from file: {}", link);
+                tracing::info!("Loading service config from file: {}", link.to_string_lossy());
             }
-            let config = crate::config::fetch_config(config_path.clone(), &FsLinkResolver).await?;
+            let config = crate::config::fetch_config(config_path.clone(), &FileResolver).await?;
             Ok(Some(config))
         } else {
             Ok(None)

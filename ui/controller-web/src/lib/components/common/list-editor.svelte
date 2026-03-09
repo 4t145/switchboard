@@ -17,6 +17,8 @@
 
 	type FilterFn<T> = (item: T) => boolean;
 	type Props<T> = {
+		id?: string;
+		label?: string;
 		value: T[];
 		selectionMode?: 'single' | 'multiple';
 		onSelectionChange?(value: T[]): void;
@@ -29,7 +31,10 @@
 <!-- script/s -->
 <script lang="ts" generics="T">
 	import { ListManager } from './list-editor/list-manager';
+	import { Listbox, useListCollection } from '@skeletonlabs/skeleton-svelte';
 	let {
+		id = undefined,
+		label = undefined,
 		value: rawValue,
 		selectionMode = 'single',
 		onSelectionChange = () => {},
@@ -52,7 +57,10 @@
 			}))
 		)
 	);
-	let itemViews = $derived(getItemsView());
+	let itemViews = $derived.by(() => {
+		version;
+		return getItemsView();
+	});
 	export function getSelected(): T[] {
 		return listManager
 			.getItems()
@@ -74,6 +82,7 @@
 						}
 					});
 				}
+				version += 1;
 				// Notify selection change
 				onSelectionChange(getSelected());
 			},
@@ -82,10 +91,12 @@
 			},
 			remove() {
 				listManager.remove(option.index);
+				version += 1;
 				// Notify selection change
 				onSelectionChange(getSelected());
 			},
 			set value(val: T) {
+				version += 1;
 				option.value.value = val;
 			},
 			get value() {
@@ -106,17 +117,20 @@
 		return {
 			setFilter(newFilter: FilterFn<T> | null) {
 				filter = newFilter;
+				version += 1;
 			},
 			removeItem(index: number) {
 				listManager.remove(index);
 				onValueChange(value);
 				onSelectionChange(getSelected());
+				version += 1;
 			},
 			pushItem(item: T) {
 				listManager.pushBack({
 					value: item,
 					selected: false
 				});
+				version += 1;
 			},
 			get value() {
 				return getValue();
@@ -126,9 +140,30 @@
 </script>
 
 <!-- expanded mode -->
-{@render control(listApi)}
-<div>
-	{#each itemViews as itemApi (itemApi.index)}
-		{@render item(itemApi)}
-	{/each}
+<div class="flex flex-col gap-2">
+	<div>
+		{@render control(listApi)}
+	</div>
+	<Listbox
+		class="w-full max-w-md flex-grow overflow-auto"
+		selectionMode={selectionMode}
+		onValueChange={
+			(e) => {
+				const selections = e.value;
+				const items = listManager.getItems().filter((item) => selections.includes(item.index));
+			}
+		}
+		collection={useListCollection({
+			items: value
+		})}
+	>
+		<Listbox.Content>
+			{#each itemViews as itemApi (itemApi.index)}
+				<Listbox.Item {item}>
+					<Listbox.ItemText>{@render item(itemApi)}</Listbox.ItemText>
+					<Listbox.ItemIndicator />
+				</Listbox.Item>
+			{/each}
+		</Listbox.Content>
+	</Listbox>
 </div>

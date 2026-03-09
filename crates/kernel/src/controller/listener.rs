@@ -2,7 +2,7 @@ use crate::KernelContext;
 use futures::TryStreamExt;
 use serde::{Deserialize, Serialize};
 
-use switchboard_custom_config::FsLinkResolver;
+use switchboard_file_resolver::FileResolver;
 use tracing::Instrument;
 
 // pub mod local;
@@ -52,7 +52,8 @@ impl KernelContext {
                 let addr: std::net::SocketAddr = (http_config.host, http_config.port).into();
                 let mut tls_acceptor = None;
                 if let Some(tls) = &http_config.tls {
-                    match tls.resolver.clone().resolve(&FsLinkResolver).await {
+                    let tls_resolver = tls.resolver.clone().resolve_to_standard(&FileResolver).await;
+                    match tls_resolver {
                         Ok(tls_resolver) => {
                             let tls_option = tls.options.clone();
                             let tls = switchboard_model::Tls {

@@ -30,19 +30,19 @@ pub fn build_tls_config(tls_config: Tls) -> Result<Arc<rustls::ServerConfig>, Tl
     let mut config = rustls::ServerConfig::builder()
         .with_no_client_auth()
         .with_cert_resolver(resolver);
-    config.alpn_protocols = tls_config
-        .options
+    let tls_config_option = tls_config.options.unwrap_or_default();
+    config.alpn_protocols = tls_config_option
         .alpn_protocols
         .into_iter()
         .map(|s| s.into_bytes())
         .collect();
-    config.ignore_client_order = tls_config.options.ignore_client_order;
-    config.max_early_data_size = tls_config.options.max_early_data_size;
-    config.enable_secret_extraction = tls_config.options.enable_secret_extraction;
-    config.max_fragment_size = tls_config.options.max_fragment_size.map(|x| x as usize);
-    config.send_half_rtt_data = tls_config.options.send_half_rtt_data;
-    config.send_tls13_tickets = tls_config.options.send_tls13_tickets as usize;
-    config.require_ems = tls_config.options.require_ems;
+    config.ignore_client_order = tls_config_option.ignore_client_order;
+    config.max_early_data_size = tls_config_option.max_early_data_size;
+    config.enable_secret_extraction = tls_config_option.enable_secret_extraction;
+    config.max_fragment_size = tls_config_option.max_fragment_size.map(|x| x as usize);
+    config.send_half_rtt_data = tls_config_option.send_half_rtt_data;
+    config.send_tls13_tickets = tls_config_option.send_tls13_tickets as usize;
+    config.require_ems = tls_config_option.require_ems;
     Ok(Arc::new(config))
 }
 
@@ -79,16 +79,18 @@ fn build_resolver(resolver: TlsResolver) -> Result<Arc<dyn ResolvesServerCert>, 
     }
 }
 fn convert_tls_param(params: TlsCertParams) -> Result<TlsCkParams, &'static str> {
-    let key = PrivateKeyDer::try_from(params.key.0)?;
+    let key = PrivateKeyDer::try_from(params.key.0.into_contents())?;
     let certs = params
         .certs
+        .0
         .into_iter()
-        .map(|x| x.0)
+        .map(|x| x.into_contents())
         .map(CertificateDer::from)
         .collect();
     let ocsp = params.ocsp.map(|x| x.0);
     Ok(TlsCkParams { certs, key, ocsp })
 }
+
 fn sni_resolver(
     provider: &Arc<CryptoProvider>,
     items: impl Iterator<Item = (String, TlsCkParams)>,

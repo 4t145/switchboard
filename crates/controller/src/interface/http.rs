@@ -4,7 +4,7 @@ mod state;
 mod storage;
 mod utils;
 
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 
 use axum::response::IntoResponse as _;
 use http::HeaderValue;
@@ -21,7 +21,7 @@ pub struct HttpInterfaceConfig {
 impl Default for HttpInterfaceConfig {
     fn default() -> Self {
         HttpInterfaceConfig {
-            bind: SocketAddr::from(([0, 0, 0, 0], 8056)),
+            bind: SocketAddr::from((IpAddr::V6(Ipv6Addr::LOCALHOST), 8056)),
         }
     }
 }
