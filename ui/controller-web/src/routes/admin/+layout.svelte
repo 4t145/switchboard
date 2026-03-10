@@ -3,13 +3,13 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { Menu, Home, Activity, Database, Settings, Factory, X } from '@lucide/svelte';
+	import { Menu, Home, Activity, Database, Settings, Factory, X, CloudUpload } from '@lucide/svelte';
 	import Logo from '$lib/components/logo.svelte';
 	import { settingsStore } from '$lib/stores/settings.svelte';
 	import { initializeGlobalAPI } from '$lib/plugins/global-api';
 	import { registerAllPlugins } from '$lib/plugins/register';
 	import { loadPluginsFromServer } from '$lib/plugins/loader';
-
+	
 	let { children } = $props();
 
 	let isLayoutRail = $state(false);
@@ -84,7 +84,8 @@
 		database: Database,
 		settings: Settings,
 		factory: Factory,
-		x: X
+		x: X,
+		cloud_upload: CloudUpload,
 	};
 
 	const navigationItems: {
@@ -100,7 +101,8 @@
 			href: '/admin/services'
 		},
 		{ label: 'Build', icon: 'factory', href: '/admin/build' },
-		{ label: 'Storage', icon: 'database', href: '/admin/storage' }
+		{ label: 'Storage', icon: 'database', href: '/admin/storage' },
+		{ label: 'Deploy', icon: 'cloud_upload', href: '/admin/deploy' }
 	];
 
 	// 计算当前活跃路径
