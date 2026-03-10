@@ -5,7 +5,6 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-// use switchboard_custom_config::{LinkOrValue, LinkResolver};
 use switchboard_link_or_value::{
     LinkOrValue, Resolvable, Resolver, resolver::string_parse::StringParseResolver,
 };

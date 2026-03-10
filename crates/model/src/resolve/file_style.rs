@@ -272,7 +272,7 @@ impl<L> FileStyleConfig<L> {
             let service_name = service_config.name.clone();
             let resolved_config = if let Some(link) = &service_config.config {
                 let resolved: SerdeValue = link.clone().resolve_with(resolver).await.map_err(
-                    ResolveConfigFileError::when_resolve("resolve service config"),
+                    ResolveConfigFileError::when_resolve("resolve tcp service config"),
                 )?;
                 let resolved =
                     fs_preprocess_service_config(&service_config.provider, resolver, resolved)

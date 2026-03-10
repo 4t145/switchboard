@@ -6019,22 +6019,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "switchboard-custom-config"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "bincode 2.0.1",
- "bytes",
- "serde",
- "serde_json",
- "serde_toon",
- "switchboard-serde-value",
- "thiserror 2.0.17",
- "tokio",
- "toml",
-]
-
-[[package]]
 name = "switchboard-deno"
 version = "0.1.0"
 dependencies = [

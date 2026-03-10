@@ -5,7 +5,7 @@ use crate::error::ErrorStack;
 
 pub const UDS_DEFAULT_PATH: &str = "/var/run/switchboard/kernel/default.sock";
 pub const UDS_DEFAULT_DIR: &str = "/var/run/switchboard/kernel/";
-pub const HTTP_DEFAULT_PORT: u16 = 8056;
+pub const HTTP_DEFAULT_PORT: u16 = 8055;
 
 #[derive(
     Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq,
