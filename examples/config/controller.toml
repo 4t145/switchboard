@@ -2,8 +2,8 @@
 name = "My Controller"
 description = "This is my controller"
 
-[kernel.discovery.uds]
-dir = "./tmp/run/kernel/"
+[kernel.discovery]
+local = "./tmp/run/kernel/"
 
 [interface.http]
 

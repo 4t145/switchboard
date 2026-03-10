@@ -5,13 +5,10 @@ use serde::{Deserialize, Serialize};
 use switchboard_file_resolver::FileResolver;
 use tracing::Instrument;
 
-// pub mod local;
 pub mod http;
-pub mod uds;
 
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 pub struct ListenerConfig {
-    pub uds: Option<uds::UdsListenerConfig>,
     pub http: Option<http::HttpListenerConfig>,
 }
 
@@ -52,7 +49,11 @@ impl KernelContext {
                 let addr: std::net::SocketAddr = (http_config.host, http_config.port).into();
                 let mut tls_acceptor = None;
                 if let Some(tls) = &http_config.tls {
-                    let tls_resolver = tls.resolver.clone().resolve_to_standard(&FileResolver).await;
+                    let tls_resolver = tls
+                        .resolver
+                        .clone()
+                        .resolve_to_standard(&FileResolver)
+                        .await;
                     match tls_resolver {
                         Ok(tls_resolver) => {
                             let tls_option = tls.options.clone();
@@ -139,37 +140,15 @@ impl KernelContext {
                 }
             }
         }
-        'bind_uds: {
-            if let Some(uds_config) = &listener_config.uds {
-                let path = &uds_config.path;
-                let path_display = path.to_string_lossy();
-                let listener = match tokio::net::UnixListener::bind(path.clone()) {
-                    Err(e) => {
-                        tracing::error!(
-                            "Failed to bind controller uds listener on {}: {}",
-                            path_display,
-                            e
-                        );
-                        break 'bind_uds;
-                    }
-                    Ok(listener) => listener,
-                };
-                let incoming = tokio_stream::wrappers::UnixListenerStream::new(listener);
-                tracing::info!("Controller uds gRPC listening on {}", path_display);
-                let span = tracing::info_span!("controller-uds-listener", path = %path_display);
-                join_set.spawn(
-                    tonic::transport::Server::builder()
-                        .add_service(grpc_server)
-                        .serve_with_incoming_shutdown(incoming, ct.child_token().cancelled_owned())
-                        .instrument(span),
-                );
-            }
-        }
         ListenerHandle { ct, join_set }
     }
     pub async fn shutdown_controller_listener(&self) {
         if let Some(handle) = self.controller_listener_handle.write().await.take() {
             handle.shutdown().await;
         }
+        let _ = self
+            .unpublish_discovery()
+            .await
+            .inspect_err(|e| tracing::error!("fail to unpublish discovery {e}"));
     }
 }

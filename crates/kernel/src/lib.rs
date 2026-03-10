@@ -40,6 +40,9 @@ pub enum Error {
     ConfigTransactionMismatch { expected: String, actual: String },
     #[error("config version mismatch, expected {expected}, got {actual}")]
     ConfigVersionMismatch { expected: String, actual: String },
+
+    #[error("Publish discovery error: {0}")]
+    PublishDiscoveryError(#[from] crate::controller::discovery::PublishError),
     // #[error("Config service error: {0}")]
     // ConfigError(C::Error),
 }
@@ -57,6 +60,8 @@ pub struct KernelContext {
     pub(crate) controller_listener_handle:
         Arc<RwLock<Option<controller::listener::ListenerHandle>>>,
     pub(crate) pending_config_transaction: Arc<RwLock<Option<PendingConfigTransaction>>>,
+    /// The handle for discovery publication, which can be used to unpublish on shutdown.
+    pub(crate) discovery_handle: Arc<RwLock<Option<controller::discovery::PublishHandle>>>,
 }
 
 impl KernelContext {
@@ -72,6 +77,7 @@ impl KernelContext {
             tcp_switchboard: Arc::new(RwLock::new(TcpSwitchboard::new_halted())),
             state,
             state_receiver,
+            discovery_handle: Arc::new(RwLock::new(None)),
         }
     }
     pub fn get_state(&self) -> KernelState {
@@ -108,6 +114,14 @@ impl KernelContext {
         {
             let listener_handle = self.spawn_controller_listener().await;
             *self.controller_listener_handle.write().await = Some(listener_handle);
+        }
+        // publish discovery
+        {
+            if let Some(me) = self.get_discovery_info() {
+                self.publish_discovery(me).await?;
+            } else {
+                tracing::info!("No discovery info available, skipping discovery publication");
+            }
         }
         Ok(())
     }

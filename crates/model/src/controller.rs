@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+pub const HTTP_CONTROLLER_DEFAULT_PORT: u16 = 8056;
 
 #[derive(
     Debug, Clone, Hash, Serialize, Deserialize, bincode::Encode, bincode::Decode, PartialEq, Eq,

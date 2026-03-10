@@ -21,14 +21,14 @@ const ROLLOUT_ABORT_REASON: &str = "all_or_nothing rollout failed";
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum KernelAddr {
     Uds(Arc<std::path::Path>),
-    Http(Arc<str>),
+    Grpc(Arc<str>),
 }
 
 impl Display for KernelAddr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             KernelAddr::Uds(path) => write!(f, "unix://{}", path.display()),
-            KernelAddr::Http(addr) => write!(f, "{}", addr),
+            KernelAddr::Grpc(addr) => write!(f, "{}", addr),
         }
     }
 }
@@ -50,7 +50,7 @@ impl FromStr for KernelAddr {
                 "uds" | "unix" => Ok(KernelAddr::Uds(
                     std::path::PathBuf::from(path).as_path().into(),
                 )),
-                "http" | "https" | "grpc" => Ok(KernelAddr::Http(path.into())),
+                "http" | "https" | "grpc" => Ok(KernelAddr::Grpc(path.into())),
                 _ => Err(KernelAddrParseError::UnknownFormat {
                     format: schema.to_string(),
                 }),
@@ -130,9 +130,19 @@ impl KernelManager {
         }
         states
     }
-    pub fn add_new_kernel(&mut self, addr: KernelAddr) {
-        tracing::debug!("Adding new kernel at addr: {:?}", addr);
-        self.kernels.insert(addr.clone(), KernelHandle::new(addr));
+    pub async fn add_new_kernel(&mut self, kernel: DiscoveredKernel) {
+        let addr = kernel.addr.clone();
+        tracing::debug!(?kernel, "Adding new kernel at addr: {:?}", kernel.addr);
+        let Ok(conn) = KernelGrpcConnection::connect(addr.clone())
+            .await
+            .inspect_err(|e| tracing::error!(?kernel, "cannot connect to addr {addr}: {e}"))
+        else {
+            self.kernels
+                .insert(addr.clone(), KernelHandle::new_disconnected(addr));
+            return;
+        };
+        self.kernels
+            .insert(addr.clone(), KernelHandle::new_connected(addr, conn));
     }
     pub async fn remove_kernel(&mut self, addr: &KernelAddr) {
         let handle = self.kernels.remove(addr);
@@ -364,7 +374,13 @@ pub struct KernelHandle {
 }
 
 impl KernelHandle {
-    pub fn new(addr: KernelAddr) -> Self {
+    pub fn new_connected(addr: KernelAddr, conn: KernelGrpcConnection) -> Self {
+        Self {
+            addr,
+            state: KernelHandleState::Connected(conn),
+        }
+    }
+    pub fn new_disconnected(addr: KernelAddr) -> Self {
         Self {
             addr,
             state: KernelHandleState::Disconnected,

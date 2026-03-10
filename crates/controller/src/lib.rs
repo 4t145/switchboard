@@ -18,6 +18,7 @@ pub struct ControllerContext {
     pub storage: storage::SharedStorage,
     pub resolve: Arc<resolve::ServiceConfigResolverRegistry>,
     pub current_config: Arc<RwLock<Option<switchboard_model::ServiceConfig>>>,
+    pub scan_task: Arc<RwLock<Option<kernel::ScanTaskHandle>>>,
 }
 
 impl ControllerContext {
@@ -29,12 +30,14 @@ impl ControllerContext {
             controller_config: controller_config.into(),
             resolve: resolve::ServiceConfigResolverRegistry::prelude().into(),
             current_config: Arc::new(RwLock::new(None)),
+            scan_task: Arc::new(RwLock::new(None)),
         };
         Ok(this)
     }
     pub async fn startup(&self) -> Result<()> {
         self.start_up_all_interfaces().await?;
         self.refresh_kernels().await?;
+        self.spawn_scan_task().await;
         Ok(())
     }
     pub async fn shutdown(&self) -> Result<()> {

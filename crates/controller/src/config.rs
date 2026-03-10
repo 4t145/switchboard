@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use switchboard_model::{controller::ControllerInfo, protocol::DEFAULT_STATE_REPORT_INTERVAL_SECS};
 
-use crate::{interface::InterfaceConfig, storage::StorageProvider};
+use crate::{interface::InterfaceConfig, kernel::KernelDiscoveryConfig, storage::StorageProvider};
 
 /// Controller Configuration
 /// # Example
@@ -43,11 +43,6 @@ pub struct KernelConfig {
     // pub psk: Base64Bytes,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Default, Hash, PartialEq, Eq)]
-#[serde(default)]
-pub struct KernelDiscoveryConfig {
-    pub uds: KernelDiscoveryUdsConfig,
-}
 
 #[derive(Debug, Clone, Deserialize, Serialize, Hash, PartialEq, Eq)]
 #[serde(default)]
@@ -65,30 +60,12 @@ impl Default for KernelConnectConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Hash, PartialEq, Eq)]
-#[serde(default)]
-pub struct KernelDiscoveryUdsConfig {
-    pub dir: PathBuf,
-    pub scan_interval_secs: u32,
-    pub max_frame_size: u32,
-}
-
 impl Default for KernelConfig {
     fn default() -> Self {
         KernelConfig {
             discovery: KernelDiscoveryConfig::default(),
             // connect: KernelConnectConfig::default(),
             // psk: Base64Bytes(Vec::new()),
-        }
-    }
-}
-
-impl Default for KernelDiscoveryUdsConfig {
-    fn default() -> Self {
-        KernelDiscoveryUdsConfig {
-            dir: PathBuf::from(switchboard_model::kernel::UDS_DEFAULT_DIR),
-            scan_interval_secs: 10,
-            max_frame_size: 1 << 22,
         }
     }
 }

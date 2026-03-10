@@ -3,7 +3,12 @@
 	import { Steps } from '@skeletonlabs/skeleton-svelte';
 	import StepSourceSelection from './step-source-selection.svelte';
 	import StepConfigEditor from './step-config-editor.svelte';
-	import type { HumanReadableServiceConfig } from '$lib/api/types';
+	import type {
+		ConfigRolloutReport,
+		HumanReadableServiceConfig,
+		KernelRolloutResult,
+		ResultObject
+	} from '$lib/api/types';
 	import { api } from '$lib/api/routes';
 
 	const stepDefinitions = [
@@ -25,6 +30,7 @@
 	let isDeploying = $state(false);
 	let deploySuccess = $state(false);
 	let deployError = $state<string | null>(null);
+	let deployTransactionId = $state<string | null>(null);
 
 	// Reference to child component
 	let stepSourceSelectionRef: any;
@@ -51,6 +57,54 @@
 		// Reset deploy states
 		deploySuccess = false;
 		deployError = null;
+		deployTransactionId = null;
+	}
+
+	function getResultErrorMessage(result: ResultObject<null>): string | null {
+		if ('error' in result) {
+			const frames = result.error.frames || [];
+			if (frames.length === 0) return 'Unknown error';
+			return frames.map((f: { error: string }) => f.error).join(' -> ');
+		}
+		return null;
+	}
+
+	function collectStageFailures(stage: string, results: KernelRolloutResult[]): string[] {
+		return results
+			.map(([addr, result]) => {
+				const message = getResultErrorMessage(result);
+				return message ? `${stage} | ${addr}: ${message}` : null;
+			})
+			.filter((item): item is string => item !== null);
+	}
+
+	function buildRolloutFailureMessage(report: ConfigRolloutReport): string {
+		const phase = report.status.status === 'failed' ? report.status.phase : 'unknown';
+		const lines = [
+			`transaction_id: ${report.transaction_id}`,
+			`failed_phase: ${phase}`,
+			`all_or_nothing: ${report.all_or_nothing}`
+		];
+
+		const failures = [
+			...collectStageFailures('prepare', report.prepare_results),
+			...collectStageFailures('commit', report.commit_results),
+			...collectStageFailures('abort', report.abort_results),
+			...collectStageFailures('rollback_prepare', report.rollback_prepare_results),
+			...collectStageFailures('rollback_commit', report.rollback_commit_results),
+			...collectStageFailures('rollback_abort', report.rollback_abort_results)
+		];
+
+		if (report.rollback_transaction_id) {
+			lines.push(`rollback_transaction_id: ${report.rollback_transaction_id}`);
+		}
+
+		if (failures.length > 0) {
+			lines.push('', 'errors:');
+			lines.push(...failures);
+		}
+
+		return lines.join('\n');
 	}
 
 	function handleCancelSubStep() {
@@ -74,37 +128,23 @@
 		isDeploying = true;
 		deploySuccess = false;
 		deployError = null;
+		deployTransactionId = null;
 
 		try {
-			// Call update_config API
-			const results = await api.kernelManager.updateConfig(config as HumanReadableServiceConfig);
+			const report = await api.kernelManager.updateConfig(config as HumanReadableServiceConfig);
+			deployTransactionId = report.transaction_id;
 
-			// Check if all kernel updates succeeded
-			const failures = results.filter(([_, result]) => 'error' in result);
-
-			if (failures.length > 0) {
-				// Some kernels failed to update
-				const errorMessages = failures
-					.map(([addr, result]) => {
-						if ('error' in result) {
-							const frames = result.error.frames || [];
-							const errorMsg = frames.map((f: { error: string }) => f.error).join(' -> ');
-							return `${addr}: ${errorMsg}`;
-						}
-						return '';
-					})
-					.filter(Boolean);
-
-				deployError = `Failed to update ${failures.length} kernel(s):\n${errorMessages.join('\n')}`;
-				deploySuccess = false;
-			} else {
-				// All succeeded
+			if (report.status.status === 'succeeded') {
 				deploySuccess = true;
 				deployError = null;
+			} else {
+				deploySuccess = false;
+				deployError = buildRolloutFailureMessage(report);
 			}
 		} catch (err) {
 			deployError = err instanceof Error ? err.message : 'Failed to deploy configuration';
 			deploySuccess = false;
+			deployTransactionId = null;
 		} finally {
 			isDeploying = false;
 		}
@@ -194,7 +234,12 @@
 				class="mb-3 flex items-center gap-2 rounded bg-success-100 p-3 text-success-700 dark:bg-success-900 dark:text-success-300"
 			>
 				<CheckCircle2 class="h-5 w-5 flex-shrink-0" />
-				<span>配置已成功部署到所有 kernels！</span>
+				<div class="text-sm">
+					<div>配置已成功部署到所有 kernels！</div>
+					{#if deployTransactionId}
+						<div class="mt-1 font-mono text-xs">transaction_id: {deployTransactionId}</div>
+					{/if}
+				</div>
 			</div>
 		{:else if deployError}
 			<div

@@ -1,8 +1,32 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
-use crate::{ControllerContext, kernel::KernelAddr};
+use crate::{ControllerContext, kernel::uds::KernelDiscoveryUdsConfig};
+use serde::{Deserialize, Serialize};
 use switchboard_model::error::ResultObject;
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
+
+pub mod local;
+#[cfg(target_family = "unix")]
+pub mod uds;
+
+#[derive(Debug, Clone, Deserialize, Serialize, Hash, PartialEq, Eq)]
+#[serde(default)]
+pub struct KernelDiscoveryConfig {
+    pub uds: KernelDiscoveryUdsConfig,
+    pub local: Option<PathBuf>,
+    pub scan: ScanTaskConfig,
+}
+
+impl Default for KernelDiscoveryConfig {
+    fn default() -> Self {
+        KernelDiscoveryConfig {
+            uds: KernelDiscoveryUdsConfig::default(),
+            local: Some(switchboard_model::kernel::RUN_FILE_DEFAULT_DIR.into()),
+            scan: ScanTaskConfig::default(),
+        }
+    }
+}
 
 const PHASE_PREPARE: &str = "prepare";
 const PHASE_COMMIT: &str = "commit";
@@ -16,60 +40,38 @@ const PHASE_ROLLBACK_COMMIT: &str = "rollback_commit";
 pub enum KernelDiscoveryError {
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
+    #[error("JSON serialization error: {0}")]
+    JsonError(#[from] serde_json::Error),
     #[error("socket without file stem at path: {0}")]
     SocketWithoutFileStem(std::path::PathBuf),
 }
 
-#[cfg(target_family = "unix")]
-pub async fn scan_uds(
-    socket_dir: &std::path::Path,
-) -> Result<HashMap<String, crate::kernel::KernelAddr>, KernelDiscoveryError> {
-    // check if the socket dir exists
-    if !socket_dir.exists() {
-        tracing::warn!(
-            "UDS socket dir {:?} does not exist, skipping UDS kernel discovery",
-            socket_dir
-        );
-        return Ok(HashMap::new());
-    }
-    let mut dir = tokio::fs::read_dir(socket_dir).await?;
-    let mut instances = HashMap::default();
-    while let Some(entry) = dir.next_entry().await? {
-        use std::os::unix::fs::FileTypeExt;
-        if entry.file_type().await?.is_socket() {
-            let path = entry.path();
-            let stem = path
-                .file_stem()
-                .ok_or_else(|| KernelDiscoveryError::SocketWithoutFileStem(path.clone()))?;
-            instances.insert(
-                stem.to_string_lossy().to_string(),
-                KernelAddr::Uds(path.as_path().into()),
-            );
-        }
-    }
-
-    Ok(instances)
+#[derive(Debug, Clone)]
+pub struct DiscoveredKernel {
+    pub addr: crate::kernel::KernelAddr,
+    pub info: switchboard_model::discovery::DiscoveryInfo,
 }
 
 impl ControllerContext {
     pub(crate) async fn discover_kernels(
         &self,
-    ) -> Result<HashMap<String, crate::kernel::KernelAddr>, KernelDiscoveryError> {
+    ) -> Result<HashMap<String, DiscoveredKernel>, KernelDiscoveryError> {
+        let mut kernels = HashMap::new();
+        if let Some(local_dir) = &self.controller_config.kernel.discovery.local {
+            let local_kernels = local::scan_local_kernels(local_dir).await?;
+            kernels.extend(local_kernels);
+        }
         #[cfg(target_family = "unix")]
         {
-            let uds_sockets = scan_uds(&self.controller_config.kernel.discovery.uds.dir).await?;
-            Ok(uds_sockets)
+            // TODO: uds discovery is currently disabled.
         }
-        #[cfg(not(target_family = "unix"))]
-        {
-            Ok(HashMap::new())
-        }
+        Ok(kernels)
     }
     pub async fn refresh_kernels(&self) -> Result<(), crate::Error> {
         let new_kernels = self.discover_kernels().await?;
         let new_kernel_keys = new_kernels
             .values()
-            .cloned()
+            .map(|k| k.addr.clone())
             .collect::<std::collections::HashSet<_>>();
         let mut kernel_manager = self.kernel_manager.write().await;
         let existed_kernel_keys = kernel_manager
@@ -81,9 +83,9 @@ impl ControllerContext {
             .difference(&new_kernel_keys)
             .cloned()
             .collect::<Vec<_>>();
-        for (_, addr) in new_kernels.iter() {
-            if !kernel_manager.kernels.contains_key(addr) {
-                kernel_manager.add_new_kernel(addr.clone());
+        for (_, kernel) in new_kernels.iter() {
+            if !kernel_manager.kernels.contains_key(&kernel.addr) {
+                kernel_manager.add_new_kernel(kernel.clone()).await;
             }
         }
         for addr in deleted_kernels.drain(..) {
@@ -267,6 +269,76 @@ impl ControllerContext {
             rollback_prepare_results: Vec::new(),
             rollback_commit_results: Vec::new(),
             rollback_abort_results: Vec::new(),
+        }
+    }
+}
+
+pub struct ScanTaskHandle {
+    task: tokio::task::JoinHandle<()>,
+    ct: CancellationToken,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
+pub struct ScanTaskConfig {
+    pub scan_interval: u32,
+}
+
+impl Default for ScanTaskConfig {
+    fn default() -> Self {
+        Self {
+            scan_interval: 1000,
+        }
+    }
+}
+
+impl ScanTaskHandle {
+    pub async fn cancel(self) {
+        self.ct.cancel();
+        let _ = self
+            .task
+            .await
+            .inspect_err(|e| tracing::error!("ScanTask canceled with error: {e}"));
+    }
+    pub fn abort(&self) {
+        self.task.abort();
+    }
+    pub fn spawn(config: ScanTaskConfig, context: crate::ControllerContext) -> Self {
+        let ct = CancellationToken::default();
+        let handle_ct = ct.clone();
+        let task = async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_millis(
+                config.scan_interval as u64,
+            ));
+            loop {
+                tokio::select! {
+                    _ = ct.cancelled() => break,
+                    _ = interval.tick() => {
+
+                    }
+                }
+                let refresh_result = context.refresh_kernels().await;
+                if let Err(e) = refresh_result {
+                    tracing::error!("fail to refresh kernels {e}");
+                }
+            }
+        };
+        let task = tokio::spawn(task);
+        Self {
+            task,
+            ct: handle_ct,
+        }
+    }
+}
+
+impl crate::ControllerContext {
+    pub async fn spawn_scan_task(&self) {
+        let config = self.controller_config.kernel.discovery.scan.clone();
+        let handle = ScanTaskHandle::spawn(config, self.clone());
+        self.scan_task.write().await.replace(handle);
+    }
+    pub async fn cancel_scan_task(&self) {
+        if let Some(task) = self.scan_task.write().await.take() {
+            task.cancel().await;
         }
     }
 }

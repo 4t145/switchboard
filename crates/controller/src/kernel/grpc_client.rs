@@ -11,7 +11,7 @@ impl KernelAddr {
             KernelAddr::Uds(path) => tonic::transport::Endpoint::from_shared(
                 path.as_os_str().as_encoded_bytes().to_vec(),
             )?,
-            KernelAddr::Http(url) => tonic::transport::Endpoint::from_shared(url.to_string())?,
+            KernelAddr::Grpc(url) => tonic::transport::Endpoint::from_shared(url.to_string())?,
         };
         let channel = endpoint.connect().await?;
         let client = <KernelServiceClient<tonic::transport::Channel>>::new(channel);

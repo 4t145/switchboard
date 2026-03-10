@@ -9,7 +9,7 @@ use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use axum::response::IntoResponse as _;
 use http::HeaderValue;
 use serde::{Deserialize, Serialize};
-use switchboard_model::kernel::HTTP_DEFAULT_PORT;
+use switchboard_model::controller::HTTP_CONTROLLER_DEFAULT_PORT;
 use tokio_util::sync::CancellationToken;
 
 use crate::ControllerContext;
@@ -22,7 +22,10 @@ pub struct HttpInterfaceConfig {
 impl Default for HttpInterfaceConfig {
     fn default() -> Self {
         HttpInterfaceConfig {
-            bind: SocketAddr::from((IpAddr::V6(Ipv6Addr::LOCALHOST), HTTP_DEFAULT_PORT)),
+            bind: SocketAddr::from((
+                IpAddr::V6(Ipv6Addr::LOCALHOST),
+                HTTP_CONTROLLER_DEFAULT_PORT,
+            )),
         }
     }
 }

@@ -20,7 +20,7 @@ impl ControllerLinkResolver {
     pub async fn resolve_link_to_string(&self, link: Link) -> Result<String, LinkResolveError> {
         <Self as Resolver<Link, String>>::resolve(self, link).await
     }
-    
+
     pub fn file_resolver(&self) -> &FileResolver {
         &self.file
     }
@@ -146,6 +146,8 @@ pub enum LinkParseError {
     InvalidUri(#[from] http::uri::InvalidUri),
     #[error("Invalid storage descriptor")]
     InvalidStorageDescriptor(#[from] InvalidStorageObjectDescriptor),
+    #[error("Not a valid link: {0}")]
+    NotAValidLink(String),
     #[error("Other error: {0}")]
     Other(String),
 }
@@ -161,9 +163,11 @@ impl FromStr for Link {
             // For simplicity, we will just create a dummy descriptor.
             let descriptor = StorageObjectDescriptor::from_str(descriptor_str)?;
             Ok(Link::Storage(descriptor))
-        } else {
+        } else if s.starts_with("http://") || s.starts_with("https://") {
             let uri: Uri = s.parse()?;
             Ok(Link::Http(uri))
+        } else {
+            Err(LinkParseError::NotAValidLink(s.to_string()))
         }
     }
 }

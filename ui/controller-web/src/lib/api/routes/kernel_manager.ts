@@ -1,5 +1,5 @@
 import type {
-	ServiceConfig,
+	ConfigRolloutReport,
 	KernelConnectionAndState,
 	ResultObject,
 	HumanReadableServiceConfig
@@ -8,7 +8,6 @@ import type { LinkOrValue } from '../types/controller';
 import { fetchJson } from './index';
 
 export type KernelSummary = Record<string, KernelConnectionAndState>;
-export type ConfigUpdateResults = Array<[string, ResultObject<null>]>;
 
 export interface UpdateConfigRequest {
 	new_config: LinkOrValue<unknown>;
@@ -20,10 +19,10 @@ export const kernelManagerApi = {
 	/**
 	 * Update configuration for all kernels
 	 * @param config - The configuration (can be HumanReadableServiceConfig or ServiceConfig)
-	 * @returns Results for each kernel update
+	 * @returns Transactional rollout report
 	 */
 	updateConfig: (config: HumanReadableServiceConfig | string) =>
-		fetchJson<ConfigUpdateResults>('/api/kernel_manager/kernels', {
+		fetchJson<ConfigRolloutReport>('/api/kernel_manager/kernels', {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({

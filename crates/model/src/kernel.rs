@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::ErrorStack;
 
-pub const UDS_DEFAULT_PATH: &str = "/var/run/switchboard/kernel/default.sock";
-pub const UDS_DEFAULT_DIR: &str = "/var/run/switchboard/kernel/";
+pub const RUN_FILE_DEFAULT_PATH: &str = "/var/run/switchboard/kernel/default.run";
+pub const RUN_FILE_DEFAULT_DIR: &str = "/var/run/switchboard/kernel/";
 pub const HTTP_DEFAULT_PORT: u16 = 8055;
 
 #[derive(
