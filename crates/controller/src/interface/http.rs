@@ -7,19 +7,24 @@ mod storage;
 mod utils;
 
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
+use std::path::PathBuf;
 
 use axum::response::IntoResponse as _;
 use http::HeaderValue;
 use serde::{Deserialize, Serialize};
 use switchboard_model::controller::HTTP_CONTROLLER_DEFAULT_PORT;
 use tokio_util::sync::CancellationToken;
+use tower_http::services::{ServeDir, ServeFile};
 
 use crate::ControllerContext;
 #[derive(Debug, Clone, Deserialize, Serialize, Hash, PartialEq, Eq)]
 #[serde(default)]
 pub struct HttpInterfaceConfig {
     pub bind: SocketAddr,
+    pub web_root: Option<PathBuf>,
 }
+
+const DEFAULT_WEB_ROOT: &str = "./ui/controller-web/";
 
 impl Default for HttpInterfaceConfig {
     fn default() -> Self {
@@ -28,6 +33,7 @@ impl Default for HttpInterfaceConfig {
                 IpAddr::V6(Ipv6Addr::LOCALHOST),
                 HTTP_CONTROLLER_DEFAULT_PORT,
             )),
+            web_root: Some(PathBuf::from(DEFAULT_WEB_ROOT)),
         }
     }
 }
@@ -50,7 +56,7 @@ impl ControllerContext {
         }
     }
     pub fn build_axum_router(&self) -> axum::Router<()> {
-        axum::Router::new()
+        let api_router = axum::Router::new()
             .nest(
                 "/api",
                 axum::Router::new()
@@ -60,7 +66,25 @@ impl ControllerContext {
                     .nest("/resolve", resolve::router())
                     .nest("/storage", storage::router())
                     .nest("/state", state::router()),
-            )
+            );
+
+        let Some(web_root) = self
+            .controller_config
+            .interface
+            .http
+            .as_ref()
+            .and_then(|config| config.web_root.clone())
+        else {
+            return api_router.with_state(self.http_state());
+        };
+
+        let index_file = web_root.join("index.html");
+        let static_service = ServeDir::new(web_root)
+            .append_index_html_on_directories(true)
+            .not_found_service(ServeFile::new(index_file));
+
+        api_router
+            .fallback_service(static_service)
             .with_state(self.http_state())
     }
     pub async fn start_up_http_interface(

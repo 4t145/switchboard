@@ -6,6 +6,8 @@ description = "This is my controller"
 local = "./tmp/run/kernel/"
 
 [interface.http]
+bind = "[::]:8056"
+web_root = "ui/contoller-web/build"
 
 [file_browser]
 allowed_roots = ["./examples/config"]

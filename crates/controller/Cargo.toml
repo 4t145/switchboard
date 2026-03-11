@@ -29,6 +29,7 @@ rustls = { workspace = true }
 ## http
 http = { workspace = true }
 axum = { version  = "0.8" }
+tower-http = { version = "0.6", features = ["fs"] }
 # grpc
 tonic = { workspace = true, features = ["transport"] }
 ## mcp
