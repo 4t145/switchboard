@@ -272,7 +272,7 @@
 >
 	<Portal>
 		<FloatingPanel.Positioner class="z-50">
-			<FloatingPanel.Content>
+			<FloatingPanel.Content class="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
 				<FloatingPanel.DragTrigger>
 					<FloatingPanel.Header>
 						<FloatingPanel.Title>
@@ -301,12 +301,14 @@
 						</FloatingPanel.Control>
 					</FloatingPanel.Header>
 				</FloatingPanel.DragTrigger>
-				<FloatingPanel.Body class="overflow-auto  bg-surface-50-950">
-					{#if previewConfig}
-						<ServiceConfigEditor config={previewConfig} readonly={true} />
-					{:else}
-						<div class="p-4 text-sm opacity-70">No preview data loaded.</div>
-					{/if}
+				<FloatingPanel.Body class="min-h-0 min-w-0 overflow-hidden bg-surface-50-950">
+					<div class="h-full min-h-0 min-w-0 overflow-auto">
+						{#if previewConfig}
+							<ServiceConfigEditor config={previewConfig} readonly={true} />
+						{:else}
+							<div class="p-4 text-sm opacity-70">No preview data loaded.</div>
+						{/if}
+					</div>
 				</FloatingPanel.Body>
 				<FloatingPanel.ResizeTrigger axis="se" />
 			</FloatingPanel.Content>
