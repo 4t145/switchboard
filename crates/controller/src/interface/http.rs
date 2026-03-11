@@ -1,3 +1,5 @@
+mod file_browser;
+mod k8s;
 mod kernel_manager;
 mod resolve;
 mod state;
@@ -52,6 +54,8 @@ impl ControllerContext {
             .nest(
                 "/api",
                 axum::Router::new()
+                    .nest("/file_browser", file_browser::router())
+                    .nest("/k8s", k8s::router())
                     .nest("/kernel_manager", kernel_manager::router())
                     .nest("/resolve", resolve::router())
                     .nest("/storage", storage::router())

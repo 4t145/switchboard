@@ -3,8 +3,8 @@ use axum::{
     extract::{Query, State},
     response::Response,
 };
-use switchboard_model::{HumanReadableServiceConfig, SerdeValue};
 use switchboard_link_or_value::Writer;
+use switchboard_model::{HumanReadableServiceConfig, SerdeValue};
 
 use crate::{interface::http::HttpState, link_resolver::Link, storage::StorageObjectDescriptor};
 #[derive(Debug, serde::Deserialize)]
@@ -97,40 +97,46 @@ pub async fn save_to_link(
     Json(request): Json<SaveToLinkRequest>,
 ) -> Response {
     let process = async {
-        let link: Link = request.link.parse()
+        let link: Link = request
+            .link
+            .parse()
             .map_err(crate::link_resolver::LinkResolveError::from)?;
-        
+
         let updated_link = match link {
             Link::FilePath(path) => {
                 // Save to file using FileResolver
-                state.controller_context
+                state
+                    .controller_context
                     .link_resolver()
                     .file_resolver()
                     .write(path, request.value)
                     .await
                     .map_err(crate::link_resolver::LinkResolveError::from)?;
-                request.link  // File link remains unchanged
-            },
+                request.link // File link remains unchanged
+            }
             Link::Storage(descriptor) => {
                 // Save to storage and get new descriptor
-                let new_descriptor = state.controller_context
+                let new_descriptor = state
+                    .controller_context
                     .storage()
                     .save_object(&descriptor.id, &request.data_type, request.value)
                     .await?;
                 // Return updated link with new revision
-                format!("storage://{}#{}", new_descriptor.id, new_descriptor.revision)
-            },
+                format!(
+                    "storage://{}#{}",
+                    new_descriptor.id, new_descriptor.revision
+                )
+            }
             Link::Http(_uri) => {
                 // HTTP PUT not yet supported
-                return Err(crate::link_resolver::LinkResolveError::NoImplementation { 
-                    link: Link::Http(_uri) 
-                }.into());
+                return Err(crate::link_resolver::LinkResolveError::NoImplementation {
+                    link: Link::Http(_uri),
+                }
+                .into());
             }
         };
-        
-        crate::Result::Ok(SaveToLinkResponse {
-            link: updated_link,
-        })
+
+        crate::Result::Ok(SaveToLinkResponse { link: updated_link })
     };
     super::result_to_json_response(process.await)
 }

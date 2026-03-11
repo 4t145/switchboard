@@ -14,6 +14,7 @@
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let lastUpdated = $state<Date | null>(null);
+	let deploySuccessMessage = $state<string | null>(null);
 
 	async function loadConfig() {
 		loading = true;
@@ -29,8 +30,18 @@
 		}
 	}
 
-	onMount(() => {
-		loadConfig();
+	onMount(async () => {
+		await loadConfig();
+		if ($page.url.searchParams.get('deployed') === '1') {
+			const tx = $page.url.searchParams.get('tx');
+			deploySuccessMessage = tx
+				? `Deploy succeeded. Transaction: ${tx}`
+				: 'Deploy succeeded.';
+			const url = new URL($page.url);
+			url.searchParams.delete('deployed');
+			url.searchParams.delete('tx');
+			await goto(url.toString(), { replaceState: true, noScroll: true });
+		}
 	});
 
 	const servicesCount = $derived(config?.tcp_services.length ?? 0);
@@ -97,6 +108,10 @@
 			Refresh
 		</button>
 	</div>
+
+	{#if deploySuccessMessage}
+		<div class="alert preset-tonal-success">{deploySuccessMessage}</div>
+	{/if}
 
 	{#if loading && !config}
 		<!-- Initial loading state -->

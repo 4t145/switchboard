@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use switchboard_link_or_value::LinkOrValue;
-use switchboard_model::{HumanReadableServiceConfig, SerdeValue};
 pub use switchboard_model::resolve::file_style::*;
+use switchboard_model::{HumanReadableServiceConfig, SerdeValue};
 
 use crate::{
     link_resolver::{ControllerLinkResolver, Link},

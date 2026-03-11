@@ -69,7 +69,7 @@
 	};
 </script>
 
-<div class="table-wrap">
+<div class="table-wrap min-w-0 overflow-x-auto">
 	<table class="table caption-bottom">
 
 		{#if header}

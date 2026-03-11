@@ -1,52 +1,89 @@
-# Skeleton UI Auxiliary Information
+# AGENTS.md
 
-To assist AI agents in writing Skeleton UI related code, please refer to the following official documentation index file:
+## Skeleton UI Reference
 
-- **URL**: https://www.skeleton.dev/llms.txt
+For Skeleton UI implementation details, use the official LLM index:
 
-This file contains the documentation structure for both React and Svelte versions of Skeleton UI components. During development, if specific component usage needs to be consulted, Opencode can use the `webfetch` tool to retrieve the latest documentation index from this URL, or lookup specific component documentation based on the index.
-## Styling
-You should look up the "presets" sector of skeleton document to know how to use skeleton style classes, instead of use "variant-xx" classes.
+- URL: https://www.skeleton.dev/llms.txt
 
-# Language Guidelines
+This index covers documentation for both React and Svelte variants.  
+When you need exact component usage, first consult this index, then fetch the target docs page.
 
-## User Communication
-- **Primary Rule**: Always respond to users in the same language they used in their question/request
-- If a user asks in Chinese, respond in Chinese
-- If a user asks in English, respond in English
-- If a user switches languages mid-conversation, adapt accordingly
+### Styling Rule
 
-## Code and Documentation
-For all public-facing content that may be shared or maintained by multiple developers:
+Always use the **presets** section in Skeleton documentation for style classes.  
+Do **not** use legacy `variant-xx` classes unless the existing codebase explicitly depends on them.
 
-- **Code Comments**: Always use English
-- **Documentation files** (README, API docs, etc.): Always use English
-- **Commit messages**: Always use English
-- **Variable names and function names**: Always use English
-- **Error messages in code**: Always use English
-- **Public interfaces and APIs**: Always use English
+---
 
-## Rationale
-This approach ensures:
-1. Better user experience through native language communication
-2. International collaboration through standardized English in code/docs
-3. Consistency with global development practices
-4. Accessibility for international contributors 
+## Language Policy
 
+### User Communication
 
-# RUST programming
+Respond in the same language as the user’s latest message:
 
-## Don't use magic value
-Always reference a const value instead of hard coded value.
+- If the user writes in Chinese, reply in Chinese.
+- If the user writes in English, reply in English.
+- If the user switches language, switch accordingly.
 
-## Show me the error reason
-Every function returns a `Result` type should have a `#Error` section in the document comments, which records the possibility of error.
+### Code and Public Artifacts
 
-## Prefer `impl Future` or `BoxFuture` then `async_trait`
-Actually I don't want to use `async_trait` lib
+Use **English only** for all public-facing engineering content:
 
-## Never unwrap
-1. You can reorganize control flow to avoid unwrap
-2. If you have to call `unwrap`, use `expect` and explain why you confident to unwrap here.
+- Code comments
+- Documentation (README, API docs, design docs)
+- Commit messages
+- Variable and function names
+- Error messages
+- Public interfaces and APIs
 
-## Follow rust 2024 style
+### Rationale
+
+This policy ensures:
+
+1. Better user interaction in the user’s preferred language
+2. Consistent collaboration standards for global teams
+3. Maintainable, searchable, and review-friendly code/documentation
+
+---
+
+## Rust Engineering Guidelines (Rust 2024)
+
+### 1) Avoid Magic Numbers
+
+Never hardcode unexplained numeric or string literals.  
+Define named `const` values and reference them.
+
+### 2) Document Error Cases
+
+Any function returning `Result` must include a `# Errors` section in its doc comments, describing possible failure cases.
+
+### 3) Prefer Native Async Patterns
+
+Prefer `impl Future` or `BoxFuture` over `async_trait`.  
+Do not introduce `async_trait` unless there is a strong, explicit reason.
+
+### 4) Never `unwrap()`
+
+- Restructure control flow to avoid `unwrap()`.
+- If unavoidable, use `expect("...reason...")` with a clear and justified message.
+
+### 5) Keep Code Maintainable
+
+- Split long functions into focused helpers.
+- Use meaningful names for functions and variables.
+- Keep each function single-purpose.
+- Add concise comments only for non-obvious logic.
+
+### 6) Flatten Control Flow
+
+Prefer modern Rust patterns that reduce nesting:
+
+- Use `let PATTERN = expr else { ... };` to keep main-path variables in outer scope.
+- For non-returning error branches, use patterns like:
+  `let Ok(value) = expr.inspect_err(|e| { ... }) else { return; };`
+- In `select!`, return a local `Event` enum variant first, then handle it after selection.
+- Remember loops can return values; use that when it improves clarity.
+- Prefer idiomatic Rust 2024 style consistently.
+
+---

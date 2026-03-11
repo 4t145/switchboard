@@ -131,7 +131,10 @@
 		deployTransactionId = null;
 
 		try {
-			const report = await api.kernelManager.updateConfig(config as HumanReadableServiceConfig);
+			const report = await api.kernelManager.updateConfig({
+				mode: 'new_config',
+				new_config: config as HumanReadableServiceConfig
+			});
 			deployTransactionId = report.transaction_id;
 
 			if (report.status.status === 'succeeded') {

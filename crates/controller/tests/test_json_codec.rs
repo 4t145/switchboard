@@ -17,10 +17,7 @@ fn test_human_readable_service_config_conversion() {
         "test_json_codec/human_readable_service_config.json"
     ))
     .unwrap();
-    println!(
-        "Loaded SerdeValue from JSON:\n{:#?}",
-        json_raw
-    );
+    println!("Loaded SerdeValue from JSON:\n{:#?}", json_raw);
     let human_readable_config: HumanReadableServiceConfig<Link> =
         json_raw.deserialize_into().unwrap();
     let json = serde_json::to_string_pretty(&human_readable_config).unwrap();

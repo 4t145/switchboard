@@ -33,6 +33,7 @@
 
 	type Props<T = unknown> = {
 		value: T | string;
+		readonly?: boolean;
 		valueDataFormat: 'string' | 'object';
 		getDefaultLinkValue?: () => string;
 		getDefaultInlineValue: () => T;
@@ -63,6 +64,7 @@
 	const DEFAULT_LINK_VALUE = 'storage://#';
 	let {
 		value = $bindable(),
+		readonly = false,
 		valueDataFormat,
 		getDefaultLinkValue = () => DEFAULT_LINK_VALUE,
 		getDefaultInlineValue,
@@ -133,6 +135,7 @@
 		return !isLinkValue(val);
 	}
 	function switchEditorMode(mode: EditorMode) {
+		if (readonly) return;
 		if (mode === 'reference') {
 			cachedInlineValue = value as T;
 			if (cachedLinkValue) {
@@ -153,6 +156,7 @@
 		if (isInline(value)) return;
 	}
 	function editLink() {
+		if (readonly) return;
 		if (editorState.mode !== 'reference') return;
 		if (linkLocationInput === undefined) {
 			linkLocationInput = parsedLink?.location ?? '';
@@ -171,6 +175,7 @@
 		}
 	});
 	function quitEditLink() {
+		if (readonly) return;
 		isEditingLink = false;
 	}
 	let lastEscapePress: number = $state(0);
@@ -207,6 +212,7 @@
 				onValueChange={(details) => {
 					if (details.value[0]) switchEditorMode(details.value[0] as EditorMode);
 				}}
+				disabled={readonly}
 			>
 				<ToggleGroup.Item value="reference">
 					<LinkIcon class="inline-block size-4" />
@@ -218,7 +224,11 @@
 			{#if editorState.mode === 'reference'}
 				<div class="input-group flex flex-grow">
 					{#if isEditingLink}
-						<select bind:value={selectedLinkScheme} class="ig-select max-w-[7.5rem] preset-tonal">
+						<select
+							bind:value={selectedLinkScheme}
+							class="ig-select max-w-[7.5rem] preset-tonal"
+							disabled={readonly}
+						>
 							<option value="storage">storage</option>
 							<option value="file">file</option>
 							<option value="http">http</option>
@@ -232,16 +242,17 @@
 							bind:value={linkLocationInput}
 							placeholder="resource location"
 							onkeydown={handleLinkInputKeydown}
+							readonly={readonly}
 						/>
 						{#if selectedLinkScheme === 'storage'}
-							<button type="button" class="ig-btn">
+							<button type="button" class="ig-btn" disabled={readonly}>
 								<SearchIcon class="inline-block size-4" />
 							</button>
 						{/if}
-						<button type="button" class="ig-btn" onclick={quitEditLink}>
+						<button type="button" class="ig-btn" onclick={quitEditLink} disabled={readonly}>
 							<XIcon class="inline-block size-4" />
 						</button>
-						<button type="button" class="ig-btn">
+						<button type="button" class="ig-btn" disabled={readonly}>
 							<ArrowRightIcon class="inline-block size-4" />
 						</button>
 					{:else}
@@ -255,10 +266,10 @@
 							{/if}
 						</div>
 						<input class="ig-input" type="text" readonly {value} onfocus={editLink} />
-						<button type="button" class="ig-btn" onclick={editLink}>
+						<button type="button" class="ig-btn" onclick={editLink} disabled={readonly}>
 							<EditIcon class="inline-block size-4" />
 						</button>
-						<button type="button" class="ig-btn">
+						<button type="button" class="ig-btn" disabled={readonly}>
 							<ArrowRightLeft class="inline-block size-4" />
 						</button>
 					{/if}
@@ -287,11 +298,13 @@
 				</div>
 			{:else if editorState.remoteValue.status === 'loaded'}
 				{@render editor(editorState.remoteValue.value, (newValue: T) => {
+					if (readonly) return;
 					editingReferenceValue = newValue;
 				})}
 			{/if}
 		{:else if editorState.mode === 'inline'}
 			{@render editor(value as T, (newValue: T) => {
+				if (readonly) return;
 				value = newValue;
 			})}
 		{/if}

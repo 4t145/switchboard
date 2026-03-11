@@ -8,8 +8,9 @@
 	type Props = {
 		value: FileTcpServiceConfig;
 		tlsKeys: string[];
+		readonly?: boolean;
 	};
-	let { value = $bindable(), tlsKeys = [] }: Props = $props();
+	let { value = $bindable(), tlsKeys = [], readonly = false }: Props = $props();
 
 	// Mock provider list for now
 	const providers = ['http', 'pf'];
@@ -17,10 +18,12 @@
 		$inspect('TCP Service Form initialized with value:', value);
 	});
 	function addBind() {
+		if (readonly) return;
 		value.binds = [...value.binds, { bind: '', tls: undefined, description: '' }];
 	}
 
 	function removeBind(index: number) {
+		if (readonly) return;
 		value.binds = value.binds.filter((_: unknown, i: number) => i !== index);
 	}
 </script>
@@ -30,12 +33,12 @@
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 		<label class="label">
 			<span class="label-text">Service Name</span>
-			<input class="input" type="text" bind:value={value.name} placeholder="my-service" />
+			<input class="input" type="text" bind:value={value.name} placeholder="my-service" disabled={readonly} />
 		</label>
 
 		<label class="label">
 			<span class="label-text">Provider</span>
-			<select class="select" bind:value={value.provider}>
+			<select class="select" bind:value={value.provider} disabled={readonly}>
 				{#each providers as p}
 					<option value={p}>{p}</option>
 				{/each}
@@ -49,6 +52,7 @@
 			class="textarea-bordered textarea h-20"
 			bind:value={value.description}
 			placeholder="Description..."
+			disabled={readonly}
 		></textarea>
 	</label>
 
@@ -66,8 +70,12 @@
 			<td class="w-1/3">
 				<SocketAddrEditor
 					value={value.bind}
-					onchange={(e) => updateItem({ ...value, bind: e.currentTarget.value ?? undefined })}
+					onchange={(e) => {
+						if (readonly) return;
+						updateItem({ ...value, bind: e.currentTarget.value ?? undefined });
+					}}
 					placeholder="0.0.0.0:80"
+					disabled={readonly}
 					required
 				/>
 			</td>
@@ -75,7 +83,11 @@
 				<select
 					class="select-sm select"
 					value={value.tls}
-					onchange={(e) => updateItem({ ...value, tls: e.currentTarget.value ?? undefined })}
+					disabled={readonly}
+					onchange={(e) => {
+						if (readonly) return;
+						updateItem({ ...value, tls: e.currentTarget.value ?? undefined });
+					}}
 				>
 					<option value={undefined}></option>
 					{#each tlsKeys as key}
@@ -88,12 +100,23 @@
 					class="input-sm input"
 					type="text"
 					value={value.description}
-					onchange={(e) => updateItem({ ...value, description: e.currentTarget.value })}
+					disabled={readonly}
+					onchange={(e) => {
+						if (readonly) return;
+						updateItem({ ...value, description: e.currentTarget.value });
+					}}
 					placeholder="Description..."
 				/>
 			</td>
 			<td class="w-12">
-				<button class="btn-icon btn-icon-sm preset-tonal-error" onclick={() => deleteItem()}>
+				<button
+					class="btn-icon btn-icon-sm preset-tonal-error"
+					disabled={readonly}
+					onclick={() => {
+						if (readonly) return;
+						deleteItem();
+					}}
+				>
 					<DeleteIcon class="size-4" />
 				</button>
 			</td>
@@ -103,11 +126,15 @@
 	{#snippet footer({ addNewItem }: ListOperations<FileBind>)}
 		<tr>
 			<td colspan="3"></td>
-			<td >
+			<td>
 				<button
 					type="button"
-					class=" btn-icon btn-icon-sm preset-tonal-surface"
-					onclick={() => addNewItem({ bind: '', tls: undefined, description: '' })}
+					class="btn-icon btn-icon-sm preset-tonal-surface"
+					disabled={readonly}
+					onclick={() => {
+						if (readonly) return;
+						addNewItem({ bind: '', tls: undefined, description: '' });
+					}}
 				>
 					<Plus class="size-4"></Plus></button
 				>
@@ -128,5 +155,5 @@
 	<h4 class="mb-2 flex items-center gap-2 h4 font-bold">
 		<Code size={16} /> Config
 	</h4>
-	<ProviderConfigEditor bind:value={value.config} bind:provider={value.provider} />
+	<ProviderConfigEditor bind:value={value.config} bind:provider={value.provider} {readonly} />
 </div>

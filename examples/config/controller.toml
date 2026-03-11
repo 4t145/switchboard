@@ -7,6 +7,9 @@ local = "./tmp/run/kernel/"
 
 [interface.http]
 
+[file_browser]
+allowed_roots = ["./examples/config"]
+
 [resolve.fs]
 path = "./examples/config/config.toml"
 

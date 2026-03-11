@@ -69,9 +69,21 @@ pub enum Error {
     #[error("Resolve config error: {0}")]
     ResolveServiceConfigError(#[from] crate::resolve::ResolveServiceConfigError),
 
+    #[error("Resolve config file error: {0}")]
+    ResolveConfigFileError(#[from] switchboard_model::resolve::file_style::ResolveConfigFileError),
+
     #[error("Json Interpreter error: {0}")]
     JsonInterpreterError(#[from] crate::storage::JsonInterpreterError),
 
     #[error("Link resolve error: {0}")]
     LinkResolveError(#[from] crate::link_resolver::LinkResolveError),
+
+    #[error("File browser io error: {0}")]
+    FileBrowserIoError(#[source] std::io::Error),
+
+    #[error("File browser path not allowed: {0}")]
+    FileBrowserPathNotAllowed(std::path::PathBuf),
+
+    #[error("Controller is not running in kubernetes cluster")]
+    NotInKubernetesCluster,
 }

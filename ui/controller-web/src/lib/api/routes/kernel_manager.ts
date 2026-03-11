@@ -9,25 +9,29 @@ import { fetchJson } from './index';
 
 export type KernelSummary = Record<string, KernelConnectionAndState>;
 
-export interface UpdateConfigRequest {
-	new_config: LinkOrValue<unknown>;
-}
+export type UpdateConfigRequest =
+	| {
+			mode: 'new_config';
+			new_config: LinkOrValue<unknown>;
+	  }
+	| {
+			mode: 'resolve';
+			resolver: string;
+			config: unknown;
+	  };
 
 export const kernelManagerApi = {
 	listKernels: () => fetchJson<KernelSummary>('/api/kernel_manager/kernels'),
 
 	/**
 	 * Update configuration for all kernels
-	 * @param config - The configuration (can be HumanReadableServiceConfig or ServiceConfig)
 	 * @returns Transactional rollout report
 	 */
-	updateConfig: (config: HumanReadableServiceConfig | string) =>
+	updateConfig: (request: UpdateConfigRequest) =>
 		fetchJson<ConfigRolloutReport>('/api/kernel_manager/kernels', {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				new_config: config
-			} as UpdateConfigRequest)
+			body: JSON.stringify(request)
 		}),
 
 	/**

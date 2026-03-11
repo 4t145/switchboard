@@ -20,11 +20,13 @@
 	};
 	export type Props = {
 		value: FileStyleTlsResolver;
+		readonly?: boolean;
 	};
 	// TlsResolver can be { Single: ... } or { Sni: ... }
 	// We bind to the whole object.
-	let { value = $bindable() }: Props = $props<{
+	let { value = $bindable(), readonly = false }: Props = $props<{
 		value: FileStyleTlsResolver;
+		readonly?: boolean;
 	}>();
 
 	// Internal state to track mode
@@ -58,6 +60,7 @@
 	});
 
 	function switchMode(newMode: 'Single' | 'Sni') {
+		if (readonly) return;
 		if (mode === newMode) return;
 		mode = newMode;
 
@@ -94,6 +97,7 @@
 			<span class="label-text text-sm font-bold">Private Key</span>
 			<LinkOrValueEditor
 				bind:value={params.key}
+				{readonly}
 				valueDataFormat="string"
 				getDefaultInlineValue={() => ''}
 				editor={privateKeyEditor}
@@ -105,6 +109,7 @@
 			<span class="label-text text-sm font-bold">Certificate Chain</span>
 			<LinkOrValueEditor
 				bind:value={params.certs}
+				{readonly}
 				valueDataFormat="string"
 				getDefaultInlineValue={() => ''}
 				editor={certChainEditor}
@@ -129,6 +134,7 @@
 			details.value === 'Sni' || details.value === 'Single' ? switchMode(details.value) : null;
 		}}
 		class="w-fit"
+		disabled={readonly}
 	>
 		<SegmentedControl.Label>Mode</SegmentedControl.Label>
 		<SegmentedControl.Control>
@@ -159,7 +165,9 @@
 					<h4 class="text-base font-bold">{hostname}</h4>
 					<button
 						class="btn preset-filled-error-500 btn-sm"
+						disabled={readonly}
 						onclick={() => {
+							if (readonly) return;
 							if (isSniTlsResolver(value)) {
 								value.sni = value.sni.filter((entry) => entry.hostname !== hostname);
 							}
@@ -173,11 +181,13 @@
 		<div class="flex items-end gap-2">
 			<label class="label flex-1">
 				<span class="text-sm">New Domain</span>
-				<input class="input" type="text" placeholder="example.com" id="new-sni-domain" />
+			<input class="input" type="text" placeholder="example.com" id="new-sni-domain" disabled={readonly} />
 			</label>
 			<button
 				class="btn preset-filled-primary-500"
+				disabled={readonly}
 				onclick={() => {
+					if (readonly) return;
 					const input = document.getElementById('new-sni-domain') as HTMLInputElement;
 					const domain = input.value;
 					if (domain && isSniTlsResolver(value)) {

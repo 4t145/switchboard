@@ -1,8 +1,15 @@
 use std::path::PathBuf;
 const APP_NAME: &str = "switchboard";
+
 pub fn data_dir() -> PathBuf {
     dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("/var/lib"))
+        .join(APP_NAME)
+}
+
+pub fn config_dir() -> PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("/etc"))
         .join(APP_NAME)
 }
 

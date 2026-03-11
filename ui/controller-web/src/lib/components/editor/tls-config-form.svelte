@@ -5,9 +5,11 @@
 	import type { FileStyleTls, FileStyleTlsResolver, TlsCertParams } from '$lib/api/types';
 	export type Props = {
 		value: FileStyleTls;
+		readonly?: boolean;
 	};
-	let { value = $bindable() }: Props = $props<{
+	let { value = $bindable(), readonly = false }: Props = $props<{
 		value: FileStyleTls;
+		readonly?: boolean;
 	}>();
 
 	// Default TlsOptions - ensure value.options exists
@@ -38,7 +40,7 @@
 	<!-- Name Field -->
 	<label class="label">
 		<span class="label-text text-sm font-bold">Name (Unique ID)</span>
-		<input class="input w-full" type="text" bind:value={value.name} placeholder="tls-1" />
+		<input class="input w-full" type="text" bind:value={value.name} placeholder="tls-1" disabled={readonly} />
 	</label>
 
 	<!-- Certificate Resolver Section -->
@@ -59,7 +61,7 @@
 			</Collapsible.Indicator>
 		</Collapsible.Trigger>
 		<Collapsible.Content class="w-full p-3">
-			<TlsResolverForm bind:value />
+			<TlsResolverForm bind:value {readonly} />
 		</Collapsible.Content>
 	</Collapsible>
 
@@ -88,11 +90,12 @@
 							class="checkbox"
 							type="checkbox"
 							bind:checked={value.options.ignore_client_order}
+							disabled={readonly}
 						/>
 						<span>Ignore Client Order</span>
 					</label>
 					<label class="flex items-center space-x-2">
-						<input class="checkbox" type="checkbox" bind:checked={value.options.require_ems} />
+						<input class="checkbox" type="checkbox" bind:checked={value.options.require_ems} disabled={readonly} />
 						<span>Require EMS</span>
 					</label>
 					<label class="flex items-center space-x-2">
@@ -100,6 +103,7 @@
 							class="checkbox"
 							type="checkbox"
 							bind:checked={value.options.enable_secret_extraction}
+							disabled={readonly}
 						/>
 						<span>Enable Secret Extraction</span>
 					</label>
@@ -109,13 +113,16 @@
 							class="input w-full"
 							type="number"
 							bind:value={value.options.max_early_data_size}
+							disabled={readonly}
 						/>
 					</label>
 					<div class="col-span-full">
 						{#if value.options}
 							<TagsInput
 								value={value.options.alpn_protocols}
+								disabled={readonly}
 								onValueChange={(details) => {
+									if (readonly) return;
 									if (value.options) {
 										value.options.alpn_protocols = details.value;
 									}

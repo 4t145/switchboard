@@ -20,6 +20,7 @@
 	{/snippet}
 	<LinkOrValueEditor
 		bind:value
+		{readonly}
 		valueDataFormat="object"
 		getDefaultInlineValue={plugin.createDefaultConfig}
 		{editor}

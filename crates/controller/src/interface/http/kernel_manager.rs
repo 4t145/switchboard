@@ -2,9 +2,7 @@ use std::collections::BTreeMap;
 
 use axum::{Json, extract::State, response::Response};
 use switchboard_link_or_value::LinkOrValue;
-use switchboard_model::{
-    SerdeValue, kernel::KernelConnectionAndState, resolve::file_style::ResolveConfigFileError,
-};
+use switchboard_model::{SerdeValue, kernel::KernelConnectionAndState};
 
 use crate::{interface::http::HttpState, kernel::KernelAddr, link_resolver::Link};
 
@@ -17,8 +15,15 @@ pub async fn get_kernel_states(
 }
 
 #[derive(Debug, serde::Deserialize)]
-pub struct UpdateConfigRequest {
-    pub new_config: LinkOrValue<Link, SerdeValue>,
+#[serde(tag = "mode", rename_all = "snake_case")]
+pub enum UpdateConfigRequest {
+    NewConfig {
+        new_config: LinkOrValue<Link, SerdeValue>,
+    },
+    Resolve {
+        resolver: String,
+        config: SerdeValue,
+    },
 }
 
 pub async fn update_config(
@@ -26,15 +31,25 @@ pub async fn update_config(
     Json(request): Json<UpdateConfigRequest>,
 ) -> Response {
     let process = async move {
-        let resolver = state.controller_context.clone().link_resolver();
-        let standard_config =
-            switchboard_model::resolve::file_style::fetch_config(request.new_config, &resolver)
-                .await?;
+        let standard_config = match request {
+            UpdateConfigRequest::NewConfig { new_config } => {
+                let resolver = state.controller_context.clone().link_resolver();
+                switchboard_model::resolve::file_style::fetch_config(new_config, &resolver).await?
+            }
+            UpdateConfigRequest::Resolve { resolver, config } => {
+                let resolved_config = state
+                    .controller_context
+                    .resolve_config(&resolver, config)
+                    .await?;
+                let link_resolver = state.controller_context.clone().link_resolver();
+                resolved_config.resolve_into_standard(&link_resolver).await?
+            }
+        };
         let results = state
             .controller_context
             .update_config(standard_config)
             .await;
-        Ok::<_, ResolveConfigFileError>(results)
+        Ok::<_, crate::Error>(results)
     };
     super::result_to_json_response(process.await)
 }

@@ -9,7 +9,10 @@
 	import TlsConfigForm from './tls-config-form.svelte';
 	import { PlusIcon, Trash2Icon } from '@lucide/svelte';
 
-	let { config = $bindable() }: { config: HumanReadableServiceConfig } = $props();
+	let {
+		config = $bindable(),
+		readonly = false
+	}: { config: HumanReadableServiceConfig; readonly?: boolean } = $props();
 
 	let activeTab = $state<'services' | 'tls'>('services');
 	let selectedService = $state<FileTcpServiceConfig | null>(null);
@@ -156,6 +159,9 @@
 	}
 
 	function deleteSelectedService(): void {
+		if (readonly) {
+			return;
+		}
 		if (selectedService === null) {
 			return;
 		}
@@ -168,6 +174,9 @@
 	}
 
 	function deleteSelectedTls(): void {
+		if (readonly) {
+			return;
+		}
 		if (selectedTls === null) {
 			return;
 		}
@@ -190,13 +199,13 @@
 	});
 </script>
 
-<div class="flex h-full flex-col p-4">
+<div class="flex h-full min-h-0 min-w-0 flex-col p-4">
 	<Tabs
 		value={activeTab}
 		onValueChange={(e) => {
 			activeTab = e.value as 'services' | 'tls';
 		}}
-		class="flex h-full flex-col"
+		class="flex h-full min-h-0 min-w-0 flex-col"
 	>
 		<Tabs.List class="mb-4 flex-none">
 			<Tabs.Trigger value="services">Services</Tabs.Trigger>
@@ -204,15 +213,16 @@
 			<Tabs.Indicator />
 		</Tabs.List>
 
-		<Tabs.Content value="services" class="flex-1 overflow-hidden">
-			<div class="flex h-full flex-row gap-4">
-				<div class="flex w-80 flex-col gap-2">
+		<Tabs.Content value="services" class="flex-1 min-h-0 min-w-0 overflow-hidden">
+			<div class="flex h-full min-h-0 min-w-0 flex-row gap-4">
+				<div class="flex w-80 flex-none flex-col gap-2">
 					<div class="flex items-center gap-2">
 						<input
 							type="text"
 							class="input flex-1"
 							placeholder="Filter services..."
 							value={serviceQuery}
+							disabled={readonly}
 							oninput={(event) => {
 								serviceQuery = (event.currentTarget as HTMLInputElement).value;
 							}}
@@ -220,7 +230,9 @@
 						<button
 							type="button"
 							class="btn-icon preset-tonal-primary"
+							disabled={readonly}
 							onclick={() => {
+								if (readonly) return;
 								const created = createService();
 								config.tcp_services.push(created);
 								selectedService = created;
@@ -232,7 +244,7 @@
 							type="button"
 							class="btn-icon preset-tonal-error"
 							onclick={deleteSelectedService}
-							disabled={selectedService === null}
+							disabled={readonly || selectedService === null}
 						>
 							<Trash2Icon />
 						</button>
@@ -264,9 +276,9 @@
 						</Listbox.Content>
 					</Listbox>
 				</div>
-				<div class="w-full flex-grow overflow-auto">
+				<div class="min-h-0 min-w-0 flex-1 overflow-auto">
 					{#if selectedService !== null}
-						<TcpServiceForm value={selectedService} tlsKeys={availableTlsKeys} />
+						<TcpServiceForm value={selectedService} tlsKeys={availableTlsKeys} {readonly} />
 					{:else}
 						<div class="text-muted-foreground flex h-full items-center justify-center">
 							No service selected
@@ -276,15 +288,16 @@
 			</div>
 		</Tabs.Content>
 
-		<Tabs.Content value="tls" class="flex-1 overflow-hidden">
-			<div class="flex h-full flex-row gap-4">
-				<div class="flex w-80 flex-col gap-2">
+		<Tabs.Content value="tls" class="flex-1 min-h-0 min-w-0 overflow-hidden">
+			<div class="flex h-full min-h-0 min-w-0 flex-row gap-4">
+				<div class="flex w-80 flex-none flex-col gap-2">
 					<div class="flex items-center gap-2">
 						<input
 							type="text"
 							class="input flex-1"
 							placeholder="Filter TLS configs..."
 							value={tlsQuery}
+							disabled={readonly}
 							oninput={(event) => {
 								tlsQuery = (event.currentTarget as HTMLInputElement).value;
 							}}
@@ -292,7 +305,9 @@
 						<button
 							type="button"
 							class="btn-icon preset-tonal-primary"
+							disabled={readonly}
 							onclick={() => {
+								if (readonly) return;
 								const created = createTls();
 								config.tls.push(created);
 								selectedTls = created;
@@ -304,7 +319,7 @@
 							type="button"
 							class="btn-icon preset-tonal-error"
 							onclick={deleteSelectedTls}
-							disabled={selectedTls === null}
+							disabled={readonly || selectedTls === null}
 						>
 							<Trash2Icon />
 						</button>
@@ -336,9 +351,9 @@
 						</Listbox.Content>
 					</Listbox>
 				</div>
-				<div class="w-full flex-grow overflow-auto">
+				<div class="min-h-0 min-w-0 flex-1 overflow-auto">
 					{#if selectedTls !== null}
-						<TlsConfigForm value={selectedTls} />
+						<TlsConfigForm value={selectedTls} {readonly} />
 					{:else}
 						<div class="text-muted-foreground flex h-full items-center justify-center">
 							No TLS config selected

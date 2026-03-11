@@ -32,6 +32,26 @@ pub struct ControllerConfig {
     // pub resolve: ResolveConfig,
     #[serde(default)]
     pub storage: StorageProvider,
+    #[serde(default)]
+    pub file_browser: FileBrowserConfig,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Hash, PartialEq, Eq)]
+#[serde(default)]
+pub struct FileBrowserConfig {
+    pub allowed_roots: Vec<PathBuf>,
+}
+
+fn default_allowed_roots() -> Vec<PathBuf> {
+    vec![crate::dir::config_dir()]
+}
+
+impl Default for FileBrowserConfig {
+    fn default() -> Self {
+        Self {
+            allowed_roots: default_allowed_roots(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Hash, PartialEq, Eq)]
@@ -42,7 +62,6 @@ pub struct KernelConfig {
     // default to be empty, meaning no authentication
     // pub psk: Base64Bytes,
 }
-
 
 #[derive(Debug, Clone, Deserialize, Serialize, Hash, PartialEq, Eq)]
 #[serde(default)]

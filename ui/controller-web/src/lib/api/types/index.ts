@@ -8,6 +8,8 @@ export * from './kernel';
 export * from './protocol';
 export * from './tls';
 export * from './human_readable';
+export * from './file_browser';
+export * from './k8s';
 export * from './listener';
 export * from './tcp_service';
 export * from './time-duration';

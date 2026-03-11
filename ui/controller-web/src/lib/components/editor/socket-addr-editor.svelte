@@ -71,6 +71,9 @@
     }
     let validationError = $state<ParseSocketAddrError | null>(null);
     function onblur() {
+        if (inputElement.disabled || inputElement.readOnly) {
+            return;
+        }
         const result = parseSocketAddr(value as string);
         if (isSocketAddr(result)) {
             // Normalize the input value
