@@ -19,7 +19,9 @@
 	let selectedTls = $state<FileStyleTls | null>(null);
 	let serviceQuery = $state('');
 	let tlsQuery = $state('');
-	let availableTlsKeys = $derived.by(() => config.tls.filter((t) => t && t.name).map((t: FileStyleTls) => t.name));
+	let availableTlsKeys = $derived.by(() =>
+		config.tls.filter((t) => t && t.name).map((t: FileStyleTls) => t.name)
+	);
 	type ServiceListItem = {
 		id: string;
 		label: string;
@@ -213,7 +215,7 @@
 			<Tabs.Indicator />
 		</Tabs.List>
 
-		<Tabs.Content value="services" class="flex-1 min-h-0 min-w-0 overflow-hidden">
+		<Tabs.Content value="services" class="min-h-0 min-w-0 flex-1 overflow-hidden">
 			<div class="flex h-full min-h-0 min-w-0 flex-row gap-4">
 				<div class="flex w-80 flex-none flex-col gap-2">
 					<div class="flex items-center gap-2">
@@ -288,7 +290,7 @@
 			</div>
 		</Tabs.Content>
 
-		<Tabs.Content value="tls" class="flex-1 min-h-0 min-w-0 overflow-hidden">
+		<Tabs.Content value="tls" class="min-h-0 min-w-0 flex-1 overflow-hidden">
 			<div class="flex h-full min-h-0 min-w-0 flex-row gap-4">
 				<div class="flex w-80 flex-none flex-col gap-2">
 					<div class="flex items-center gap-2">

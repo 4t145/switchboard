@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import {
 		CloudUploadIcon,
@@ -12,10 +11,11 @@
 	} from '@lucide/svelte';
 	import { FloatingPanel, Portal, SegmentedControl } from '@skeletonlabs/skeleton-svelte';
 	import { api } from '$lib/api/routes';
-	import type { K8sEnvResponse, K8sNamespacesResponse, HumanReadableServiceConfig } from '$lib/api/types';
+	import type { K8sNamespacesResponse, HumanReadableServiceConfig } from '$lib/api/types';
 	import type { UpdateConfigRequest } from '$lib/api/routes/kernel_manager';
 	import FileTree from '$lib/components/file-tree.svelte';
 	import ServiceConfigEditor from '$lib/components/editor/service-config-editor.svelte';
+	import { capabilitiesStore } from '$lib/stores/capabilities.svelte';
 
 	type DeploySource = 'file' | 'storage' | 'k8s';
 
@@ -25,12 +25,9 @@
 
 	let deploySource: DeploySource = $state('file');
 	let selectedFilePath = $state<string | undefined>(undefined);
-	let k8sEnv = $state<K8sEnvResponse | undefined>(undefined);
 	let k8sNamespaces = $state<string[]>([]);
 	let selectedK8sNamespace = $state<string | undefined>(undefined);
-	let k8sEnvLoading = $state(false);
 	let k8sNamespacesLoading = $state(false);
-	let k8sErrorMessage = $state<string | undefined>(undefined);
 
 	let deployLoading = $state(false);
 	let deployErrorMessage = $state<string | undefined>(undefined);
@@ -40,76 +37,58 @@
 	let previewPanelOpen = $state(false);
 	let previewConfig = $state<HumanReadableServiceConfig | undefined>(undefined);
 
-	onMount(async () => {
-		await loadK8sEnv();
+	let k8sCapability = $derived(capabilitiesStore.k8s);
+	let effectiveDeploySource = $derived.by<DeploySource>(() => {
+		if (deploySource === K8S && !k8sCapability.available) {
+			return FILE;
+		}
+		return deploySource;
 	});
 
 	$effect(() => {
-		if (deploySource !== K8S) return;
-		if (!k8sEnvLoading && !k8sEnv) {
-			void loadK8sEnv();
-			return;
-		}
-		if (k8sEnv?.in_cluster && !k8sNamespacesLoading && k8sNamespaces.length === 0) {
+		if (effectiveDeploySource !== K8S) return;
+		if (k8sCapability.available && !k8sNamespacesLoading && k8sNamespaces.length === 0) {
 			void loadK8sNamespaces();
 		}
 	});
 
 	let selected = $derived.by(() => {
-		if (selectedFilePath && deploySource === FILE) {
+		if (selectedFilePath && effectiveDeploySource === FILE) {
 			return `file://${selectedFilePath}`;
 		}
-		if (selectedK8sNamespace && deploySource === K8S) {
+		if (selectedK8sNamespace && effectiveDeploySource === K8S && k8sCapability.available) {
 			return `k8s://namespace/${selectedK8sNamespace}`;
 		}
 		return undefined;
 	});
 
-	async function loadK8sEnv() {
-		k8sEnvLoading = true;
-		k8sErrorMessage = undefined;
-		try {
-			k8sEnv = await api.k8s.getEnv();
-			if (!k8sEnv.in_cluster) {
-				k8sNamespaces = [];
-				selectedK8sNamespace = undefined;
-			}
-		} catch (error) {
-			console.error('Failed to load kubernetes environment', error);
-			k8sErrorMessage = 'Failed to load kubernetes environment.';
-		} finally {
-			k8sEnvLoading = false;
-		}
-	}
-
 	async function loadK8sNamespaces() {
-		if (!k8sEnv?.in_cluster) return;
+		if (!k8sCapability.available) return;
 		k8sNamespacesLoading = true;
-		k8sErrorMessage = undefined;
 		try {
 			const data: K8sNamespacesResponse = await api.k8s.getNamespaces();
 			k8sNamespaces = data.namespaces;
 			selectedK8sNamespace =
-				k8sEnv.current_namespace && data.namespaces.includes(k8sEnv.current_namespace)
-					? k8sEnv.current_namespace
+				k8sCapability.currentNamespace && data.namespaces.includes(k8sCapability.currentNamespace)
+					? k8sCapability.currentNamespace
 					: data.namespaces.at(0);
 		} catch (error) {
 			console.error('Failed to load kubernetes namespaces', error);
-			k8sErrorMessage = 'Failed to load kubernetes namespaces.';
+			deployErrorMessage = 'Failed to load kubernetes namespaces.';
 		} finally {
 			k8sNamespacesLoading = false;
 		}
 	}
 
 	async function buildResolveRequest(): Promise<UpdateConfigRequest | undefined> {
-		if (deploySource === FILE && selectedFilePath) {
+		if (effectiveDeploySource === FILE && selectedFilePath) {
 			return {
 				mode: 'resolve',
 				resolver: 'fs',
 				config: { path: selectedFilePath }
 			};
 		}
-		if (deploySource === K8S && selectedK8sNamespace) {
+		if (effectiveDeploySource === K8S && k8sCapability.available && selectedK8sNamespace) {
 			return {
 				mode: 'resolve',
 				resolver: 'k8s',
@@ -205,7 +184,16 @@
 	<div class="flex flex-col gap-4">
 		<div>
 			<h3 class="h3">Config Source</h3>
-			<SegmentedControl value={deploySource} onValueChange={(details) => (deploySource = details.value as DeploySource)}>
+			<SegmentedControl
+				value={deploySource}
+				onValueChange={(details) => {
+					const next = details.value as DeploySource;
+					if (next === K8S && !k8sCapability.available) {
+						return;
+					}
+					deploySource = next;
+				}}
+			>
 				<SegmentedControl.Control>
 					<SegmentedControl.Indicator />
 					<SegmentedControl.Item value={FILE}>
@@ -222,21 +210,26 @@
 					</SegmentedControl.Item>
 				</SegmentedControl.Control>
 			</SegmentedControl>
+			{#if !k8sCapability.loading && !k8sCapability.available}
+				<div class="mt-2 text-xs opacity-70">
+					Kubernetes source is unavailable in current environment.
+				</div>
+			{/if}
+			{#if k8sCapability.error}
+				<div class="alert mt-2 preset-tonal-error">{k8sCapability.error}</div>
+			{/if}
 		</div>
 
 		<div>
 			{#if deploySource === FILE}
 				<FileTree bind:selectedFilePath />
-			{:else if deploySource === STORAGE}
+			{:else if effectiveDeploySource === STORAGE}
 				<div class="text-sm opacity-70">Storage source is not implemented yet.</div>
-			{:else if deploySource === K8S}
+			{:else if effectiveDeploySource === K8S}
 				<div class="space-y-2">
-					{#if k8sErrorMessage}
-						<div class="alert preset-tonal-error">{k8sErrorMessage}</div>
-					{/if}
-					{#if k8sEnvLoading}
+					{#if k8sCapability.loading}
 						<div class="text-sm opacity-70">Loading kubernetes environment...</div>
-					{:else if k8sEnv?.in_cluster}
+					{:else if k8sCapability.available}
 						<label class="label" for="k8s-namespace-select">
 							<span>Namespace</span>
 						</label>
@@ -251,7 +244,7 @@
 							{/each}
 						</select>
 						<div class="text-xs opacity-70">
-							Runtime namespace: {k8sEnv.current_namespace ?? 'unknown'}
+							Runtime namespace: {k8sCapability.currentNamespace ?? 'unknown'}
 						</div>
 					{:else}
 						<div class="text-sm opacity-70">

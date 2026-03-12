@@ -1,21 +1,17 @@
 <script lang="ts">
-	import { Collapsible, FileUpload } from '@skeletonlabs/skeleton-svelte';
+	import { Collapsible } from '@skeletonlabs/skeleton-svelte';
 	import {
-		Upload,
 		FileText,
 		ChevronDown,
-		ChevronRight,
 		CheckCircle,
 		AlertTriangle,
 		XCircle,
-		FileIcon,
 		Lock,
 		Shield,
 		Calendar,
 		User,
 		Key
 	} from '@lucide/svelte';
-	import { slide } from 'svelte/transition';
 	import { X509Certificate } from '@peculiar/x509';
 
 	type ValidationRule = {
@@ -100,7 +96,6 @@
 					const sanValue = sanExt.value;
 					if (sanValue && typeof sanValue === 'object') {
 						subjectAltNames = [];
-						// @ts-ignore - SAN parsing is complex, this is a basic implementation
 						for (const name of sanValue) {
 							if (name.dNSName) subjectAltNames.push(name.dNSName);
 						}

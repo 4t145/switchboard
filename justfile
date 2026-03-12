@@ -12,7 +12,7 @@ dev-sbk-sudo:
     cargo build --bin sbk
     sudo ./target/debug/sbk examples/config/kernel.toml
 dev-sbc:
-    cargo run --bin sbc -- start examples/config/controller.toml
+    cargo run --bin sbc -- start --config examples/config/controller.toml --no-web-root
 dev-sbc-sudo:
     cargo build --bin sbc
     sudo ./target/debug/sbc start examples/config/controller.toml

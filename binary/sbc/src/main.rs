@@ -17,7 +17,11 @@ pub enum CliSubCommand {
 
 #[derive(clap::Args)]
 pub struct CliSubCommandConfig {
+    #[clap(short, long)]
     config: PathBuf,
+    /// disable the web root in config, would be useful for frontend dev
+    #[clap(long, default_value_t = false)]
+    no_web_root: bool,
 }
 
 pub async fn retrieve_controller_config() -> Result<ControllerConfig, Box<dyn std::error::Error>> {

@@ -6,6 +6,7 @@
 	import { Menu, Home, Activity, Database, Settings, Factory, X, CloudUpload } from '@lucide/svelte';
 	import Logo from '$lib/components/logo.svelte';
 	import { settingsStore } from '$lib/stores/settings.svelte';
+	import { capabilitiesStore } from '$lib/stores/capabilities.svelte';
 	import { initializeGlobalAPI } from '$lib/plugins/global-api';
 	import { registerAllPlugins } from '$lib/plugins/register';
 	import { loadPluginsFromServer } from '$lib/plugins/loader';
@@ -19,6 +20,7 @@
 	onMount(() => {
 		settingsStore.load();
 		settingsStore.apply();
+		void capabilitiesStore.loadK8sEnv();
 
 		// Initialize plugin system (async but not blocking)
 		(async () => {
@@ -95,14 +97,9 @@
 		subItems?: { label: string; href: string }[];
 	}[] = [
 		{ label: 'Dashboard', icon: 'home', href: '/admin/dashboard' },
-		{
-			label: 'Services',
-			icon: 'activity',
-			href: '/admin/services'
-		},
-		{ label: 'Build', icon: 'factory', href: '/admin/build' },
+		{ label: 'Edit', icon: 'factory', href: '/admin/edit' },
+		{ label: 'Deploy', icon: 'cloud_upload', href: '/admin/deploy' },
 		{ label: 'Storage', icon: 'database', href: '/admin/storage' },
-		{ label: 'Deploy', icon: 'cloud_upload', href: '/admin/deploy' }
 	];
 
 	// 计算当前活跃路径

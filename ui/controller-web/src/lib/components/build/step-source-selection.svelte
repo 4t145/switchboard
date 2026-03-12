@@ -171,12 +171,15 @@
 		>
 			<ObjectPages
 				pageSize={12}
-				filter={{ data_type: 'ServiceConfig', latest_only: true, lockedFields: ['dataType'] }}
+				filter={{ data_type: 'ServiceConfig', latest_only: true }}
+				lockedFileds={['data_type']}
 				selectionMode="single"
 				selectedId={selectedConfigId}
-				onSelect={(item) => {
-					selectedConfigId = item.descriptor.id;
-					selectedItemDescriptor = item.descriptor;
+				onSelectionChange={(items) => {
+					if (items[0]) {
+						selectedConfigId = items[0].descriptor.id;
+						selectedItemDescriptor = items[0].descriptor;
+					}
 				}}
 				showViewDetails={false}
 				showEdit={false}

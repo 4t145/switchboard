@@ -1,4 +1,5 @@
 <script lang="ts" module>
+	type Field = keyof ObjectFilter;
 	interface Props {
 		dataType?: string;
 		id?: string;
@@ -6,16 +7,15 @@
 		latestOnly?: boolean;
 		createdBefore?: Date;
 		createdAfter?: Date;
-		lockedFields?: string[];
+		lockedFields?: Field[];
 		compact?: boolean;
 		onSubmit?: (filter: ObjectFilter) => void;
 	}
 </script>
 
 <script lang="ts">
-	import { api } from '$lib/api/routes';
 	import type { ObjectFilter } from '$lib/api/routes/storage';
-	import { ArrowDownIcon, ArrowUpDownIcon, BrushCleaningIcon, SearchIcon } from '@lucide/svelte';
+	import { BrushCleaningIcon, SearchIcon } from '@lucide/svelte';
 	const dataTypeOptions = [
 		{ label: 'Service Config', value: 'ServiceConfig' },
 		{ label: 'Pem', value: 'pem' }
@@ -29,14 +29,8 @@
 		createdBefore = $bindable(),
 		lockedFields = [],
 		compact = false,
-		onSubmit = (filter: ObjectFilter) => {}
+		onSubmit = () => {}
 	}: Props = $props();
-	const selectedDataTypeLabel = $derived(
-		dataType
-			? dataTypeOptions.find((option) => option.value === dataType)?.label
-			: 'Select a data type'
-	);
-	let advancedOpen = $state(false);
 	function submit() {
 		onSubmit({
 			...(dataType ? { data_type: dataType } : {}),
@@ -48,10 +42,10 @@
 		});
 	}
 	function resetFilters() {
-		if (!lockedFields.includes('dataType')) dataType = '';
+		if (!lockedFields.includes('data_type')) dataType = '';
 		if (!lockedFields.includes('id')) id = '';
 		if (!lockedFields.includes('revision')) revision = '';
-		if (!lockedFields.includes('latestOnly')) latestOnly = true;
+		if (!lockedFields.includes('latest_only')) latestOnly = true;
 		createdAfter = undefined;
 		createdBefore = undefined;
 	}
@@ -78,19 +72,19 @@
 		</label>
 	{/if}
 
-	{#if !lockedFields.includes('dataType')}
+	{#if !lockedFields.includes('data_type')}
 		<label class="flex items-center gap-2">
 			<span class="text-sm font-medium opacity-75">Type:</span>
 			<select class="select-sm select w-40" bind:value={dataType}>
 				<option value="">All Types</option>
-				{#each dataTypeOptions as option}
+				{#each dataTypeOptions as option (option.value)}
 					<option value={option.value}>{option.label}</option>
 				{/each}
 			</select>
 		</label>
 	{/if}
 
-	{#if !lockedFields.includes('latestOnly')}
+	{#if !lockedFields.includes('latest_only')}
 		<label class="flex cursor-pointer items-center gap-2">
 			<input bind:checked={latestOnly} type="checkbox" class="checkbox-sm checkbox" />
 			<span class="text-sm font-medium">Latest Only</span>
@@ -98,13 +92,18 @@
 	{/if}
 
 	<div class="ml-auto flex gap-2">
-		<button onclick={submit} type="button" class="preset-filled-primary-500 btn btn-sm" title="Search">
+		<button
+			onclick={submit}
+			type="button"
+			class="btn preset-filled-primary-500 btn-sm"
+			title="Search"
+		>
 			<SearchIcon size={16} class="mr-1" /> Search
 		</button>
 		<button
 			onclick={resetFilters}
 			type="button"
-			class="btn-icon btn-icon-sm preset-filled-warning-500"
+			class="btn-icon preset-filled-warning-500"
 			title="Reset"
 		>
 			<BrushCleaningIcon size={16} />

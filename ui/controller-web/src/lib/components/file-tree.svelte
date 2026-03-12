@@ -7,6 +7,7 @@
 
 	type Props = {
 		selectedFilePath?: string;
+		onSelectionChange?: (value: string | undefined) => void;
 	};
 
 	type FileTreeNode = {
@@ -18,7 +19,7 @@
 		childrenCount?: number;
 	};
 
-	let { selectedFilePath = $bindable(undefined) }: Props = $props();
+	let { selectedFilePath = $bindable(undefined), onSelectionChange: propOnSelectionChange = () => {} }: Props = $props();
 
 	let allowedRoots = $state<string[]>([]);
 	let selectedRoot = $state<string | undefined>(undefined);
@@ -140,7 +141,11 @@
 		}
 	}
 
-	function buildNodeFromEntry(root: string, entry: FsEntry, children: FsEntry[] = []): FileTreeNode {
+	function buildNodeFromEntry(
+		root: string,
+		entry: FsEntry,
+		children: FsEntry[] = []
+	): FileTreeNode {
 		const nodeChildren = children.map((child) => buildNodeFromEntry(root, child));
 		const hasChildren = entry.has_children ?? false;
 		return {
@@ -149,7 +154,8 @@
 			relativePath: toRelativePath(root, entry.path),
 			isDirectory: entry.entry_type === 'directory',
 			children: nodeChildren.length > 0 ? nodeChildren : undefined,
-			childrenCount: entry.entry_type === 'directory' && hasChildren ? (nodeChildren.length || 1) : undefined
+			childrenCount:
+				entry.entry_type === 'directory' && hasChildren ? nodeChildren.length || 1 : undefined
 		};
 	}
 
@@ -182,6 +188,10 @@
 		if (root.endsWith('/') || root.endsWith('\\')) return `${root}${relativePath}`;
 		return `${root}/${relativePath}`;
 	}
+	
+	$effect(() => {
+		propOnSelectionChange(selectedFilePath);
+	});
 </script>
 
 <div class="space-y-3">
@@ -246,7 +256,7 @@
 			<TreeView.Branch>
 				<TreeView.BranchControl>
 					<TreeView.BranchIndicator class="data-loading:hidden" />
-					<TreeView.BranchIndicator class="hidden data-loading:inline animate-spin">
+					<TreeView.BranchIndicator class="hidden animate-spin data-loading:inline">
 						<LoaderCircleIcon class="size-4" />
 					</TreeView.BranchIndicator>
 					<TreeView.BranchText>

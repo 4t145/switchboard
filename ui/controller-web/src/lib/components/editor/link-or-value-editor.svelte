@@ -12,23 +12,9 @@
 		ArrowRightIcon,
 		XIcon
 	} from '@lucide/svelte';
-	import ObjectPages from '$lib/components/object-pages.svelte';
-	import LinkOrValueDisplay from '$lib/components/config/link-or-value-display.svelte';
-	import type { StorageObjectDescriptor } from '$lib/api/types';
-	import {
-		FloatingPanel,
-		Portal,
-		SegmentedControl,
-		ToggleGroup
-	} from '@skeletonlabs/skeleton-svelte';
-	import {
-		parseLink,
-		formatLink,
-		isLinkValue,
-		type LinkKind,
-		getScheme,
-		type ParsedLink
-	} from '$lib/utils/link-parser';
+
+	import { ToggleGroup } from '@skeletonlabs/skeleton-svelte';
+	import { parseLink, isLinkValue, type ParsedLink } from '$lib/utils/link-parser';
 	import { untrack, type Snippet } from 'svelte';
 
 	type Props<T = unknown> = {
@@ -242,7 +228,7 @@
 							bind:value={linkLocationInput}
 							placeholder="resource location"
 							onkeydown={handleLinkInputKeydown}
-							readonly={readonly}
+							{readonly}
 						/>
 						{#if selectedLinkScheme === 'storage'}
 							<button type="button" class="ig-btn" disabled={readonly}>

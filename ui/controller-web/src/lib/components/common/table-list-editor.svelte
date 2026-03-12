@@ -28,7 +28,6 @@
 
 	type Props = {
 		value: T[];
-		caption?: string;
 		onChange?: (value: T[]) => void;
 		row: Snippet<[RowParams<T>]>;
 		header?: Snippet<[ListOperations<T>]>;
@@ -71,7 +70,6 @@
 
 <div class="table-wrap min-w-0 overflow-x-auto">
 	<table class="table caption-bottom">
-
 		{#if header}
 			<thead>
 				{@render header({
