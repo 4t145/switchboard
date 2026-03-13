@@ -1,10 +1,7 @@
 import type { ProviderEditorPlugin } from "$lib/plugins/types";
 import PortForwardEditor from "./port-forward-editor.svelte";
 
-export type PortForwardConfig = {
-    // socket addr
-    to: string;
-}
+export type PortForwardConfig = string;
 
 export const portForwardEditorPlugin: ProviderEditorPlugin<PortForwardConfig> = {
     provider: 'pf',
@@ -12,9 +9,7 @@ export const portForwardEditorPlugin: ProviderEditorPlugin<PortForwardConfig> = 
     component: PortForwardEditor,
 
     createDefaultConfig(): PortForwardConfig {
-        return {
-            to: ''
-        };
+       return ''
     },
 
 };

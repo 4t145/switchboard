@@ -9,11 +9,13 @@
 	type Props = {
 		value: string;
 		httpEditorContext: HttpEditorContext;
+		readonly?: boolean;
 		onChange: (newValue: string | undefined) => void;
 	};
-	let { value, httpEditorContext, onChange }: Props = $props<{
+	let { value, httpEditorContext, readonly = false, onChange }: Props = $props<{
 		value: string;
 		httpEditorContext: HttpEditorContext;
+		readonly?: boolean;
 		onChange: (newValue: string | undefined) => void;
 	}>();
 	const collection = $derived.by(() => {
@@ -36,7 +38,15 @@
     };
 </script>
 
-<Combobox class="max-w-md" placeholder="Select Node Target" {collection} {onInputValueChange} {onOpenChange} value={[value]}>
+<Combobox
+	class="max-w-md"
+	placeholder="Select Node Target"
+	{collection}
+	{onInputValueChange}
+	{onOpenChange}
+	value={[value]}
+	disabled={readonly}
+>
 	<!-- <Combobox.Label>Label</Combobox.Label> -->
 	<Combobox.Control>
 		<Combobox.Input />

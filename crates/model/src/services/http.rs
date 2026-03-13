@@ -66,8 +66,8 @@ pub enum HttpVersion {
 pub struct FlowConfig<Cfg = SerdeValue> {
     pub entrypoint: NodeTarget,
     #[serde(alias = "instance")]
-    #[serde(default = "BTreeMap::new", skip_serializing_if = "BTreeMap::is_empty")]
-    pub instances: BTreeMap<InstanceId, InstanceData<Cfg>>,
+    // #[serde(default = "BTreeMap::new", skip_serializing_if = "BTreeMap::is_empty")]
+    // pub instances: BTreeMap<InstanceId, InstanceData<Cfg>>,
     #[serde(alias = "node")]
     #[serde(default = "BTreeMap::new", skip_serializing_if = "BTreeMap::is_empty")]
     pub nodes: BTreeMap<InstanceId, InstanceDataWithoutType<Cfg>>,
@@ -87,25 +87,9 @@ where
         self,
         resolver: &R,
     ) -> Result<FlowConfig<Cfg>, R::Error> {
-        let mut resolve_instances_tasks = tokio::task::JoinSet::new();
         let mut resolve_nodes_tasks = tokio::task::JoinSet::new();
         let mut resolve_filters_tasks = tokio::task::JoinSet::new();
-        for (instance_id, instance_data) in self.instances.into_iter() {
-            let resolver = resolver.clone();
-            resolve_instances_tasks.spawn(async move {
-                instance_data
-                    .config
-                    .resolve_with(&resolver)
-                    .await
-                    .map(|config| InstanceData {
-                        name: instance_data.name,
-                        class: instance_data.class,
-                        r#type: instance_data.r#type,
-                        config,
-                    })
-                    .map(|data| (instance_id, data))
-            });
-        }
+
         for (node_id, node_data) in self.nodes.into_iter() {
             let resolver = resolver.clone();
             resolve_nodes_tasks.spawn(async move {
@@ -144,11 +128,7 @@ where
                     })
             });
         }
-        let new_instances = resolve_instances_tasks
-            .join_all()
-            .await
-            .into_iter()
-            .collect::<Result<_, _>>()?;
+
         let new_nodes = resolve_nodes_tasks
             .join_all()
             .await
@@ -161,7 +141,6 @@ where
             .collect::<Result<_, _>>()?;
         Ok(FlowConfig {
             entrypoint: self.entrypoint,
-            instances: new_instances,
             nodes: new_nodes,
             filters: new_filters,
             options: self.options,
@@ -173,7 +152,6 @@ impl<Cfg> FlowConfig<Cfg> {
     pub fn new() -> Self {
         Self {
             entrypoint: NodeTarget::from("inbound"),
-            instances: BTreeMap::new(),
             nodes: BTreeMap::new(),
             filters: BTreeMap::new(),
             options: FlowOptions::default(),
@@ -235,7 +213,15 @@ pub struct InstanceData<Cfg = SerdeValue> {
     pub r#type: InstanceType,
     pub config: Cfg,
 }
-
+impl<Cfg> InstanceData<Cfg> {
+    pub fn without_type(self) -> InstanceDataWithoutType<Cfg> {
+        InstanceDataWithoutType {
+            name: self.name,
+            class: self.class,
+            config: self.config,
+        }
+    }
+}
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct InstanceDataWithoutType<Cfg = SerdeValue> {
     pub name: Option<String>,
@@ -250,6 +236,13 @@ impl<Cfg> InstanceDataWithoutType<Cfg> {
             class: self.class,
             r#type,
             config: self.config,
+        }
+    }
+    pub fn from_typed(typed: InstanceData<Cfg>) -> Self {
+        InstanceDataWithoutType {
+            name: typed.name,
+            class: typed.class,
+            config: typed.config,
         }
     }
 }

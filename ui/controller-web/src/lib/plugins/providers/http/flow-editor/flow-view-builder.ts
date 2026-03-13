@@ -164,8 +164,12 @@ export const FlowGraph = {
 export async function buildFlowGraph(flow: FlowConfig): Promise<FlowGraph> {
 	const resolving: Record<string, Promise<void>> = {};
 	const resolvedNodes: Record<string, InstanceDataWithoutType<unknown>> = {};
+	const allRawFlowNodes = flow.nodes ?? {};
+	console.debug('allRawFlowNodes', allRawFlowNodes);
+	const allRawFlowFilters = flow.filters ?? {};
+
 	// resolve all the config
-	for (const [nodeId, nodeData] of Object.entries(flow.nodes ?? {})) {
+	for (const [nodeId, nodeData] of Object.entries(allRawFlowNodes)) {
 		if (isLinkValue(nodeData.config)) {
 			const promise = api.resolve.link_to_object(nodeData.config).then((response) => {
 				resolvedNodes[nodeId] = {
@@ -203,13 +207,14 @@ export async function buildFlowGraph(flow: FlowConfig): Promise<FlowGraph> {
 			graph.addLink(link.from, link.to);
 		}
 	}
-	for (const [filterId, filterData] of Object.entries(flow.filters ?? {})) {
+	for (const [filterId, filterData] of Object.entries(allRawFlowFilters)) {
 		const filter: FlowGraphFilter = {
 			id: filterId,
 			data: filterData
 		};
 		graph.filters[filterId] = filter;
 	}
+
 	return graph;
 }
 

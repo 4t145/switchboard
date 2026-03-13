@@ -3,7 +3,7 @@
 	import LinkOrValueEditor from './link-or-value-editor.svelte';
 
 	type Props = {
-		value: any;
+		value: unknown;
 		provider: string;
 		readonly?: boolean;
 	};

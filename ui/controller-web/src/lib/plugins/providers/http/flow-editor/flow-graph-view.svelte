@@ -6,8 +6,7 @@
 		SvelteFlow,
 		Background,
 		Controls,
-		MiniMap,
-		MarkerType
+		MiniMap
 	} from '@xyflow/svelte';
 	import '@xyflow/svelte/dist/style.css';
 	import type { FlowGraph } from './flow-view-builder';

@@ -1,9 +1,4 @@
-import type {
-	ConfigRolloutReport,
-	KernelConnectionAndState,
-	ResultObject,
-	HumanReadableServiceConfig
-} from '../types';
+import type { ConfigRolloutReport, KernelConnectionAndState, ResultObject } from '../types';
 import type { LinkOrValue } from '../types/controller';
 import { fetchJson } from './index';
 

@@ -39,8 +39,8 @@ impl super::HttpGatewayBuilder {
                         super::filter::build_filter_instance_from_k8s_backend_filter(filter);
                     self.config
                         .flow
-                        .instances
-                        .insert(filter_instance_id, filter);
+                        .filters
+                        .insert(filter_instance_id, filter.without_type());
                 }
             }
             let backend_service_instance_id: InstanceId =
@@ -72,8 +72,8 @@ impl super::HttpGatewayBuilder {
             };
             self.config
                 .flow
-                .instances
-                .insert(backend_service_instance_id, reverse_proxy_service_instance);
+                .filters
+                .insert(backend_service_instance_id, reverse_proxy_service_instance.without_type());
         }
         // do we have many backends?
         let balancer_instance = if balancer_outputs.len() > 1 {
@@ -90,8 +90,8 @@ impl super::HttpGatewayBuilder {
             };
             self.config
                 .flow
-                .instances
-                .insert(balancer_instance_id.clone(), balancer_instance);
+                .filters
+                .insert(balancer_instance_id.clone(), balancer_instance.without_type());
             balancer_instance_id
         } else if let Some(only_output) = balancer_outputs.into_values().next() {
             only_output.target.id.clone()

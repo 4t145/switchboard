@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Dialog, FloatingPanel, Portal } from '@skeletonlabs/skeleton-svelte';
+	import { FloatingPanel, Portal } from '@skeletonlabs/skeleton-svelte';
 	import {
 		GripVerticalIcon,
 		MaximizeIcon,
@@ -13,12 +13,19 @@
 	import InstanceConfigEditor from './instance-config-editor.svelte';
 	import type { HttpEditorContext, InstanceDataWithoutType } from '../types';
 	import { dialogQuery } from '$lib/components/dialog';
-	import type { Component } from 'svelte';
-	let { value, onValueSave, instanceType, instanceId, httpEditorContext } = $props<{
+	let {
+		value,
+		onValueSave,
+		instanceType,
+		instanceId,
+		httpEditorContext,
+		readonly = false
+	} = $props<{
 		value: InstanceDataWithoutType;
 		onValueSave: (value: InstanceDataWithoutType) => void;
 		instanceType: 'node' | 'filter';
 		instanceId: string;
+		readonly: boolean;
 		httpEditorContext: HttpEditorContext;
 	}>();
 	export function closeWithoutSaving() {
@@ -63,7 +70,7 @@
 		);
 	}
 	function onOpenChange(details: { open: boolean }) {
-		if (!details.open) {
+		if (!details.open && !readonly) {
 			confirmSavingBeforeClose().then((option) => {
 				if (option === 'save-and-close') {
 					saveAndClose();
@@ -74,6 +81,8 @@
 					open();
 				}
 			});
+		} else if (!details.open && readonly) {
+			closeWithoutSaving();
 		} else {
 			open();
 		}
@@ -96,7 +105,11 @@
 					<FloatingPanel.Header>
 						<FloatingPanel.Title>
 							<GripVerticalIcon class="size-4" />
-							editing {instanceType} "{instanceId}" {#if changed}*{/if}
+							{#if readonly}
+								Config of {instanceType} "{instanceId}"
+							{:else}
+								Editing Config of {instanceType} "{instanceId}" {#if changed}*{/if}
+							{/if}
 						</FloatingPanel.Title>
 						<FloatingPanel.Control>
 							<FloatingPanel.StageTrigger stage="minimized">
@@ -122,21 +135,24 @@
 						</FloatingPanel.Control>
 					</FloatingPanel.Header>
 				</FloatingPanel.DragTrigger>
-				<FloatingPanel.Body class="flex flex-col justify-between bg-surface-50-950">
-					<content class="h-full w-full overflow-auto">
+				<FloatingPanel.Body class="flex flex-col justify-between bg-surface-50-950 pb-14">
+					<content class=" w-full overflow-auto">
 						<InstanceConfigEditor
 							{instanceId}
 							bind:config={value}
 							{instanceType}
 							{httpEditorContext}
+							{readonly}
 						></InstanceConfigEditor>
 					</content>
-					<footer class="mt-4 flex justify-end gap-2 pb-[48px]">
-						<button class="btn preset-tonal-secondary" onclick={closeWithoutSaving}>
-							Cancel
-						</button>
-						<button class="btn preset-tonal-primary" onclick={saveAndClose}> Save </button>
-					</footer>
+					{#if !readonly}
+						<footer class="mt-4 flex justify-end gap-2">
+							<button class="btn preset-tonal-secondary" onclick={closeWithoutSaving}>
+								Cancel
+							</button>
+							<button class="btn preset-tonal-primary" onclick={saveAndClose}> Save </button>
+						</footer>
+					{/if}
 				</FloatingPanel.Body>
 				<FloatingPanel.ResizeTrigger axis="se" />
 			</FloatingPanel.Content>

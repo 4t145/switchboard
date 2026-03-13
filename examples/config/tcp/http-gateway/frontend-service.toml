@@ -1,3 +1,0 @@
-backend = "localhost:3000"
-schema = "http"
-timeout = 300

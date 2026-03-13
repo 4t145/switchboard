@@ -355,43 +355,35 @@ where
         "http" => {
             let http_config = resolved_config
                 .deserialize_into::<crate::services::http::Config<LinkOrValue<L, SerdeValue>>>()?;
-            let mut new_instances = BTreeMap::new();
-            for (instance_id, instance_data) in http_config
-                .flow
-                .instances
-                .into_iter()
-                .chain(
-                    http_config
-                        .flow
-                        .filters
-                        .into_iter()
-                        .map(|(id, instance)| (id, instance.with_type(InstanceType::Filter))),
-                )
-                .chain(
-                    http_config
-                        .flow
-                        .nodes
-                        .into_iter()
-                        .map(|(id, instance)| (id, instance.with_type(InstanceType::Node))),
-                )
-            {
-                let actual_config = instance_data.config.resolve_with(resolver).await.map_err(
+            let mut new_filters = BTreeMap::new();
+            for (filter_id, filter_data) in http_config.flow.filters.into_iter() {
+                let actual_config = filter_data.config.resolve_with(resolver).await.map_err(
                     ResolveConfigFileError::when_resolve("resolve http instance config"),
                 )?;
-                let resolved_instance_data = crate::services::http::InstanceData {
+                let resolved_instance_data = crate::services::http::InstanceDataWithoutType {
                     config: actual_config,
-                    name: instance_data.name,
-                    class: instance_data.class,
-                    r#type: instance_data.r#type,
+                    name: filter_data.name,
+                    class: filter_data.class,
                 };
-                new_instances.insert(instance_id, resolved_instance_data);
+                new_filters.insert(filter_id, resolved_instance_data);
+            }
+            let mut new_nodess = BTreeMap::new();
+            for (node_id, node_data) in http_config.flow.nodes.into_iter() {
+                let actual_config = node_data.config.resolve_with(resolver).await.map_err(
+                    ResolveConfigFileError::when_resolve("resolve http instance config"),
+                )?;
+                let resolved_instance_data = crate::services::http::InstanceDataWithoutType {
+                    config: actual_config,
+                    name: node_data.name,
+                    class: node_data.class,
+                };
+                new_nodess.insert(node_id, resolved_instance_data);
             }
             let resolved_config = crate::services::http::Config {
                 flow: crate::services::http::FlowConfig {
-                    instances: new_instances,
                     entrypoint: http_config.flow.entrypoint,
-                    nodes: BTreeMap::new(),
-                    filters: BTreeMap::new(),
+                    nodes: new_nodess,
+                    filters: new_filters,
                     options: http_config.flow.options,
                 },
                 server: http_config.server,

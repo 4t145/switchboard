@@ -22,14 +22,6 @@
 		return tree;
 	}
 
-	const treeView = $derived.by(() => {
-		try {
-			return buildTreeView(graph);
-		} catch (e) {
-			console.error(`Failed to build tree view`, e);
-			return Error(`Failed to build tree view: ${e}`);
-		}
-	});
 	const componentState:
 		| {
 				type: 'ready';
@@ -51,10 +43,10 @@
 				})
 			};
 		} catch (e) {
-			console.error(`Failed to build tree view`, e);
+			console.error(`Failed to build tree view collection`, e);
 			return {
 				type: 'error',
-				error: Error(`Failed to build tree view: ${e}`)
+				error: Error(`Failed to build tree view collection: ${e}`)
 			};
 		}
 	});

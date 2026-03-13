@@ -27,6 +27,9 @@ build-container:
 test-start-kind:
     bash tests/k8s/setup-kind.sh
 
+test-k8s-conformance-local:
+    cd tests/k8s-conformance && go test ./... -v -tags gatewayAPIConformance -run GatewayAPIConformanceSuite
+
 debug-surreal:
     surreal start rocksdb://tmp/data/controller_storage.db
 

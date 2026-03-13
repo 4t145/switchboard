@@ -15,7 +15,7 @@
         Forward To Address
     </span> 
     <SocketAddrEditor
-        bind:value={value.to}
+        bind:value={value}
         disabled={readonly}
         placeholder="e.g. 192.168.1.1:22"
     />

@@ -191,80 +191,82 @@
 	<div class="card">
 		<!-- Link Type Selector -->
 		<div class="flex flex-row justify-between gap-2">
-			<!-- Link Input Fields -->
-			<ToggleGroup
-				multiple={false}
-				value={[editorState.mode]}
-				onValueChange={(details) => {
-					if (details.value[0]) switchEditorMode(details.value[0] as EditorMode);
-				}}
-				disabled={readonly}
-			>
-				<ToggleGroup.Item value="reference">
-					<LinkIcon class="inline-block size-4" />
-				</ToggleGroup.Item>
-				<ToggleGroup.Item value="inline">
-					<ParenthesesIcon class="inline-block size-4" />
-				</ToggleGroup.Item>
-			</ToggleGroup>
-			{#if editorState.mode === 'reference'}
-				<div class="input-group flex flex-grow">
-					{#if isEditingLink}
-						<select
-							bind:value={selectedLinkScheme}
-							class="ig-select max-w-[7.5rem] preset-tonal"
-							disabled={readonly}
-						>
-							<option value="storage">storage</option>
-							<option value="file">file</option>
-							<option value="http">http</option>
-							<option value="https">https</option>
-						</select>
-						<div class="ig-cell">://</div>
-						<input
-							class="ig-input"
-							type="text"
-							bind:this={linkLocationInputRef}
-							bind:value={linkLocationInput}
-							placeholder="resource location"
-							onkeydown={handleLinkInputKeydown}
-							{readonly}
-						/>
-						{#if selectedLinkScheme === 'storage'}
+			{#if !readonly}
+				<!-- Link Input Fields -->
+				<ToggleGroup
+					multiple={false}
+					value={[editorState.mode]}
+					onValueChange={(details) => {
+						if (details.value[0]) switchEditorMode(details.value[0] as EditorMode);
+					}}
+					disabled={readonly}
+				>
+					<ToggleGroup.Item value="reference">
+						<LinkIcon class="inline-block size-4" />
+					</ToggleGroup.Item>
+					<ToggleGroup.Item value="inline">
+						<ParenthesesIcon class="inline-block size-4" />
+					</ToggleGroup.Item>
+				</ToggleGroup>
+				{#if editorState.mode === 'reference'}
+					<div class="input-group flex flex-grow">
+						{#if isEditingLink}
+							<select
+								bind:value={selectedLinkScheme}
+								class="ig-select max-w-[7.5rem] preset-tonal"
+								disabled={readonly}
+							>
+								<option value="storage">storage</option>
+								<option value="file">file</option>
+								<option value="http">http</option>
+								<option value="https">https</option>
+							</select>
+							<div class="ig-cell">://</div>
+							<input
+								class="ig-input"
+								type="text"
+								bind:this={linkLocationInputRef}
+								bind:value={linkLocationInput}
+								placeholder="resource location"
+								onkeydown={handleLinkInputKeydown}
+								{readonly}
+							/>
+							{#if selectedLinkScheme === 'storage'}
+								<button type="button" class="ig-btn" disabled={readonly}>
+									<SearchIcon class="inline-block size-4" />
+								</button>
+							{/if}
+							<button type="button" class="ig-btn" onclick={quitEditLink} disabled={readonly}>
+								<XIcon class="inline-block size-4" />
+							</button>
 							<button type="button" class="ig-btn" disabled={readonly}>
-								<SearchIcon class="inline-block size-4" />
+								<ArrowRightIcon class="inline-block size-4" />
+							</button>
+						{:else}
+							<div class="ig-cell">
+								{#if editorState.parsedLink.kind === 'storage'}
+									<DatabaseIcon class="inline-block size-4" />
+								{:else if editorState.parsedLink.kind === 'file'}
+									<FileText class="inline-block size-4" />
+								{:else if editorState.parsedLink.kind === 'http'}
+									<Globe class="inline-block size-4" />
+								{/if}
+							</div>
+							<input class="ig-input" type="text" readonly {value} onfocus={editLink} />
+							<button type="button" class="ig-btn" onclick={editLink} disabled={readonly}>
+								<EditIcon class="inline-block size-4" />
+							</button>
+							<button type="button" class="ig-btn" disabled={readonly}>
+								<ArrowRightLeft class="inline-block size-4" />
 							</button>
 						{/if}
-						<button type="button" class="ig-btn" onclick={quitEditLink} disabled={readonly}>
-							<XIcon class="inline-block size-4" />
-						</button>
-						<button type="button" class="ig-btn" disabled={readonly}>
-							<ArrowRightIcon class="inline-block size-4" />
-						</button>
-					{:else}
-						<div class="ig-cell">
-							{#if editorState.parsedLink.kind === 'storage'}
-								<DatabaseIcon class="inline-block size-4" />
-							{:else if editorState.parsedLink.kind === 'file'}
-								<FileText class="inline-block size-4" />
-							{:else if editorState.parsedLink.kind === 'http'}
-								<Globe class="inline-block size-4" />
-							{/if}
-						</div>
-						<input class="ig-input" type="text" readonly {value} onfocus={editLink} />
-						<button type="button" class="ig-btn" onclick={editLink} disabled={readonly}>
-							<EditIcon class="inline-block size-4" />
-						</button>
-						<button type="button" class="ig-btn" disabled={readonly}>
-							<ArrowRightLeft class="inline-block size-4" />
-						</button>
-					{/if}
-				</div>
-			{:else if editorState.mode === 'inline'}
-				<div class="flex flex-grow items-center space-x-2">
-					<span class="text-sm text-surface-500">Editing inline value</span>
-				</div>
-			{/if}
+					</div>
+				{:else if editorState.mode === 'inline'}
+					<div class="flex grow items-center space-x-2">
+						<span class="text-sm text-surface-500">Editing inline value</span>
+					</div>
+				{/if}
+			{:else}{/if}
 		</div>
 	</div>
 	<!-- Close Link Configuration Card -->

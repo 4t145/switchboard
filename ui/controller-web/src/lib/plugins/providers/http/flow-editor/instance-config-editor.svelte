@@ -7,9 +7,10 @@
 		instanceType: 'node' | 'filter';
 		instanceId: string;
 		config: InstanceDataWithoutType;
-		httpEditorContext: HttpEditorContext
+		httpEditorContext: HttpEditorContext;
+		readonly?: boolean;
 	};
-	let { instanceType, instanceId, config = $bindable(), httpEditorContext }: Props = $props();
+	let { instanceType, instanceId, config = $bindable(), httpEditorContext, readonly = false }: Props = $props();
 	const plugin = $derived(httpClassEditorRegistry.get(config.class));
 	let value = $state(config.config);
 	$effect(() => {
@@ -24,13 +25,14 @@
 {#if plugin}
 	{@const Editor = plugin.component}
 	{#snippet editor(value: unknown, onValueChange: (saveValue: unknown) => void)}
-		<Editor {value} {onValueChange} {httpEditorContext}/>
+		<Editor {value} {onValueChange} {httpEditorContext} {readonly}/>
 	{/snippet}
 	<LinkOrValueEditor
 		bind:value
 		valueDataFormat="object"
 		{editor}
 		getDefaultInlineValue={plugin.createDefaultConfig}
+		readonly={readonly}
 	/>
 {:else}
 	<div class="preset-outlined-warning card">unregistered class: {config.class}</div>

@@ -12,11 +12,13 @@
 	type Props = {
 		value: string[];
 		httpEditorContext: HttpEditorContext;
+		readonly?: boolean;
 		onChange: (newValue: string[]) => void;
 	};
-	let { value, httpEditorContext, onChange }: Props = $props<{
+	let { value, httpEditorContext, readonly = false, onChange }: Props = $props<{
 		value: string[];
 		httpEditorContext: HttpEditorContext;
+		readonly?: boolean;
 		onChange: (newValue: string[]) => void;
 	}>();
 
@@ -33,10 +35,12 @@
 	let dragIndex = $state<number | null>(null);
 	let dropIndex = $state<number | null>(null); // 视觉上：要在哪个索引“之前”显示占位符
 	function addOne(filter: string) {
+		if (readonly) return;
 		const newValue = [...value, filter];
 		onChange(newValue);
 	}
 	function onDragStart(event: DragEvent, index: number) {
+		if (readonly) return;
 		if (!event.dataTransfer) return;
 		dragIndex = index;
 		event.dataTransfer.effectAllowed = 'move';
@@ -45,6 +49,7 @@
 	}
 
 	function onDragOver(event: DragEvent, targetIndex: number) {
+		if (readonly) return;
 		event.preventDefault(); // 允许 drop
 		if (dragIndex === null || dragIndex === targetIndex) return;
 
@@ -53,6 +58,7 @@
 	}
 
 	function onDrop(event: DragEvent, targetIndex: number) {
+		if (readonly) return;
 		event.preventDefault();
 		if (dragIndex === null) return;
 
@@ -74,6 +80,7 @@
 
 	// 处理放在最后的 "+" 按钮上的情况
 	function onDropAtEnd(event: DragEvent) {
+		if (readonly) return;
 		event.preventDefault();
 		if (dragIndex === null) return;
 		const newValue = [...value];
@@ -89,6 +96,7 @@
 	}
 
 	async function queryAddOne() {
+		if (readonly) return;
 		const result = await dialogQuery({
 			title: 'Select Filter',
 			message: queryAddFilter,
@@ -162,7 +170,7 @@
 	</Combobox>
 {/snippet}
 <div class="flex flex-wrap items-center gap-2">
-	{#each value as filter, index}
+	{#each value as filter, index (index)}
 		<!-- Drag Placeholder -->
 		{#if dropIndex === index && dragIndex !== index}
 			<div class="h-6 w-1 animate-pulse rounded-full bg-primary-500 transition-all"></div>
@@ -173,7 +181,7 @@
 			class="badge preset-filled-surface-900-100 px-0 py-0 transition-all {dragIndex === index
 				? 'opacity-40'
 				: ''}"
-			draggable={hoveringDragHandler === index}
+			draggable={!readonly && hoveringDragHandler === index}
 			ondragstart={(event) => onDragStart(event, index)}
 			ondragover={(event) => onDragOver(event, index)}
 			ondrop={(event) => onDrop(event, index)}
@@ -182,10 +190,16 @@
 		>
 			<!-- drag handler -->
 			<div
-				class="btn-icon btn-icon-sm cursor-grab hover:text-primary-500"
+				class="btn-icon btn-icon-sm hover:text-primary-500"
+				class:cursor-grab={!readonly}
+				class:opacity-50={readonly}
 				role="button"
 				tabindex="-1"
-				onmouseenter={() => (hoveringDragHandler = index)}
+				onmouseenter={() => {
+					if (!readonly) {
+						hoveringDragHandler = index;
+					}
+				}}
 				onmouseleave={() => (hoveringDragHandler = null)}
 			>
 				<GripVerticalIcon />
@@ -196,6 +210,7 @@
 			<button
 				type="button"
 				class="btn-icon btn-icon-sm hover:text-primary-500"
+				disabled={readonly}
 				onclick={() => {
 					onChange(value.filter((_, i) => i !== index));
 				}}><XIcon class="size-4"></XIcon></button
@@ -211,10 +226,12 @@
 		type="button"
 		class="btn-icon btn-icon-sm preset-outlined-surface-500"
 		ondragover={(e) => {
+			if (readonly) return;
 			e.preventDefault();
 			dropIndex = value.length;
 		}}
 		ondrop={onDropAtEnd}
+		disabled={readonly}
 		onclick={() => queryAddOne()}><PlusIcon></PlusIcon></button
 	>
 </div>

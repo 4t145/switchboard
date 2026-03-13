@@ -12,7 +12,7 @@ config = { backend = "localhost:8081", schema = "http" }
 
 [flow.nodes."frontend-service"]
 class = "reverse-proxy"
-config = "file://examples/config/tcp/http-gateway/frontend-service.toml"
+config = { backend = "localhost:3000", schema = "http", timeout = 300 }
 
 [flow.nodes."not-found-page"]
 class = "static-response"

@@ -86,8 +86,8 @@ impl super::HttpGatewayBuilder {
                 let filter_instance = filter::build_filter_instance_from_k8s_router_filter(filter);
                 self.config
                     .flow
-                    .instances
-                    .insert(filter_name.clone(), filter_instance);
+                    .filters
+                    .insert(filter_name.clone(), filter_instance.without_type());
                 node_output.filters.push(filter_name.into());
             }
         }

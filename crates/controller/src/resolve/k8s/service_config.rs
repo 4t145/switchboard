@@ -246,8 +246,8 @@ impl HttpGatewayBuilder {
         };
         self.config
             .flow
-            .instances
-            .insert(router_id, router_instance);
+            .nodes
+            .insert(router_id, router_instance.without_type());
         Ok(())
     }
 

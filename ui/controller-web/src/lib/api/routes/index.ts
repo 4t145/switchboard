@@ -1,5 +1,6 @@
 // const BASE_URL = '';
 import type { ErrorStack } from '../types';
+import { configApi } from './config';
 import { fileBrowserApi } from './file_browser';
 import { k8sApi } from './k8s';
 import { kernelManagerApi } from './kernel_manager';
@@ -66,6 +67,7 @@ async function catchAndThrowHttpError(response: Response): Promise<Response> {
 }
 
 export const api = {
+	config: configApi,
 	fileBrowser: fileBrowserApi,
 	k8s: k8sApi,
 	kernelManager: kernelManagerApi,

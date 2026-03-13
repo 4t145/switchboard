@@ -11,7 +11,7 @@ export interface HttpConfig<Cfg = unknown> {
 }
 
 export interface FlowConfig<Cfg = unknown> {
-	entrypoint: NodeTarget;
+   entrypoint: NodeTarget;
 	nodes: Record<string, InstanceDataWithoutType<Cfg>>;
 	filters: Record<string, InstanceDataWithoutType<Cfg>>;
 	options?: FlowOptions;
@@ -21,7 +21,7 @@ export interface FlowOptions {
 	max_loop?: number;
 }
 
-export type InstanceType = 'node' | 'filter';
+export type InstanceType = 'Node' | 'Filter';
 
 export type NodeId = string;
 

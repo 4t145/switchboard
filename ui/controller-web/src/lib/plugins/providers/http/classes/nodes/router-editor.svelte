@@ -203,6 +203,7 @@
 	// --- CRUD Operations ---
 
 	function addHostname() {
+		if (readonly) return;
 		let pattern = 'new-host.com';
 		let counter = 1;
 		const hosts = value.hostname || {};
@@ -223,6 +224,7 @@
 	}
 
 	function deleteHostname(pattern: string) {
+		if (readonly) return;
 		// eslint-disable-next-line
 		if (!confirm(`Delete hostname ${pattern}?`)) return;
 		const newHosts = { ...value.hostname };
@@ -233,14 +235,15 @@
 	}
 
 	function renameHostname(oldPattern: string, newPattern: string) {
+		if (readonly) return;
 		if (oldPattern === newPattern) return;
 		const hosts = value.hostname || {};
 		if (hosts[newPattern]) {
 			// eslint-disable-next-line
 			alert('Hostname already exists');
-			// Revert input? The UI will re-render with old value if this function is called and 'value' isn't updated, 
-			// assuming the input value is derived from selectedNode. 
-			// But if using bind:value to local state, it might stick. 
+			// Revert input? The UI will re-render with old value if this function is called and 'value' isn't updated,
+			// assuming the input value is derived from selectedNode.
+			// But if using bind:value to local state, it might stick.
 			// Best to rely on re-render.
 			return;
 		}
@@ -261,6 +264,7 @@
 	}
 
 	function addPath(hostPattern: string) {
+		if (readonly) return;
 		let pattern = '/new-path';
 		let counter = 1;
 		const paths = value.hostname[hostPattern] || {};
@@ -285,6 +289,7 @@
 	}
 
 	function deletePath(hostPattern: string, pathPattern: string) {
+		if (readonly) return;
 		// eslint-disable-next-line
 		if (!confirm(`Delete path ${pathPattern}?`)) return;
 		const paths = { ...value.hostname[hostPattern] };
@@ -301,6 +306,7 @@
 	}
 
 	function renamePath(hostPattern: string, oldPath: string, newPath: string) {
+		if (readonly) return;
 		if (oldPath === newPath) return;
 		const paths = value.hostname[hostPattern] || {};
 		if (paths[newPath]) {
@@ -354,12 +360,14 @@
 		};
 	}
 	function updateRuleBucket(hostname: string, path: string, ruleBucket: RuleBucket) {
+		if (readonly) return;
 		if (value.hostname[hostname] && value.hostname[hostname][path]) {
 			value.hostname[hostname][path] = ruleBucket;
 			onValueChange(value);
 		}
 	}
 	function updatePath(hostname: string, path: string, newPath: string) {
+		if (readonly) return;
 		if (
 			value.hostname[hostname] &&
 			value.hostname[hostname][path] &&
@@ -426,9 +434,9 @@
 					{:else}
 						<span class="font-bold">{node.pattern}</span>
 					{/if}
-					<div class="badge text-sm preset-filled-primary-200-800 font-mono">
+					<div class="badge preset-filled-primary-200-800 font-mono text-sm">
 						<LogOutIcon class="size-4 " />
-						<span >{node.port}</span>
+						<span>{node.port}</span>
 						{#if node.rules_count > 0}
 							({node.rules_count}) rules
 						{/if}
@@ -478,6 +486,7 @@
 					<TargetSelector
 						{httpEditorContext}
 						value={value.target}
+						{readonly}
 						onChange={(target) => {
 							if (target !== undefined) {
 								updateItem({ ...value, target });
@@ -489,6 +498,7 @@
 					<FilterSelector
 						{httpEditorContext}
 						value={value.filters || []}
+						{readonly}
 						onChange={(filters) => {
 							updateItem({ ...value, filters });
 						}}
@@ -518,18 +528,20 @@
 			<tr>
 				<td colspan="3"> </td>
 				<td>
-					<button
-						type="button"
-						class="btn-icon preset-tonal-surface"
-						onclick={() =>
-							addNewItem({
-								port: `port${value.length + 1}`,
-								target: '',
-								filters: []
-							})}
-					>
-						<PlusIcon class="size-4" />
-					</button>
+					{#if !readonly}
+						<button
+							type="button"
+							class="btn-icon preset-tonal-surface"
+							onclick={() =>
+								addNewItem({
+									port: `port${value.length + 1}`,
+									target: '',
+									filters: []
+								})}
+						>
+							<PlusIcon class="size-4" />
+						</button>
+					{/if}
 				</td>
 			</tr>
 		{/snippet}
@@ -546,18 +558,30 @@
 				<span class="label-text">Router Tree</span>
 			</div>
 			<div class="flex gap-1">
-				<button type="button" class="btn-icon btn-icon-sm preset-tonal-surface" onclick={addHostname} title="Add Hostname">
-					<BadgedIcon>
-						<GlobeIcon class="size-4" />
-						{#snippet badge()}
-							<CirclePlusIcon strokeWidth={3} />
-						{/snippet}
-					</BadgedIcon>
-				</button>
-				{#if selectedNode?.kind == 'hostname'}
-					<button type="button" class="btn-icon btn-icon-sm preset-tonal-surface" onclick={() => {
-						selectedNode?.kind == 'hostname' ? addPath(selectedNode.pattern) : void 0
-					}} title="Add Path">
+				{#if !readonly}
+					<button
+						type="button"
+						class="btn-icon btn-icon-sm preset-tonal-surface"
+						onclick={addHostname}
+						title="Add Hostname"
+					>
+						<BadgedIcon>
+							<GlobeIcon class="size-4" />
+							{#snippet badge()}
+								<CirclePlusIcon strokeWidth={3} />
+							{/snippet}
+						</BadgedIcon>
+					</button>
+				{/if}
+				{#if !readonly && selectedNode?.kind == 'hostname'}
+					<button
+						type="button"
+						class="btn-icon btn-icon-sm preset-tonal-surface"
+						onclick={() => {
+							selectedNode?.kind == 'hostname' ? addPath(selectedNode.pattern) : void 0;
+						}}
+						title="Add Path"
+					>
 						<BadgedIcon>
 							<RouteIcon class="size-4" />
 							{#snippet badge()}
@@ -566,10 +590,15 @@
 						</BadgedIcon>
 					</button>
 				{/if}
-				{#if selectedNode?.kind == 'hostname'}
-					<button type="button" class="btn-icon btn-icon-sm preset-tonal-error" onclick={() => {
-						selectedNode?.kind == 'hostname' ? deleteHostname(selectedNode.pattern) : void 0
-					}} title="Delete Hostname">
+				{#if !readonly && selectedNode?.kind == 'hostname'}
+					<button
+						type="button"
+						class="btn-icon btn-icon-sm preset-tonal-error"
+						onclick={() => {
+							selectedNode?.kind == 'hostname' ? deleteHostname(selectedNode.pattern) : void 0;
+						}}
+						title="Delete Hostname"
+					>
 						<BadgedIcon>
 							<GlobeIcon class="size-4" />
 							{#snippet badge()}
@@ -577,13 +606,17 @@
 							{/snippet}
 						</BadgedIcon>
 					</button>
-				{:else if selectedNode?.kind == 'path'}
-
-					<button type="button" class="btn-icon btn-icon-sm preset-tonal-error" onclick={() => {
-						if (selectedNode && selectedNode.kind === 'path') {
-							deletePath(selectedNode.hostname, selectedNode.pattern);
-						}
-                    }} title="Delete Path">
+				{:else if !readonly && selectedNode?.kind == 'path'}
+					<button
+						type="button"
+						class="btn-icon btn-icon-sm preset-tonal-error"
+						onclick={() => {
+							if (selectedNode && selectedNode.kind === 'path') {
+								deletePath(selectedNode.hostname, selectedNode.pattern);
+							}
+						}}
+						title="Delete Path"
+					>
 						<BadgedIcon>
 							<RouteIcon class="size-4" />
 							{#snippet badge()}
@@ -621,17 +654,18 @@
 			<div class="space-y-4">
 				{#if selectedNode.kind === 'hostname'}
 					<h4 class="h4">{selectedNode.id}</h4>
-					<div class="grid grid-cols-[100px_1fr] gap-2 text-sm items-center">
+					<div class="grid grid-cols-[100px_1fr] items-center gap-2 text-sm">
 						<div class="font-bold opacity-60">Type:</div>
 						<div>Hostname</div>
 						<div class="font-bold opacity-60">Pattern:</div>
 						<input
 							type="text"
-							class="input input-sm font-mono"
+							class="input-sm input font-mono"
 							value={selectedNode.pattern}
+							disabled={readonly}
 							onchange={(e) => {
 								if (selectedNode && selectedNode.kind === 'hostname') {
-									renameHostname(selectedNode.pattern, e.currentTarget.value)
+									renameHostname(selectedNode.pattern, e.currentTarget.value);
 								}
 							}}
 						/>
@@ -663,16 +697,17 @@
 								</span>
 							{/if}
 						</div>
-						<div class="flex items-center gap-2 mt-2">
+						<div class="mt-2 flex items-center gap-2">
 							<span class="text-sm font-bold opacity-60">Pattern:</span>
 							<input
 								type="text"
-								class="input input-sm font-mono flex-1"
+								class="input-sm input flex-1 font-mono"
 								value={selectedNode.pattern}
+								disabled={readonly}
 								onchange={(e) => {
-										if (selectedNode && selectedNode.kind === 'path') {
-											renamePath(selectedNode.hostname, selectedNode.pattern, e.currentTarget.value)
-										}
+									if (selectedNode && selectedNode.kind === 'path') {
+										renamePath(selectedNode.hostname, selectedNode.pattern, e.currentTarget.value);
+									}
 								}}
 							/>
 						</div>
@@ -682,6 +717,7 @@
 								<select
 									class="ig-select"
 									value={targetPort}
+									disabled={readonly}
 									onchange={(e) => {
 										// Update logic using updateRuleBucket or similar
 										if (ruleBucket && selectedNode && selectedNode.kind === 'path') {
@@ -700,6 +736,7 @@
 								</select>
 								<button
 									class="ig-btn anchor font-mono"
+									type="button"
 									onclick={() => selectedNode?.kind === 'path' && focusOnOutput(selectedNode.port)}
 								>
 									<ExternalLinkIcon class="size-4" />
@@ -736,13 +773,15 @@
 										</TagsInput>
 									</td>
 									<td>
-										<button
-											type="button"
-											class="btn-icon preset-tonal-error"
-											onclick={(e) => deleteItem()}
-										>
-											<DeleteIcon />
-										</button>
+										{#if !readonly}
+											<button
+												type="button"
+												class="btn-icon preset-tonal-error"
+												onclick={(e) => deleteItem()}
+											>
+												<DeleteIcon />
+											</button>
+										{/if}
 									</td>
 								</tr>
 							{/snippet}
@@ -758,13 +797,15 @@
 										{/if}
 									</td>
 									<td>
-										<button
-											type="button"
-											class="btn-icon preset-tonal"
-											onclick={() => addNewItem([])}
-										>
-											<PlusIcon class="size-4" />
-										</button>
+										{#if !readonly}
+											<button
+												type="button"
+												class="btn-icon preset-tonal"
+												onclick={() => addNewItem([])}
+											>
+												<PlusIcon class="size-4" />
+											</button>
+										{/if}
 									</td>
 								</tr>
 							{/snippet}

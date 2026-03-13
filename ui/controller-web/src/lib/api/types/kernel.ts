@@ -11,38 +11,38 @@ export type KernelInfo = {
 };
 
 export type KernelStateKind =
-	| { kind: 'waiting_config' }
-	| { kind: 'running'; data: { config_version: string } }
+	| { kind: 'WaitingConfig' }
+	| { kind: 'Running'; data: { config_version: string } }
 	| {
-			kind: 'updating';
+			kind: 'Updating';
 			data: {
 				original_config_version: string;
 				new_config_version: string;
 			};
 	  }
 	| {
-			kind: 'preparing';
+			kind: 'Preparing';
 			data: {
 				transaction_id: string;
 				target_version: string;
 			};
 	  }
 	| {
-			kind: 'prepared';
+			kind: 'Prepared';
 			data: {
 				transaction_id: string;
 				target_version: string;
 			};
 	  }
 	| {
-			kind: 'committing';
+			kind: 'Committing';
 			data: {
 				transaction_id: string;
 				target_version: string;
 			};
 	  }
-	| { kind: 'shutting_down' }
-	| { kind: 'stopped' };
+	| { kind: 'ShuttingDown' }
+	| { kind: 'Stopped' };
 
 export type KernelState = {
 	// Serialized as RFC3339 timestamp string
@@ -55,8 +55,8 @@ export type KernelInfoAndState = {
 };
 
 export type KernelConnectionAndState =
-	| { connection: 'connected'; state: KernelInfoAndState }
-	| { connection: 'disconnected' };
+	| { connection: 'Connected'; state: KernelInfoAndState }
+	| { connection: 'Disconnected' };
 
 export type RolloutPhase = 'prepare' | 'commit' | 'rollback_prepare' | 'rollback_commit';
 

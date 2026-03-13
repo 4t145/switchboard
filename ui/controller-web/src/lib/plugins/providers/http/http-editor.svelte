@@ -7,30 +7,21 @@
 		type InstanceDataWithoutType,
 		type ServerConfig
 	} from './types';
-	import FlowEditor from './flow-editor/flow-editor.svelte';
-	import { mount, onDestroy, setContext, unmount, untrack } from 'svelte';
+	import { mount, onDestroy, unmount, untrack } from 'svelte';
 	import {
 		buildFlowGraph,
 		FlowGraph,
 		FlowTreeViewInstanceSelection
 	} from './flow-editor/flow-view-builder';
 	import FlowTree from './flow-editor/flow-tree-view.svelte';
-	import FlowGraphView from './flow-editor/flow-graph-view.svelte';
-	import { EditIcon, ListIcon, SquarePenIcon, WorkflowIcon } from '@lucide/svelte';
-	import {
-		Dialog,
-		FloatingPanel,
-		Portal,
-		SegmentedControl,
-		ToggleGroup
-	} from '@skeletonlabs/skeleton-svelte';
-	import InstanceConfigEditor from './flow-editor/instance-config-editor.svelte';
+	import { FileCogIcon, ListIcon, SquarePenIcon, WorkflowIcon } from '@lucide/svelte';
+	import { ToggleGroup } from '@skeletonlabs/skeleton-svelte';
 	import InstanceConfigEditPanel from './flow-editor/instance-config-edit-panel.svelte';
 	import type { ProviderEditorProps } from '$lib/plugins/types';
 
 	type Props = ProviderEditorProps<HttpConfig>;
 
-	let { value = $bindable(), onValueChange, readonly }: Props = $props();
+	let { value = $bindable(), onValueChange, readonly = false }: Props = $props();
 	$effect(() => {
 		onValueChange(value);
 	});
@@ -40,10 +31,8 @@
 	$effect(() => {
 		untrack(() => updateGraphState(value.flow));
 	});
-	
-	let httpEditorContext: HttpEditorContext = $derived(
-		flowConfigToHttpEditorContext(value.flow)
-	);
+
+	let httpEditorContext: HttpEditorContext = $derived(flowConfigToHttpEditorContext(value.flow));
 	type ViewMode = 'list' | 'tree' | 'graph';
 	type GraphState =
 		| {
@@ -96,7 +85,6 @@
 		}
 	);
 
-
 	async function updateGraphState(flow: FlowConfig) {
 		if (graphState.type === 'building') {
 			console.warn('Ignoring edits to flow while building graph');
@@ -146,7 +134,8 @@
 					instanceId,
 					value: selectedInstance,
 					httpEditorContext,
-					onValueSave
+					onValueSave,
+					readonly
 				}
 			});
 
@@ -167,7 +156,7 @@
 	<!-- HTTP Version Selector -->
 	<label class="label">
 		<span class="label-text font-medium">HTTP Version</span>
-		<select class="select-sm select" bind:value={serverConfig.version}>
+		<select class="select-sm select" bind:value={serverConfig.version} disabled={readonly}>
 			<option value="auto">Auto (Negotiate)</option>
 			<option value="http1">HTTP/1.1 Only</option>
 			<option value="http2">HTTP/2 Only</option>
@@ -177,19 +166,23 @@
 	<!-- Flow Editor (Visual Editor) -->
 	<div class="space-y-2">
 		<div class="flex items-center justify-between">
-			<div class="label-text flex-grow font-medium">Flow Configuration</div>
+			<div class="label-text grow font-medium">Flow Configuration</div>
 			<div class="btn-group">
-				{#if !readonly}
-					<button
-						class="btn-icon preset-outlined-surface-200-800"
-						onclick={() => {
-							selectedInstance ? createOrOpenEditPanel(selectedInstance) : void 0;
-						}}
-						disabled={selectedInstance === undefined}
-					>
+				<button
+					class="btn-icon preset-outlined-surface-200-800"
+					onclick={() => {
+						if (selectedInstance) {
+							createOrOpenEditPanel(selectedInstance);
+						}
+					}}
+					disabled={selectedInstance === undefined}
+				>
+					{#if !readonly}
 						<SquarePenIcon class="size-4" />
-					</button>
-				{/if}
+					{:else}
+					    <FileCogIcon class="size-4" />
+					{/if}
+				</button>
 			</div>
 			<ToggleGroup
 				defaultValue={['tree']}
@@ -209,7 +202,7 @@
 			</ToggleGroup>
 		</div>
 
-		<div class="h-[600px] overflow-hidden card border border-surface-200 dark:border-surface-700">
+		<div class="h-150 overflow-hidden card border border-surface-200 dark:border-surface-700">
 			{#if graphState.type === 'building'}
 				<div>
 					<div class="flex h-full flex-col items-center justify-center">

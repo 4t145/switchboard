@@ -1,0 +1,97 @@
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: switchboard
+spec:
+  controllerName: switchboard.io/gateway-controller
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: switchboard
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: switchboard
+  namespace: switchboard
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: switchboard-controller-config
+  namespace: switchboard
+data:
+  controller.toml: |
+    [info]
+    name = "Switchboard Conformance"
+    description = "Gateway API conformance test controller"
+
+    [interface.http]
+    bind = "[::]:8056"
+
+    [resource.gateway.k8s]
+    gateway_namespace = "default"
+
+    [storage]
+    type = "local"
+    db_file = "/tmp/controller_storage.db"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: switchboard
+  namespace: switchboard
+  labels:
+    app: switchboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: switchboard
+  template:
+    metadata:
+      labels:
+        app: switchboard
+    spec:
+      serviceAccountName: switchboard
+      containers:
+        - name: switchboard
+          image: __SWITCHBOARD_IMAGE__
+          imagePullPolicy: Never
+          args:
+            - start
+            - --config
+            - /etc/switchboard/controller.toml
+            - --no-web-root
+          ports:
+            - name: admin
+              containerPort: 8056
+          volumeMounts:
+            - name: controller-config
+              mountPath: /etc/switchboard/controller.toml
+              subPath: controller.toml
+      volumes:
+        - name: controller-config
+          configMap:
+            name: switchboard-controller-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: switchboard
+  namespace: switchboard
+spec:
+  type: ClusterIP
+  selector:
+    app: switchboard
+  ports:
+    - name: admin
+      port: 8056
+      targetPort: admin
