@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sbc-config
+  labels:
+    app.kubernetes.io/name: sbc
+    app.kubernetes.io/part-of: switchboard.rs
+data:
+  controller.toml: |
+    [info]
+    name = "Switchboard Controller"
+    description = "Switchboard Controller Runtime"
+
+    [kernel.discovery]
+    local = "/var/run/switchboard/kernel/"
+
+    [interface.http]
+    bind = "[::]:8056"
+    web_root = "/opt/switchboard/controller-web"
+
+    [file_browser]
+    allowed_roots = ["/etc/switchboard"]
+
+    [storage]
+    type = "local"
+    db_file = "/var/lib/switchboard/controller_storage.db"

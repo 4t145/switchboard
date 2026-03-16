@@ -8,12 +8,9 @@ members = [
     "crates/controller",
     "binary/sbk",
     "binary/sbc",
-    "crates/libs/switchboard-http-router",
+    "crates/libs/*",
     # examples
     "examples/example-api-server",
-    "crates/libs/switchboard-kernel-control",
-    "crates/libs/switchboard-serde-value",
-    "crates/libs/switchboard-link-or-value", "crates/libs/switchboard-file-resolver",
 ]
 resolver = "2"
 

@@ -52,6 +52,6 @@ kind delete cluster --name switchboard-gateway
 ```
 
 ## 备注
-- GatewayClass 的 `controllerName` 已设置为 `switchboard.io/gateway-controller`，与代码中的常量保持一致。
+- GatewayClass 的 `controllerName` 已设置为 `switchboard.rs/gateway-controller`，与代码中的常量保持一致。
 - 所有 HTTPRoute/Gateway/Secret 在 `default` 命名空间，如果修改了 `gateway_namespace`，请同时调整 YAML 中的 `namespace`。
 - 默认证书是自签发的 `echo.localtest.me`，仅用于本地测试。

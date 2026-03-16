@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM docker.io/library/rust:1-bookworm AS builder
+FROM docker.io/library/rust:1-bookworm AS rust-builder
 WORKDIR /usr/src/switchboard
 
 ARG USE_RSPROXY=false
@@ -24,8 +24,17 @@ RUN if [ "$USE_RSPROXY" = "true" ]; then \
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/usr/src/switchboard/target \
-    cargo build --release --bin sbk && \
-    cp target/release/sbk /usr/local/bin/sbk
+    cargo build --release --bin sbc && \
+    cp target/release/sbc /usr/local/bin/sbc
+
+FROM docker.io/oven/bun:1.2.23 AS web-builder
+WORKDIR /usr/src/switchboard/ui/controller-web
+
+COPY ui/controller-web/package.json ui/controller-web/bun.lock ./
+RUN bun install --frozen-lockfile
+
+COPY ui/controller-web .
+RUN bun run build
 
 FROM debian:bookworm-slim
 
@@ -35,16 +44,17 @@ RUN apt-get update && \
 
 RUN useradd -r -u 1000 -s /usr/sbin/nologin switchboard
 
-RUN mkdir -p /etc/switchboard /var/lib/switchboard /var/run/switchboard/kernel && \
-    chown -R switchboard:switchboard /var/lib/switchboard /var/run/switchboard
+RUN mkdir -p /etc/switchboard /var/lib/switchboard /opt/switchboard/controller-web && \
+    chown -R switchboard:switchboard /etc/switchboard /var/lib/switchboard /opt/switchboard
 
-COPY --from=builder --chown=switchboard:switchboard /usr/local/bin/sbk /usr/local/bin/sbk
-COPY --chown=switchboard:switchboard publish/container/config/kernel.toml /etc/switchboard/kernel.toml
+COPY --from=rust-builder --chown=switchboard:switchboard /usr/local/bin/sbc /usr/local/bin/sbc
+COPY --from=web-builder --chown=switchboard:switchboard /usr/src/switchboard/ui/controller-web/build /opt/switchboard/controller-web
+COPY --chown=switchboard:switchboard publish/container/config/controller.toml /etc/switchboard/controller.toml
 
 WORKDIR /var/lib/switchboard
-EXPOSE 8055
+EXPOSE 8056
 
 USER switchboard
 
-ENTRYPOINT ["/usr/local/bin/sbk"]
-CMD ["/etc/switchboard/kernel.toml"]
+ENTRYPOINT ["/usr/local/bin/sbc"]
+CMD ["start", "--config", "/etc/switchboard/controller.toml"]

@@ -1,11 +1,17 @@
-use crate::tcp::{AsyncStream, TcpAccepted};
+use crate::{
+    tcp::{AsyncStream, TcpAccepted},
+    utils::rewind::Rewind,
+};
 use tokio::io::{self, AsyncRead, AsyncWrite};
+
+mod read_hello;
+pub use read_hello::OwnedClientHello;
 
 impl<S> TcpAccepted<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    pub async fn maybe_tls(self) -> io::Result<TcpAccepted<MaybeTlsStream<S>>> {
+    pub async fn maybe_tls_terminate(self) -> io::Result<TcpAccepted<MaybeTlsStream<S>>> {
         let Self { stream, context } = self;
         match &context.tls_acceptor {
             Some(tls_acceptor) => {
@@ -22,7 +28,23 @@ where
         }
     }
 }
-
+impl<S> TcpAccepted<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    pub async fn mayby_tls_passthrough(self) -> io::Result<TcpAccepted<Rewind<S>>> {
+        let Self {
+            stream,
+            mut context,
+        } = self;
+        let (client_hello, rewind) = read_hello::read_client_hello(stream).await?;
+        context.tls_client_hello = client_hello;
+        Ok(TcpAccepted {
+            stream: rewind,
+            context,
+        })
+    }
+}
 pub enum MaybeTlsStream<S> {
     Tls(Box<tokio_rustls::server::TlsStream<S>>),
     Plain(S),

@@ -9,12 +9,10 @@ use tokio::{
     io::{self, AsyncRead, AsyncWrite, AsyncWriteExt},
     net::{TcpListener as TokioTcpListener, TcpStream},
 };
-use tokio_rustls::TlsAcceptor;
+pub use tokio_rustls::TlsAcceptor;
 use tokio_util::sync::CancellationToken;
 
-pub mod listener;
 pub mod tls;
-
 pub trait AsyncStream: AsyncRead + AsyncWrite + Unpin + Send + 'static {}
 pub struct BoxedAsyncStream(Box<dyn AsyncStream>);
 
@@ -81,6 +79,7 @@ pub struct TcpConnectionContext {
     pub ct: CancellationToken,
     // optional tls acceptor, service will decide to use or not.
     pub tls_acceptor: Option<TlsAcceptor>,
+    pub tls_client_hello: Option<tls::OwnedClientHello>,
 }
 
 pub trait TcpService: Send + Sync + 'static {
@@ -126,6 +125,7 @@ impl TcpListener {
                     peer_addr,
                     ct: ct.child_token(),
                     tls_acceptor: None,
+                    tls_client_hello: None,
                 },
             })
     }

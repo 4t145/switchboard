@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sbk-config
+  labels:
+    app.kubernetes.io/name: sbk
+    app.kubernetes.io/part-of: switchboard.rs
+data:
+  kernel.toml: |
+    [info]
+    name = "Switchboard Kernel"
+    id = "default"
+    description = "Switchboard Kernel Runtime"
+
+    [controller.listen.http]
+    host = "0.0.0.0"
+    port = 8055
+
+    [controller.discovery]
+    local = "/var/run/switchboard/kernel/"

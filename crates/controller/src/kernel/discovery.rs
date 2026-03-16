@@ -10,6 +10,8 @@ pub mod local;
 #[cfg(target_family = "unix")]
 pub mod uds;
 
+pub mod k8s;
+
 #[derive(Debug, Clone, Deserialize, Serialize, Hash, PartialEq, Eq)]
 #[serde(default)]
 pub struct KernelDiscoveryConfig {
@@ -44,6 +46,10 @@ pub enum KernelDiscoveryError {
     JsonError(#[from] serde_json::Error),
     #[error("socket without file stem at path: {0}")]
     SocketWithoutFileStem(std::path::PathBuf),
+    #[error("K8s runtime env error: {0}")]
+    K8sRuntimeEnvError(#[from] crate::utils::k8s::K8sRuntimeEnvError),
+    #[error("K8s api error: {0}")]
+    K8sApiError(#[from] kube::Error),
 }
 
 #[derive(Debug, Clone)]
@@ -61,6 +67,8 @@ impl ControllerContext {
             let local_kernels = local::scan_local_kernels(local_dir).await?;
             kernels.extend(local_kernels);
         }
+        let k8s_kernels = k8s::scan_k8s_kernels().await?;
+        kernels.extend(k8s_kernels);
         #[cfg(target_family = "unix")]
         {
             // TODO: uds discovery is currently disabled.

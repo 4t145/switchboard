@@ -276,11 +276,13 @@ pub enum K8sGatewayResourceError {
     NoK8sClient,
     #[error("Kubernetes client error: {0}")]
     KubeError(#[from] kube::Error),
+    #[error("Kubernetes runtime environment error: {0}")]
+    RuntimeEnvError(#[from] crate::utils::k8s::K8sRuntimeEnvError),
     #[error("Service build error: {0}")]
     ServiceBuilderError(#[from] ServiceBuilderError),
 }
 
-pub const GATEWAY_CONTROLLER_NAME: &str = "switchboard.io/gateway-controller";
+pub const GATEWAY_CONTROLLER_NAME: &str = "switchboard.rs/gateway-controller";
 
 #[derive(Clone)]
 pub struct K8sServiceConfigBuilder {

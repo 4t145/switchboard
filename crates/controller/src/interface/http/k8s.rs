@@ -5,13 +5,11 @@ use std::{
 
 use axum::{extract::State, response::Response};
 use k8s_openapi::api::core::v1::Namespace;
-use kube::{Api, Client};
+use kube::Api;
 use tokio::sync::RwLock;
 
 use super::HttpState;
-
-const SERVICE_ACCOUNT_NAMESPACE_PATH: &str =
-    "/var/run/secrets/kubernetes.io/serviceaccount/namespace";
+use crate::utils::k8s;
 const NAMESPACE_CACHE_TTL: Duration = Duration::from_secs(30);
 
 #[derive(Debug, serde::Serialize)]
@@ -39,7 +37,7 @@ fn namespace_cache() -> &'static RwLock<Option<NamespaceCacheEntry>> {
 
 pub async fn get_k8s_env() -> Response {
     let process = async {
-        let current_namespace = detect_runtime_namespace().await;
+        let current_namespace = k8s::current_namespace().await?;
         Ok::<_, crate::Error>(K8sEnvResponse {
             in_cluster: current_namespace.is_some(),
             current_namespace,
@@ -50,15 +48,14 @@ pub async fn get_k8s_env() -> Response {
 
 pub async fn get_k8s_namespaces(State(_state): State<HttpState>) -> Response {
     let process = async {
-        if detect_runtime_namespace().await.is_none() {
+        let Some(client) = k8s::kube_client_if_in_cluster().await? else {
             return Err(crate::Error::NotInKubernetesCluster);
-        }
+        };
 
         if let Some(namespaces) = read_namespace_cache().await {
             return Ok::<_, crate::Error>(K8sNamespacesResponse { namespaces });
         }
 
-        let client = Client::try_default().await?;
         let namespace_api: Api<Namespace> = Api::all(client);
         let namespace_list = namespace_api.list(&Default::default()).await?;
         let mut namespaces = namespace_list
@@ -76,8 +73,6 @@ pub async fn get_k8s_namespaces(State(_state): State<HttpState>) -> Response {
     super::result_to_json_response(process.await)
 }
 
-/// # Errors
-/// Returns an error when kubernetes namespace listing cannot be performed.
 async fn read_namespace_cache() -> Option<Vec<String>> {
     let cache = namespace_cache();
     let guard = cache.read().await;
@@ -90,8 +85,6 @@ async fn read_namespace_cache() -> Option<Vec<String>> {
     Some(entry.namespaces.clone())
 }
 
-/// # Errors
-/// Returns an error when kubernetes namespace listing cannot be performed.
 async fn write_namespace_cache(namespaces: Vec<String>) {
     let cache = namespace_cache();
     let mut guard = cache.write().await;
@@ -99,27 +92,6 @@ async fn write_namespace_cache(namespaces: Vec<String>) {
         updated_at: Instant::now(),
         namespaces,
     });
-}
-
-/// # Errors
-/// Returns an error when reading the runtime namespace source fails unexpectedly.
-async fn detect_runtime_namespace() -> Option<String> {
-    if let Ok(namespace) = std::env::var("POD_NAMESPACE") {
-        let trimmed = namespace.trim();
-        if !trimmed.is_empty() {
-            return Some(trimmed.to_string());
-        }
-    }
-
-    let namespace_from_file = tokio::fs::read_to_string(SERVICE_ACCOUNT_NAMESPACE_PATH)
-        .await
-        .ok()?;
-    let trimmed = namespace_from_file.trim();
-    if trimmed.is_empty() {
-        None
-    } else {
-        Some(trimmed.to_string())
-    }
 }
 
 pub fn router() -> axum::Router<HttpState> {

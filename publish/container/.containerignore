@@ -2,3 +2,7 @@ build
 .gitignore
 build.sh
 *.containerfile
+target
+.git
+ui/controller-web/node_modules
+ui/controller-web/.svelte-kit

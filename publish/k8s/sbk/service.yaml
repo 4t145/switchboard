@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sbk
+  labels:
+    app.kubernetes.io/name: sbk
+    app.kubernetes.io/component: kernel
+    app.kubernetes.io/part-of: switchboard.rs
+    switchboard.rs/discovery: enabled
+spec:
+  selector:
+    app.kubernetes.io/name: sbk
+    switchboard.rs/discovery: enabled
+  ports:
+    - name: grpc
+      port: 8055
+      targetPort: grpc

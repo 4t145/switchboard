@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sbk
+  labels:
+    app.kubernetes.io/name: sbk
+    app.kubernetes.io/component: kernel
+    app.kubernetes.io/part-of: switchboard.rs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sbk
+      switchboard.rs/discovery: enabled
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sbk
+        app.kubernetes.io/component: kernel
+        app.kubernetes.io/part-of: switchboard.rs
+        switchboard.rs/discovery: enabled
+    spec:
+      containers:
+        - name: sbk
+          image: ghcr.io/<org>/switchboard/sbk:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - /etc/switchboard/kernel.toml
+          ports:
+            - name: grpc
+              containerPort: 8055
+          volumeMounts:
+            - name: sbk-config
+              mountPath: /etc/switchboard/kernel.toml
+              subPath: kernel.toml
+            - name: runtime
+              mountPath: /var/run/switchboard/kernel
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: sbk-config
+          configMap:
+            name: sbk-config
+        - name: runtime
+          emptyDir: {}

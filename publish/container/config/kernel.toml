@@ -1,0 +1,11 @@
+[info]
+name = "Switchboard Kernel"
+id = "default"
+description = "Switchboard Kernel Runtime"
+
+[controller.listen.http]
+host = "0.0.0.0"
+port = 8055
+
+[controller.discovery]
+local = "/var/run/switchboard/kernel/"

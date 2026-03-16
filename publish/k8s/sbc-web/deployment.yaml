@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sbc
+  labels:
+    app.kubernetes.io/name: sbc
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/part-of: switchboard.rs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sbc
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sbc
+        app.kubernetes.io/component: controller
+        app.kubernetes.io/part-of: switchboard.rs
+    spec:
+      containers:
+        - name: sbc
+          image: ghcr.io/<org>/switchboard/sbc-web:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - start
+            - --config
+            - /etc/switchboard/controller.toml
+          ports:
+            - name: http
+              containerPort: 8056
+          volumeMounts:
+            - name: sbc-config
+              mountPath: /etc/switchboard/controller.toml
+              subPath: controller.toml
+            - name: data
+              mountPath: /var/lib/switchboard
+          readinessProbe:
+            httpGet:
+              path: /api/state/current_config
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: sbc-config
+          configMap:
+            name: sbc-config
+        - name: data
+          emptyDir: {}

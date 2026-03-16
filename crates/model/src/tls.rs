@@ -3,6 +3,7 @@ use std::{
     fmt::{Debug, Display},
     str::FromStr,
 };
+pub mod strategy;
 
 use serde::{Deserialize, Serialize};
 use switchboard_link_or_value::{

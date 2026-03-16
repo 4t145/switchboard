@@ -1,0 +1,23 @@
+[package]
+name = "switchboard-tcp"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+readme.workspace = true
+
+[dependencies]
+tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true, features = [] }
+tracing = { workspace = true }
+
+switchboard-service = { version = "0.1.0", workspace = true }
+switchboard-model = { workspace = true }
+
+serde = { version = "1.0", features = ["derive", "rc"] }
+bincode = { workspace = true }
+
+rand = { version =  "0.9" }

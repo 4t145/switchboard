@@ -9,6 +9,8 @@ pub mod link_resolver;
 pub mod resolve;
 pub mod resource;
 pub mod storage;
+pub mod utils;
+
 pub const DEFAULT_NAMESPACE: &str = "switchboard";
 #[derive(Clone)]
 pub struct ControllerContext {
@@ -62,6 +64,9 @@ pub enum Error {
 
     #[error("Kubernetes client error: {0}")]
     KubernetesClientError(#[from] kube::Error),
+
+    #[error("Kubernetes runtime environment error: {0}")]
+    KubernetesRuntimeEnvError(#[from] crate::utils::k8s::K8sRuntimeEnvError),
 
     #[error("Storage error: {0}")]
     StorageError(#[from] crate::storage::StorageError),

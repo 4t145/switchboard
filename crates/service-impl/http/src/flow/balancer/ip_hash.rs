@@ -4,7 +4,7 @@ use switchboard_model::services::http::NodePort;
 
 use crate::flow::balancer::BalancerStrategy;
 
-pub type IpHashBalancerConfig = BTreeMap<NodePort, u32>;
+// pub type IpHashBalancerConfig = BTreeMap<NodePort, u32>;
 #[derive(Debug)]
 pub struct WithAccWeight {
     pub port: NodePort,

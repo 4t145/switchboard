@@ -104,7 +104,7 @@ impl Http {
     }
 
     async fn serve_inner(self: Arc<Self>, accepted: TcpAccepted) -> std::io::Result<()> {
-        let accepted = accepted.maybe_tls().await?;
+        let accepted = accepted.maybe_tls_terminate().await?;
         let stream = accepted.stream;
         let is_tls = stream.is_tls();
         let TcpConnectionContext { peer_addr, ct, .. } = accepted.context;

@@ -5,8 +5,8 @@ use crate::{
         ResolveServiceConfigError, ServiceConfigResolver,
         k8s::service_config::K8sServiceBuildConfig,
     },
+    utils::k8s,
 };
-use kube::Client;
 use service_config::K8sGatewayResourceError;
 use switchboard_model::{HumanReadableServiceConfig, switchboard_serde_value::SerdeValue};
 
@@ -20,7 +20,9 @@ impl K8sServiceConfigResolver {
         &self,
         config: K8sServiceBuildConfig,
     ) -> Result<HumanReadableServiceConfig<Link>, K8sGatewayResourceError> {
-        let client = Client::try_default().await?;
+        let Some(client) = k8s::kube_client_if_in_cluster().await? else {
+            return Err(K8sGatewayResourceError::NoK8sClient);
+        };
         let builder = service_config::K8sServiceConfigBuilder::new(client, config);
         let svc_config = builder.build_config_from_k8s().await?;
         Ok(svc_config)

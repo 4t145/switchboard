@@ -150,14 +150,9 @@ impl Flow {
         let mut filters = HashMap::new();
         let mut nodes = HashMap::new();
         for (id, instance) in config
-            .instances
+            .nodes
             .into_iter()
-            .chain(
-                config
-                    .nodes
-                    .into_iter()
-                    .map(|(id, instance)| (id, instance.with_type(InstanceType::Node))),
-            )
+            .map(|(id, instance)| (id, instance.with_type(InstanceType::Node)))
             .chain(
                 config
                     .filters
