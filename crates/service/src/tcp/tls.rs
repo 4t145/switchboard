@@ -32,7 +32,7 @@ impl<S> TcpAccepted<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    pub async fn mayby_tls_passthrough(self) -> io::Result<TcpAccepted<Rewind<S>>> {
+    pub async fn maybe_tls_passthrough(self) -> io::Result<TcpAccepted<Rewind<S>>> {
         let Self {
             stream,
             mut context,

@@ -11,7 +11,7 @@ use switchboard_http_router::serde::{
 };
 use switchboard_model::services::http::{NodeOutput, NodePort};
 
-use crate::resolve::k8s::service_config::filter;
+use super::filter;
 
 pub fn k8s_method_to_http_method(method: &HTTPRouteRulesMatchesMethod) -> String {
     match method {
@@ -70,7 +70,6 @@ impl super::HttpGatewayBuilder {
 
         let route_out_port = NodePort::from(target_name);
 
-        // build output target
         let output_target = if let Some(k8s_backend_refs) = rules.backend_refs.as_ref() {
             self.build_backend_instance_from_k8s_backend_ref(target_name, k8s_backend_refs)
         } else {
@@ -92,7 +91,6 @@ impl super::HttpGatewayBuilder {
             }
         }
 
-        // setup router rules
         if let Some(matches) = &rules.matches {
             for k8s_match in matches {
                 let path = k8s_match.path.as_ref().cloned().unwrap_or_default();
@@ -100,7 +98,6 @@ impl super::HttpGatewayBuilder {
                     .r#type
                     .unwrap_or(HTTPRouteRulesMatchesPathType::PathPrefix);
                 let route_path = path.value.as_deref().unwrap_or("/");
-                // build rule
                 let rule = {
                     let headers = k8s_match
                         .headers

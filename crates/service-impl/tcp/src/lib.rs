@@ -1,46 +1,69 @@
 pub mod balancer;
 pub mod inbound;
 pub mod outbound;
-
 use std::{collections::HashMap, net::SocketAddr, pin::Pin, sync::Arc};
+use switchboard_http_router::hostname::HostnameTree;
 
-use switchboard_model::strategy::TlsStrategy;
+use crate::outbound::Outbound;
 use switchboard_service::{
     SerdeValue, SerdeValueError, TcpServiceProvider,
-    tcp::{AsyncStream, TcpService, TlsAcceptor, tls::OwnedClientHello},
+    tcp::{AsyncStream, TcpService},
 };
 use tokio::{
-    io,
+    io::{self, AsyncWriteExt},
     net::{TcpStream, ToSocketAddrs},
 };
 
-use crate::outbound::{Outbound, OutboundName};
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]
+#[non_exhaustive]
+#[serde(tag = "strategy", content = "outbound")]
+pub enum TlsStrategyConfig {
+    Passthrough(HashMap<String, Outbound>),
+    Terminate(Outbound),
+    // ReEncrypt,
+}
+#[derive(Debug, Clone)]
+pub enum TlsStrategy {
+    Passthrough(HostnameTree<Outbound>),
+    Terminate(Outbound),
+    // ReEncrypt,
+}
 
+impl From<TlsStrategyConfig> for TlsStrategy {
+    fn from(config: TlsStrategyConfig) -> Self {
+        match config {
+            TlsStrategyConfig::Passthrough(map) => {
+                let tree = HostnameTree::from_iter(map.into_iter());
+                TlsStrategy::Passthrough(tree)
+            }
+            TlsStrategyConfig::Terminate(outbound) => TlsStrategy::Terminate(outbound),
+        }
+    }
+}
 #[derive(Debug, Clone)]
 pub struct Tcp {
-    pub tls_strategy: TlsStrategy,
-    pub outbounds: HashMap<OutboundName, Outbound>,
+    pub strategy_config: TlsStrategy,
     pub balancer_strategy: Arc<dyn balancer::BalancerStrategy>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]
 pub struct TcpConfig {
-    pub tls_strategy: TlsStrategy,
-    pub outbounds: HashMap<OutboundName, Outbound>,
+    #[serde(flatten)]
+    pub strategy_config: TlsStrategyConfig,
     pub balancer_strategy: balancer::BalancerStrategyConfig,
 }
 
-pub enum StrategyData {
-    Passthrough {
-        client_hello: Option<OwnedClientHello>,
-    },
-    Terminate {
-        acceptor: Option<TlsAcceptor>,
-    },
-}
+// pub enum StrategyData {
+//     Passthrough {
+//         client_hello: Option<OwnedClientHello>,
+//     },
+//     Terminate {
+//         acceptor: Option<TlsAcceptor>,
+//     },
+// }
 
 pub struct TcpConnectionInfo {
-    pub strategy_data: StrategyData,
+    // pub strategy_data: StrategyData,
     pub from: SocketAddr,
 }
 
@@ -52,20 +75,36 @@ impl Tcp {
     where
         S: AsyncStream,
     {
-        match self.tls_strategy.clone() {
-            TlsStrategy::Passthrough => {
-                let accepted = accepted.mayby_tls_passthrough().await?;
-                let switchboard_service::tcp::TcpAccepted { stream, context } = accepted;
+        match &self.strategy_config {
+            TlsStrategy::Passthrough(sni_router) => {
+                let accepted = accepted.maybe_tls_passthrough().await?;
+                let switchboard_service::tcp::TcpAccepted {
+                    mut stream,
+                    context,
+                } = accepted;
                 let from = context.peer_addr;
-                let strategy_data = StrategyData::Passthrough {
-                    client_hello: context.tls_client_hello,
+                let Some(sni_outbound) = context
+                    .tls_client_hello
+                    .as_ref()
+                    .and_then(|h| h.server_name.as_deref())
+                    .and_then(|sni| sni_router.get(sni))
+                else {
+                    // terminate connection if SNI is not found or client hello is not present
+                    tracing::debug!(%from, "no matching SNI found, connection closed");
+                    stream.shutdown().await?;
+                    return Ok(());
                 };
-                let info = TcpConnectionInfo {
-                    strategy_data,
-                    from,
-                };
+                let info = TcpConnectionInfo { from };
                 let ct = context.ct.clone();
-                let outbound = self.balancer_strategy.dispatch(&self.outbounds, &info);
+                let outbound = match &sni_outbound {
+                    Outbound::NamedMap(map) => self.balancer_strategy.dispatch(map, &info),
+                    Outbound::Single(outbound) => Some(outbound),
+                };
+                let Some(outbound) = outbound else {
+                    tracing::debug!(%from, "no matching outbound selected, connection closed");
+                    stream.shutdown().await?;
+                    return Ok(());
+                };
                 tokio::select! {
                     _ = ct.cancelled() => {
                         tracing::debug!(%from, "connection cancelled before forwarding");
@@ -82,19 +121,20 @@ impl Tcp {
                     }
                 }
             }
-            TlsStrategy::Terminate => {
+            TlsStrategy::Terminate(outbounds) => {
                 let accepted = accepted.maybe_tls_terminate().await?;
                 let switchboard_service::tcp::TcpAccepted { stream, context } = accepted;
                 let from = context.peer_addr;
-                let strategy_data = StrategyData::Terminate {
-                    acceptor: context.tls_acceptor,
-                };
-                let info = TcpConnectionInfo {
-                    strategy_data,
-                    from,
-                };
+                let info = TcpConnectionInfo { from };
                 let ct = context.ct.clone();
-                let outbound = self.balancer_strategy.dispatch(&self.outbounds, &info);
+                let outbound = match &outbounds {
+                    Outbound::NamedMap(map) => self.balancer_strategy.dispatch(map, &info),
+                    Outbound::Single(outbound) => Some(outbound),
+                };
+                let Some(outbound) = outbound else {
+                    tracing::debug!(%from, "no matching outbound selected, connection closed");
+                    return Ok(());
+                };
                 tokio::select! {
                     _ = ct.cancelled() => {
                         tracing::debug!(%from, "connection cancelled before forwarding");
@@ -114,7 +154,7 @@ impl Tcp {
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::Other,
-                    format!("unsupported TLS strategy: {:?}", self.tls_strategy),
+                    format!("unsupported TLS strategy: {:?}", self.strategy_config),
                 ));
             }
         }
@@ -146,15 +186,14 @@ async fn forward_tcp<T: AsyncStream, A: ToSocketAddrs + std::fmt::Debug>(
 
 pub struct PortForwardProvider;
 impl TcpServiceProvider for PortForwardProvider {
-    const NAME: &'static str = "pf";
+    const NAME: &'static str = "tcp";
     type Service = Tcp;
     type Error = SerdeValueError;
 
     async fn construct(&self, config: Option<SerdeValue>) -> Result<Self::Service, Self::Error> {
         let config: TcpConfig = config.unwrap_or_default().deserialize_into()?;
         Ok(Tcp {
-            tls_strategy: config.tls_strategy,
-            outbounds: config.outbounds,
+            strategy_config: config.strategy_config.into(),
             balancer_strategy: config.balancer_strategy.build(),
         })
     }

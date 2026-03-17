@@ -4,7 +4,7 @@ use std::{
     str::FromStr,
 };
 pub mod strategy;
-
+pub mod sni;
 use serde::{Deserialize, Serialize};
 use switchboard_link_or_value::{
     LinkOrValue, Resolvable, Resolver, resolver::string_parse::StringParseResolver,

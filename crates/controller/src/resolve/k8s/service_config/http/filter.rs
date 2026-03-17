@@ -12,17 +12,19 @@ use gateway_api::{
     },
 };
 use switchboard_model::services::http::{
-    ClassId, InstanceData, InstanceId, InstanceType,
     consts::{
         FILTER_REQUEST_HEADER_MODIFY_CLASS_ID, FILTER_REQUEST_MIRROR_CLASS_ID,
         FILTER_REQUEST_REDIRECT_CLASS_ID, FILTER_RESPONSE_HEADER_MODIFY_CLASS_ID,
         FILTER_URL_REWRITE_CLASS_ID,
     },
+    ClassId, InstanceData, InstanceId, InstanceType,
 };
 use switchboard_model::switchboard_serde_value::value;
+
 pub fn filter_id(target: &str, index: usize) -> InstanceId {
     InstanceId::new(format!("filter-{}-{}", target, index))
 }
+
 use std::borrow::Cow;
 
 macro_rules! derive_filter_from {
@@ -146,8 +148,11 @@ macro_rules! derive_filter_from {
                         port,
                         ..
                     } = &filter.backend_ref;
-                    let target_name =
-                        super::target_name(name, namespace.as_deref(), port.as_ref().map(|p| *p as u16));
+                    let target_name = super::super::target_name(
+                        name,
+                        namespace.as_deref(),
+                        port.as_ref().map(|p| *p as u16),
+                    );
                     let fraction = &filter.fraction;
                     let possibility = if let Some(fraction) = fraction {
                         let denominator = fraction.denominator.unwrap_or(100);
@@ -176,7 +181,7 @@ macro_rules! derive_filter_from {
                         .as_ref()
                         .map(|f| Cow::Borrowed(f))
                         .unwrap_or_else(|| Cow::Owned(Default::default()));
-                        let class = ClassId::std(FILTER_REQUEST_REDIRECT_CLASS_ID);
+                    let class = ClassId::std(FILTER_REQUEST_REDIRECT_CLASS_ID);
                     let status_code = filter.status_code.map(|code| code as u16);
                     let scheme = filter
                         .scheme
@@ -228,7 +233,7 @@ macro_rules! derive_filter_from {
                         .as_ref()
                         .map(|f| Cow::Borrowed(f))
                         .unwrap_or_else(|| Cow::Owned(Default::default()));
-                        let class = ClassId::std(FILTER_URL_REWRITE_CLASS_ID);
+                    let class = ClassId::std(FILTER_URL_REWRITE_CLASS_ID);
                     let path = if let Some(path) = &filter.path {
                         let path_value = match &path.r#type {
                             $RewritePathType::ReplacePrefixMatch => {

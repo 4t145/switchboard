@@ -2,14 +2,12 @@ use std::borrow::Cow;
 
 use switchboard_model::services::http::NodePort;
 
-use crate::resolve::k8s::service_config::{HttpBuildingRouter, HttpGatewayBuilder};
-
-impl HttpGatewayBuilder {
+impl super::HttpGatewayBuilder {
     pub fn build_route(
         &mut self,
         route_name: &str,
         route: &gateway_api::httproutes::HTTPRoute,
-        building_router: &mut HttpBuildingRouter,
+        building_router: &mut super::HttpBuildingRouter,
     ) {
         let mut path_tree =
             switchboard_http_router::serde::path::PathTreeSerdeMapStyle::<NodePort>::default();

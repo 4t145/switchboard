@@ -7,13 +7,9 @@
     bincode::Decode,
     PartialEq,
     Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
 )]
-#[non_exhaustive]
-pub enum TlsStrategy {
-    Passthrough ,
-    #[default]
-    Terminate,
-    // ReEncrypt,
-}
-
-    
+pub struct SniName(String);

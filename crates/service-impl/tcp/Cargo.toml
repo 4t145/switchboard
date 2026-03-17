@@ -16,7 +16,7 @@ tracing = { workspace = true }
 
 switchboard-service = { version = "0.1.0", workspace = true }
 switchboard-model = { workspace = true }
-
+switchboard-http-router = { workspace = true }
 serde = { version = "1.0", features = ["derive", "rc"] }
 bincode = { workspace = true }
 

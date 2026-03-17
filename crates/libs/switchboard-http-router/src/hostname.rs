@@ -17,7 +17,7 @@
 //! |  |
 //! |  +- next
 //! |  \- *
-//! |       
+//! |
 //! \- *
 //!
 //!
@@ -137,6 +137,17 @@ impl<T> HostnameTree<T> {
         } else {
             self.host_with_wildcard.set(host, data);
         }
+    }
+    pub fn from_iter<K, I>(iter: I) -> Self
+    where
+        K: AsRef<str>,
+        I: IntoIterator<Item = (K, T)>,
+    {
+        let mut tree = Self::new();
+        for (host, data) in iter {
+            tree.set(host.as_ref(), data);
+        }
+        tree
     }
 }
 

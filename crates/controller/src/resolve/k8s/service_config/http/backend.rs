@@ -2,19 +2,18 @@ use std::collections::BTreeMap;
 
 use gateway_api::httproutes::HTTPRouteRulesBackendRefs;
 use switchboard_model::services::http::{
-    ClassId, InstanceData, InstanceId, InstanceType, NodeOutput, NodePort, NodeTarget,
     consts::{BALANCER_CLASS_ID, REVERSE_PROXY_CLASS_ID},
+    ClassId, InstanceData, InstanceId, InstanceType, NodeOutput, NodePort, NodeTarget,
 };
 use switchboard_model::switchboard_serde_value::value;
+
 impl super::HttpGatewayBuilder {
     pub(crate) fn build_backend_instance_from_k8s_backend_ref(
         &mut self,
-        // gateway: &K8sGatewayResource,
         target_name: &str,
         backend_refs: &[HTTPRouteRulesBackendRefs],
     ) -> NodeTarget {
         const DEFAULT_BALANCER_STRATEGY: &str = "RoundRobin";
-        // build hub balancer
         let mut balancer_outputs: BTreeMap<NodePort, NodeOutput> = BTreeMap::new();
         let balancer_strategy = DEFAULT_BALANCER_STRATEGY;
         let mut balancer_weights: BTreeMap<NodePort, u32> = BTreeMap::new();
@@ -46,7 +45,6 @@ impl super::HttpGatewayBuilder {
             let backend_service_instance_id: InstanceId =
                 InstanceId::new(format!("{target_name}-{node_port}",));
 
-            // modify balancer config
             let output = NodeOutput {
                 target: NodeTarget::from(backend_service_instance_id.clone()),
                 filters: filters_references,
@@ -55,7 +53,6 @@ impl super::HttpGatewayBuilder {
             balancer_outputs.insert(node_port.clone(), output);
             balancer_weights.insert(node_port, weight);
 
-            // build corresponding backend service instance
             let backend = if let Some(port) = port {
                 format!("{}:{}", backend_service_host, port)
             } else {
@@ -70,14 +67,12 @@ impl super::HttpGatewayBuilder {
                 name: None,
                 r#type: InstanceType::Node,
             };
-            self.config
-                .flow
-                .filters
-                .insert(backend_service_instance_id, reverse_proxy_service_instance.without_type());
+            self.config.flow.filters.insert(
+                backend_service_instance_id,
+                reverse_proxy_service_instance.without_type(),
+            );
         }
-        // do we have many backends?
         let balancer_instance = if balancer_outputs.len() > 1 {
-            // let's build balancer instance
             let balancer_instance_id = InstanceId::new(format!("{target_name}-balancer"));
             let balancer_instance = InstanceData {
                 class: ClassId::std(BALANCER_CLASS_ID),
@@ -88,15 +83,14 @@ impl super::HttpGatewayBuilder {
                 name: None,
                 r#type: InstanceType::Node,
             };
-            self.config
-                .flow
-                .filters
-                .insert(balancer_instance_id.clone(), balancer_instance.without_type());
+            self.config.flow.filters.insert(
+                balancer_instance_id.clone(),
+                balancer_instance.without_type(),
+            );
             balancer_instance_id
         } else if let Some(only_output) = balancer_outputs.into_values().next() {
             only_output.target.id.clone()
         } else {
-            // no backends was defined, let's return an 500 error response instance
             self.internal_error_500_page_instance_id.clone()
         };
 
