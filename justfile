@@ -24,6 +24,14 @@ build-container:
         -f publish/container/sbk.containerfile \
         -t switchboard/sbk:{{label}} .
 
+test-k8s-conformance-all-in-one image="switchboard/all-in-one:conformance" version="local-dev" run_test="" show_logs="false" skip_build="false":
+    bash scripts/test-k8s-conformance.sh \
+        --image {{image}} \
+        --version {{version}} \
+        --run-test "{{run_test}}" \
+        --show-logs {{show_logs}} \
+        --skip-build {{skip_build}}
+
 test-start-kind:
     bash tests/k8s/setup-kind.sh
 

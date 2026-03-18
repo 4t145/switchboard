@@ -44,7 +44,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let controller_config = retrieve_controller_config().await?;
     // fs load switchboard config
     tracing::debug!("Controller config: {:?}", controller_config);
-
     // let sb_config = {
     //     let path = &controller_config.resolve.fs.path;
     // };

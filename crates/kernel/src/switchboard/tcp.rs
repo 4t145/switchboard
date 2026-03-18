@@ -20,7 +20,7 @@ pub(crate) enum TcpSwitchboardEvent {
     Halt,
 }
 
-pub(crate) enum TcpSwitchboard {
+pub enum TcpSwitchboard {
     Halted(TcpSwitchboardContext),
     Running(TcpSwitchboardHandle),
 }
@@ -53,7 +53,7 @@ impl TcpSwitchboard {
     }
 }
 
-pub(crate) struct TcpSwitchboardContext {
+pub struct TcpSwitchboardContext {
     pub(crate) event_receiver: EventReceiver,
     pub(crate) event_sender: EventSender,
     pub(crate) router: Arc<TcpSwitchboardRouter>,
@@ -92,7 +92,6 @@ pub struct TcpSwitchboardHandle {
     task_handle: tokio::task::JoinHandle<TcpSwitchboardContext>,
     pub(crate) tcp_listeners: HashMap<SocketAddr, TcpListenerTask>,
 }
-static UNEXPECTED_HALT_HINT: &str = "tcp switchboard task halted unexpectedly";
 #[derive(Debug, thiserror::Error)]
 pub enum TcpSwitchboardError {
     #[error("TCP switchboard task is not running")]

@@ -86,4 +86,8 @@ Prefer modern Rust patterns that reduce nesting:
 - Remember loops can return values; use that when it improves clarity.
 - Prefer idiomatic Rust 2024 style consistently.
 
----
+### 7) Prefer <submodule>.rs over <submodule>/mod.rs
+
+## For module organization, prefer `<submodule>.rs` files instead of `<submodule>/mod.rs` to reduce nesting and improve file discoverability.
+
+--- 
