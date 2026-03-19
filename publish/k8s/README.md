@@ -27,3 +27,8 @@ kubectl apply -k publish/k8s/all-in-one
 ```
 
 Each kustomization includes a `switchboard` namespace resource. Apply one mode at a time unless you explicitly want to run multiple modes in the same cluster.
+
+SBC startup mode is controlled by `SBC_K8S`:
+
+- `SBC_K8S=true` enables Kubernetes-managed mode (`--k8s` is appended)
+- `SBC_K8S=false` keeps standalone mode

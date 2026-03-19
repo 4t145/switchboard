@@ -4,7 +4,7 @@ kind: GatewayClass
 metadata:
   name: switchboard
 spec:
-  controllerName: switchboard.rs/gateway-controller
+  controllerName: switchboard.rs/controller
 
 ---
 apiVersion: v1
@@ -64,10 +64,12 @@ spec:
         - name: switchboard
           image: __SWITCHBOARD_IMAGE__
           imagePullPolicy: Never
+          env:
+            - name: SBC_CONFIG_PATH
+              value: /etc/switchboard/controller.toml
+            - name: SBC_K8S
+              value: "true"
           args:
-            - start
-            - --config
-            - /etc/switchboard/controller.toml
             - --no-web-root
           ports:
             - name: admin

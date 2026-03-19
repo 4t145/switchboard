@@ -29,6 +29,8 @@ spec:
               value: /etc/switchboard/kernel.toml
             - name: SBC_CONFIG_PATH
               value: /etc/switchboard/controller.toml
+            - name: SBC_K8S
+              value: "true"
           ports:
             - name: grpc
               containerPort: 8055

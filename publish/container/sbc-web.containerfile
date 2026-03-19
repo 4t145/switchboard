@@ -50,11 +50,13 @@ RUN mkdir -p /etc/switchboard /var/lib/switchboard /opt/switchboard/controller-w
 COPY --from=rust-builder --chown=switchboard:switchboard /usr/local/bin/sbc /usr/local/bin/sbc
 COPY --from=web-builder --chown=switchboard:switchboard /usr/src/switchboard/ui/controller-web/build /opt/switchboard/controller-web
 COPY --chown=switchboard:switchboard publish/container/config/controller.toml /etc/switchboard/controller.toml
+COPY --chown=switchboard:switchboard publish/container/entrypoint/sbc.sh /usr/local/bin/sbc-entrypoint.sh
+
+RUN chmod +x /usr/local/bin/sbc-entrypoint.sh
 
 WORKDIR /var/lib/switchboard
 EXPOSE 8056
 
 USER switchboard
 
-ENTRYPOINT ["/usr/local/bin/sbc"]
-CMD ["start", "--config", "/etc/switchboard/controller.toml"]
+ENTRYPOINT ["/usr/local/bin/sbc-entrypoint.sh"]

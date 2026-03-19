@@ -1,4 +1,3 @@
-use crate::kernel::KernelDiscoveryError;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 pub mod config;
@@ -8,10 +7,11 @@ pub mod kernel;
 pub mod link_resolver;
 pub mod resolve;
 pub mod resource;
+pub mod run;
 pub mod storage;
 pub mod utils;
-
 pub const DEFAULT_NAMESPACE: &str = "switchboard";
+
 #[derive(Clone)]
 pub struct ControllerContext {
     pub controller_config: Arc<config::ControllerConfig>,
@@ -21,6 +21,8 @@ pub struct ControllerContext {
     pub resolve: Arc<resolve::ServiceConfigResolverRegistry>,
     pub current_config: Arc<RwLock<Option<switchboard_model::ServiceConfig>>>,
     pub scan_task: Arc<RwLock<Option<kernel::ScanTaskHandle>>>,
+    pub k8s_runtime: Arc<RwLock<Option<run::k8s::K8sRuntimeHandle>>>,
+    pub run_mode: Arc<RwLock<Option<run::RunMode>>>,
 }
 
 impl ControllerContext {
@@ -33,16 +35,24 @@ impl ControllerContext {
             resolve: resolve::ServiceConfigResolverRegistry::prelude().into(),
             current_config: Arc::new(RwLock::new(None)),
             scan_task: Arc::new(RwLock::new(None)),
+            k8s_runtime: Arc::new(RwLock::new(None)),
+            run_mode: Arc::new(RwLock::new(None)),
         };
         Ok(this)
     }
-    pub async fn startup(&self) -> Result<()> {
+    pub async fn startup(&self, run_mode: run::RunMode) -> Result<()> {
         self.start_up_all_interfaces().await?;
         self.refresh_kernels().await?;
         self.spawn_scan_task().await;
+        if run_mode.is_k8s() {
+            self.spawn_k8s_runtime().await?;
+        }
+        *self.run_mode.write().await = Some(run_mode);
         Ok(())
     }
     pub async fn shutdown(&self) -> Result<()> {
+        self.cancel_k8s_runtime().await?;
+        self.cancel_scan_task().await;
         // shutdown all kernel connections
         {
             let mut manager = self.kernel_manager.write().await;
@@ -56,7 +66,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Kernel discovery error: {0}")]
-    KernelDiscoveryError(#[from] KernelDiscoveryError),
+    KernelDiscoveryError(#[from] crate::kernel::KernelDiscoveryError),
     #[error("Kernel connection error: {0}")]
     KernelConnectionError(#[from] crate::kernel::KernelGrpcConnectionError),
     #[error("Startup http interface error: {0}")]
@@ -67,6 +77,9 @@ pub enum Error {
 
     #[error("Kubernetes runtime environment error: {0}")]
     KubernetesRuntimeEnvError(#[from] crate::utils::k8s::K8sRuntimeEnvError),
+
+    #[error("Kubernetes runtime loop error: {0}")]
+    KubernetesRuntimeLoopError(#[from] crate::run::k8s::K8sRuntimeError),
 
     #[error("Storage error: {0}")]
     StorageError(#[from] crate::storage::StorageError),
@@ -91,4 +104,7 @@ pub enum Error {
 
     #[error("Controller is not running in kubernetes cluster")]
     NotInKubernetesCluster,
+    
+    #[error("Controller is running in kubernetes cluster")]
+    InKubernetesCluster,
 }

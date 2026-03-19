@@ -22,10 +22,11 @@ spec:
         - name: sbc
           image: ghcr.io/<org>/switchboard/sbc-web:latest
           imagePullPolicy: IfNotPresent
-          args:
-            - start
-            - --config
-            - /etc/switchboard/controller.toml
+          env:
+            - name: SBC_K8S
+              value: "true"
+            - name: SBC_CONFIG_PATH
+              value: /etc/switchboard/controller.toml
           ports:
             - name: http
               containerPort: 8056

@@ -31,6 +31,10 @@ pub async fn update_config(
     Json(request): Json<UpdateConfigRequest>,
 ) -> Response {
     let process = async move {
+        // check if we are in k8s mode
+        if state.controller_context.run_mode.read().await.is_some_and(|m|m.is_k8s()) {
+            return Err(crate::Error::InKubernetesCluster);
+        }
         let standard_config = match request {
             UpdateConfigRequest::NewConfig { new_config } => {
                 let resolver = state.controller_context.clone().link_resolver();

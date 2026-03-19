@@ -7,7 +7,7 @@ use switchboard_model::{
     HumanReadableServiceConfig, SerdeValue, Tls, TlsCertParams, switchboard_serde_value,
 };
 
-use crate::link_resolver::Link;
+use crate::{link_resolver::Link, utils::k8s::CONTROLLER_NAME};
 
 mod http;
 mod tcp;
@@ -144,8 +144,6 @@ pub enum K8sGatewayResourceError {
     ServiceBuilderError(#[from] ServiceBuilderError),
 }
 
-pub const GATEWAY_CONTROLLER_NAME: &str = "switchboard.rs/gateway-controller";
-
 #[derive(Clone)]
 pub struct K8sServiceConfigBuilder {
     pub client: kube::Client,
@@ -181,7 +179,7 @@ impl K8sServiceConfigBuilder {
         let gateway_classes = gateway_list
             .items
             .into_iter()
-            .filter(|gc| gc.spec.controller_name == GATEWAY_CONTROLLER_NAME)
+            .filter(|gc| gc.spec.controller_name == CONTROLLER_NAME)
             .map(|gc| (gc.name_any(), gc))
             .collect::<HashMap<_, _>>();
 

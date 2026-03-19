@@ -2,6 +2,7 @@ use std::io::ErrorKind;
 use std::sync::OnceLock;
 
 use tokio::sync::RwLock;
+pub const CONTROLLER_NAME: &str = "switchboard.rs/controller";
 
 pub const POD_NAMESPACE_ENV: &str = "POD_NAMESPACE";
 pub const SERVICE_ACCOUNT_NAMESPACE_PATH: &str =

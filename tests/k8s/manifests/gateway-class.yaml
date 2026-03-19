@@ -3,5 +3,5 @@ kind: GatewayClass
 metadata:
   name: switchboard
 spec:
-  controllerName: switchboard.rs/gateway-controller
+  controllerName: switchboard.rs/controller
   description: GatewayClass for Switchboard local testing
