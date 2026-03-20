@@ -24,14 +24,30 @@ build-container:
         -f publish/container/sbk.containerfile \
         -t switchboard/sbk:{{label}} .
 
-test-k8s-conformance-all-in-one image="switchboard/all-in-one:conformance" version="local-dev" run_test="" show_logs="false" skip_build="false":
+test-k8s-conformance-all-in-one image="switchboard/all-in-one:conformance" sbk_image="switchboard/sbk:conformance" version="local-dev" run_test="" show_logs="true" skip_build="false" go_test_timeout="30m":
     bash scripts/test-k8s-conformance.sh \
         --image {{image}} \
+        --sbk-image {{sbk_image}} \
         --version {{version}} \
         --run-test "{{run_test}}" \
         --show-logs {{show_logs}} \
-        --skip-build {{skip_build}}
-
+        --skip-build {{skip_build}} \
+        --go-test-timeout {{go_test_timeout}} \
+        --containerfile publish/container/switchboard-all-in-one.containerfile \
+        --sbk-containerfile publish/container/sbk.containerfile
+        
+test-k8s-conformance-sbc image="switchboard/sbc:conformance" sbk_image="switchboard/sbk:conformance" version="local-dev" run_test="" show_logs="true" skip_build="false" go_test_timeout="30m":
+    bash scripts/test-k8s-conformance.sh \
+        --image {{image}} \
+        --sbk-image {{sbk_image}} \
+        --version {{version}} \
+        --run-test "{{run_test}}" \
+        --show-logs {{show_logs}} \
+        --skip-build {{skip_build}} \
+        --go-test-timeout {{go_test_timeout}} \
+        --containerfile publish/container/sbc-web.containerfile \
+        --sbk-containerfile publish/container/sbk.containerfile
+        
 test-start-kind:
     bash tests/k8s/setup-kind.sh
 
@@ -39,7 +55,7 @@ test-k8s-conformance-local:
     cd tests/k8s-conformance && go test ./... -v -tags gatewayAPIConformance -run GatewayAPIConformanceSuite
 
 debug-surreal:
-    surreal start rocksdb://tmp/data/controller_storage.db
+    surreal start rocksdb://tmp/data/controller_storage.dbcd
 
 install-uipro:
     npm install -g uipro-cli

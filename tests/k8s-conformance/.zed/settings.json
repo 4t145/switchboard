@@ -1,0 +1,13 @@
+{
+  "lsp": {
+    "gopls": {
+      "settings": {
+        "gopls": {
+          "buildFlags": [
+            "-tags=gatewayAPIConformance"
+          ]
+        }
+      }
+    }
+  }
+}

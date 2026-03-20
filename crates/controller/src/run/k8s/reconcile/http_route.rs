@@ -52,6 +52,8 @@ const MSG_PROGRAMMED: &str = "HTTPRoute is programmed by switchboard controller"
 const MSG_INVALID_BACKEND_REFS: &str = "At least one backendRef is invalid or unresolved";
 const MSG_BACKEND_REF_NOT_PERMITTED: &str =
     "At least one cross-namespace backendRef is not permitted by ReferenceGrant";
+const MSG_PROGRAMMED_APPLY_FAILED: &str =
+    "HTTPRoute is accepted but latest gateway config apply failed";
 
 #[derive(Debug, thiserror::Error)]
 pub enum HTTPRouteReconcileError {
@@ -90,7 +92,7 @@ pub async fn reconcile(context: &ControllerContext, change: ChangeKind, key: &Ob
 }
 
 async fn reconcile_inner(
-    _context: &ControllerContext,
+    context: &ControllerContext,
     change: ChangeKind,
     key: &ObjectKey,
 ) -> Result<(), HTTPRouteReconcileError> {
@@ -115,7 +117,8 @@ async fn reconcile_inner(
     };
 
     let generation = route.metadata.generation.unwrap_or(0);
-    let parents = build_parent_statuses(client, &route, &namespace, generation).await?;
+    let apply_status = context.k8s_apply_status.read().await.clone();
+    let parents = build_parent_statuses(client, &route, &namespace, generation, apply_status.as_ref()).await?;
 
     let desired_status = HTTPRouteStatus { parents };
     let status_unchanged = route
@@ -141,6 +144,7 @@ async fn build_parent_statuses(
     route: &HTTPRoute,
     route_namespace: &str,
     generation: i64,
+    apply_status: Option<&crate::run::k8s::K8sApplyStatus>,
 ) -> Result<Vec<HTTPRouteStatusParents>, HTTPRouteReconcileError> {
     let Some(parent_refs) = route.spec.parent_refs.as_ref() else {
         return Ok(Vec::new());
@@ -162,7 +166,7 @@ async fn build_parent_statuses(
             RouteParentState::Accepted => {
                 let backend_state =
                     resolve_backend_refs_state(client.clone(), route, route_namespace).await?;
-                build_conditions_for_backend_state(generation, backend_state)
+                build_conditions_for_backend_state(generation, backend_state, apply_status)
             }
             RouteParentState::NoMatchingParent => build_conditions_for_parent_state(
                 generation,
@@ -526,7 +530,11 @@ fn build_conditions_for_parent_state(
     ]
 }
 
-fn build_conditions_for_backend_state(generation: i64, backend_state: BackendRefsState) -> Vec<Condition> {
+fn build_conditions_for_backend_state(
+    generation: i64,
+    backend_state: BackendRefsState,
+    apply_status: Option<&crate::run::k8s::K8sApplyStatus>,
+) -> Vec<Condition> {
     let (resolved_status, resolved_reason, resolved_message, programmed_status, programmed_reason, programmed_message) =
         match backend_state {
             BackendRefsState::Resolved => (
@@ -555,6 +563,24 @@ fn build_conditions_for_backend_state(generation: i64, backend_state: BackendRef
             ),
         };
 
+    let programmed = if apply_status.is_some_and(|status| !status.last_apply_succeeded) {
+        new_condition(
+            CONDITION_TYPE_PROGRAMMED,
+            STATUS_FALSE,
+            REASON_PROGRAMMED,
+            generation,
+            MSG_PROGRAMMED_APPLY_FAILED,
+        )
+    } else {
+        new_condition(
+            CONDITION_TYPE_PROGRAMMED,
+            programmed_status,
+            programmed_reason,
+            generation,
+            programmed_message,
+        )
+    };
+
     vec![
         new_condition(
             CONDITION_TYPE_ACCEPTED,
@@ -570,14 +596,57 @@ fn build_conditions_for_backend_state(generation: i64, backend_state: BackendRef
             generation,
             resolved_message,
         ),
-        new_condition(
-            CONDITION_TYPE_PROGRAMMED,
-            programmed_status,
-            programmed_reason,
-            generation,
-            programmed_message,
-        ),
+        programmed,
     ]
+}
+
+pub async fn reconcile_programmed_from_apply_status(context: &ControllerContext) {
+    if let Err(err) = reconcile_programmed_from_apply_status_inner(context).await {
+        tracing::warn!(error = %err, "failed to refresh httproute programmed status from apply result");
+    }
+}
+
+async fn reconcile_programmed_from_apply_status_inner(
+    context: &ControllerContext,
+) -> Result<(), HTTPRouteReconcileError> {
+    let Some(client) = kube_client_if_in_cluster().await? else {
+        return Ok(());
+    };
+    let apply_status = context.k8s_apply_status.read().await.clone();
+
+    let route_api: Api<HTTPRoute> = Api::all(client.clone());
+    let routes = route_api.list(&ListParams::default()).await?;
+    for route in routes.items {
+        let Some(namespace) = route.namespace() else {
+            continue;
+        };
+        let route_api_ns: Api<HTTPRoute> = Api::namespaced(client.clone(), &namespace);
+        let generation = route.metadata.generation.unwrap_or(0);
+        let parents = build_parent_statuses(
+            client.clone(),
+            &route,
+            &namespace,
+            generation,
+            apply_status.as_ref(),
+        )
+        .await?;
+        let desired_status = HTTPRouteStatus { parents };
+        let status_unchanged = route
+            .status
+            .as_ref()
+            .is_some_and(|status| status == &desired_status);
+        if status_unchanged {
+            continue;
+        }
+        let patch = Patch::Merge(serde_json::json!({
+            "status": desired_status,
+        }));
+        route_api_ns
+            .patch_status(&route.name_any(), &PatchParams::default(), &patch)
+            .await?;
+    }
+
+    Ok(())
 }
 
 fn new_condition(

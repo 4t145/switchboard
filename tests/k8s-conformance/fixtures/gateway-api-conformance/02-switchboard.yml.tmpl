@@ -35,7 +35,7 @@ data:
     bind = "[::]:8056"
 
     [resource.gateway.k8s]
-    gateway_namespace = "default"
+    watch_all_namespaces = true
 
     [storage]
     type = "local"
@@ -97,3 +97,92 @@ spec:
     - name: admin
       port: 8056
       targetPort: admin
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: switchboard-kernel-config
+  namespace: switchboard
+data:
+  kernel.toml: |
+    [info]
+    name = "Switchboard Kernel"
+    id = "conformance"
+    description = "Kernel for Gateway API conformance"
+
+    [controller.listen.http]
+    host = "0.0.0.0"
+    port = 8055
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sbk
+  namespace: switchboard
+  labels:
+    app.kubernetes.io/name: sbk
+    app.kubernetes.io/component: kernel
+    app.kubernetes.io/part-of: switchboard.rs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sbk
+      switchboard.rs/discovery: enabled
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sbk
+        app.kubernetes.io/component: kernel
+        app.kubernetes.io/part-of: switchboard.rs
+        switchboard.rs/discovery: enabled
+    spec:
+      containers:
+        - name: sbk
+          image: __SBK_IMAGE__
+          imagePullPolicy: Never
+          args:
+            - /etc/switchboard/kernel.toml
+          ports:
+            - name: grpc
+              containerPort: 8055
+          volumeMounts:
+            - name: kernel-config
+              mountPath: /etc/switchboard/kernel.toml
+              subPath: kernel.toml
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: kernel-config
+          configMap:
+            name: switchboard-kernel-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sbk
+  namespace: switchboard
+  labels:
+    app.kubernetes.io/name: sbk
+    app.kubernetes.io/component: kernel
+    app.kubernetes.io/part-of: switchboard.rs
+    switchboard.rs/discovery: enabled
+spec:
+  selector:
+    app.kubernetes.io/name: sbk
+    switchboard.rs/discovery: enabled
+  ports:
+    - name: grpc
+      port: 8055
+      targetPort: grpc

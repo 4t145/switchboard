@@ -58,4 +58,5 @@ pub enum K8sRuntimeEvent {
         resource: ResourceKind,
         message: String,
     },
+    ApplyStatusChanged,
 }

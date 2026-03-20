@@ -57,6 +57,10 @@ pub async fn dispatch_event(context: &ControllerContext, event: K8sRuntimeEvent)
         K8sRuntimeEvent::WatcherError { resource, message } => {
             tracing::warn!(resource = ?resource, error = %message, "k8s watcher error event");
         }
+        K8sRuntimeEvent::ApplyStatusChanged => {
+            gateway::reconcile_programmed_from_apply_status(context).await;
+            http_route::reconcile_programmed_from_apply_status(context).await;
+        }
     }
 }
 

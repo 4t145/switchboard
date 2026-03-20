@@ -63,4 +63,15 @@ Reports are written to:
 
 - `tests/k8s-conformance/gateway-api-conformance-reports/<gateway-api-version>/`
 
+When tests fail (or `-showLogs=true` is set), runtime logs and cluster snapshots are written to:
+
+- `tests/k8s-conformance/logs/<timestamp>/`
+
+Artifacts include:
+
+- `k3s.log`
+- `switchboard.log`
+- `resources.yaml`
+- `events.log`
+
 The report date is normalized to `-` for stable CI diffs.

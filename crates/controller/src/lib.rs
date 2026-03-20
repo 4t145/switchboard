@@ -22,6 +22,7 @@ pub struct ControllerContext {
     pub current_config: Arc<RwLock<Option<switchboard_model::ServiceConfig>>>,
     pub scan_task: Arc<RwLock<Option<kernel::ScanTaskHandle>>>,
     pub k8s_runtime: Arc<RwLock<Option<run::k8s::K8sRuntimeHandle>>>,
+    pub k8s_apply_status: Arc<RwLock<Option<run::k8s::K8sApplyStatus>>>,
     pub run_mode: Arc<RwLock<Option<run::RunMode>>>,
 }
 
@@ -36,6 +37,7 @@ impl ControllerContext {
             current_config: Arc::new(RwLock::new(None)),
             scan_task: Arc::new(RwLock::new(None)),
             k8s_runtime: Arc::new(RwLock::new(None)),
+            k8s_apply_status: Arc::new(RwLock::new(None)),
             run_mode: Arc::new(RwLock::new(None)),
         };
         Ok(this)

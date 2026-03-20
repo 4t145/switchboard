@@ -10,8 +10,25 @@ use crate::{
 use service_config::K8sGatewayResourceError;
 use switchboard_model::{HumanReadableServiceConfig, switchboard_serde_value::SerdeValue};
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Hash, PartialEq, Eq, Default)]
-pub struct K8sResolveConfig {}
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Hash, PartialEq, Eq)]
+pub struct K8sResolveConfig {
+    #[serde(default)]
+    pub gateway_namespace: Option<String>,
+    #[serde(default)]
+    pub gateway_namespaces: Vec<String>,
+    #[serde(default)]
+    pub watch_all_namespaces: bool,
+}
+
+impl Default for K8sResolveConfig {
+    fn default() -> Self {
+        Self {
+            gateway_namespace: Some("default".to_string()),
+            gateway_namespaces: Vec::new(),
+            watch_all_namespaces: false,
+        }
+    }
+}
 
 pub struct K8sServiceConfigResolver;
 

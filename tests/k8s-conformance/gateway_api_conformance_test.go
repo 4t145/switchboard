@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -38,9 +39,14 @@ const (
 	rbacManifestPath        = "fixtures/gateway-api-conformance/01-rbac.yml"
 	switchboardManifestTmpl = "fixtures/gateway-api-conformance/02-switchboard.yml.tmpl"
 	controllerLogCollectCmd = "kubectl logs -n switchboard deploy/switchboard"
+	sbkLogCollectCmd        = "kubectl logs -n switchboard deploy/sbk"
+	resourceDumpCollectCmd  = "kubectl get gatewayclass,gateway,httproute -A -o yaml"
+	eventsCollectCmd        = "kubectl get events -A --sort-by=.lastTimestamp"
 	reportOutputDir         = "gateway-api-conformance-reports"
+	logOutputDir            = "logs"
 	reportDatePlaceholder   = "-"
 	switchboardImageToken   = "__SWITCHBOARD_IMAGE__"
+	sbkImageToken           = "__SBK_IMAGE__"
 )
 
 // GatewayAPIConformanceSuite mirrors Traefik's conformance architecture:
@@ -52,6 +58,7 @@ type GatewayAPIConformanceSuite struct {
 	kubeClient   client.Client
 	restConfig   *rest.Config
 	clientSet    *kclientset.Clientset
+	logDir       string
 }
 
 func TestGatewayAPIConformanceSuite(t *testing.T) {
@@ -60,6 +67,8 @@ func TestGatewayAPIConformanceSuite(t *testing.T) {
 
 func (s *GatewayAPIConformanceSuite) SetupSuite() {
 	ctx := s.T().Context()
+	s.logDir = filepath.Join(logOutputDir, time.Now().UTC().Format("20060102T150405Z"))
+	require.NoError(s.T(), os.MkdirAll(s.logDir, 0o755))
 
 	manifestPath, err := s.renderSwitchboardManifest()
 	require.NoError(s.T(), err)
@@ -73,13 +82,19 @@ func (s *GatewayAPIConformanceSuite) SetupSuite() {
 	)
 	require.NoError(s.T(), err)
 
-	require.NoError(s.T(), s.k3sContainer.LoadImages(ctx, *switchboardImage))
+	require.NoError(s.T(), s.k3sContainer.LoadImages(ctx, *switchboardImage, *sbkImage))
 
 	exitCode, _, err := s.k3sContainer.Exec(
 		ctx,
 		[]string{"kubectl", "wait", "-n", switchboardNamespace, switchboardDeployment, "--for=condition=Available", "--timeout=120s"},
 	)
 	require.Truef(s.T(), err == nil && exitCode == 0, "switchboard deployment did not become available: exit=%d err=%v", exitCode, err)
+
+	exitCode, _, err = s.k3sContainer.Exec(
+		ctx,
+		[]string{"kubectl", "wait", "-n", switchboardNamespace, sbkDeployment, "--for=condition=Available", "--timeout=120s"},
+	)
+	require.Truef(s.T(), err == nil && exitCode == 0, "sbk deployment did not become available: exit=%d err=%v", exitCode, err)
 
 	kubeConfigYaml, err := s.k3sContainer.GetKubeConfig(ctx)
 	require.NoError(s.T(), err)
@@ -108,6 +123,9 @@ func (s *GatewayAPIConformanceSuite) TearDownSuite() {
 	if s.T().Failed() || *showLogs {
 		s.dumpK3sLogs(ctx)
 		s.dumpControllerLogs(ctx)
+		s.dumpSbkLogs(ctx)
+		s.dumpResourceSnapshot(ctx)
+		s.dumpClusterEvents(ctx)
 	}
 
 	require.NoError(s.T(), s.k3sContainer.Terminate(ctx))
@@ -171,6 +189,7 @@ func (s *GatewayAPIConformanceSuite) renderSwitchboardManifest() (string, error)
 	}
 
 	rendered := strings.ReplaceAll(string(tmpl), switchboardImageToken, *switchboardImage)
+	rendered = strings.ReplaceAll(rendered, sbkImageToken, *sbkImage)
 	path := filepath.Join(s.T().TempDir(), "02-switchboard.yml")
 	if err := os.WriteFile(path, []byte(rendered), 0o600); err != nil {
 		return "", err
@@ -191,6 +210,9 @@ func (s *GatewayAPIConformanceSuite) dumpK3sLogs(ctx context.Context) {
 		s.T().Logf("failed to consume k3s logs: %v", err)
 		return
 	}
+	if err := s.writeLogArtifact("k3s.log", data); err != nil {
+		s.T().Logf("failed to write k3s logs file: %v", err)
+	}
 
 	s.T().Logf("k3s logs:\n%s", string(data))
 }
@@ -204,6 +226,9 @@ func (s *GatewayAPIConformanceSuite) dumpControllerLogs(ctx context.Context) {
 	}
 	if exitCode != 0 {
 		s.T().Logf("switchboard logs command exited with %d", exitCode)
+		if writeErr := s.writeLogArtifact("switchboard.log", []byte("<switchboard logs unavailable>\n")); writeErr != nil {
+			s.T().Logf("failed to write switchboard logs placeholder file: %v", writeErr)
+		}
 		return
 	}
 
@@ -212,6 +237,76 @@ func (s *GatewayAPIConformanceSuite) dumpControllerLogs(ctx context.Context) {
 		s.T().Logf("failed to read switchboard logs output: %v", err)
 		return
 	}
+	if err := s.writeLogArtifact("switchboard.log", data); err != nil {
+		s.T().Logf("failed to write switchboard logs file: %v", err)
+	}
 
 	s.T().Logf("switchboard logs:\n%s", string(data))
+}
+
+func (s *GatewayAPIConformanceSuite) dumpSbkLogs(ctx context.Context) {
+	parts := []string{"sh", "-c", sbkLogCollectCmd}
+	exitCode, output, err := s.k3sContainer.Exec(ctx, parts)
+	if err != nil {
+		s.T().Logf("failed to fetch sbk logs: %v", err)
+		return
+	}
+	if exitCode != 0 {
+		s.T().Logf("sbk logs command exited with %d", exitCode)
+		if writeErr := s.writeLogArtifact("sbk.log", []byte("<sbk logs unavailable>\n")); writeErr != nil {
+			s.T().Logf("failed to write sbk logs placeholder file: %v", writeErr)
+		}
+		return
+	}
+
+	data, err := io.ReadAll(output)
+	if err != nil {
+		s.T().Logf("failed to read sbk logs output: %v", err)
+		return
+	}
+	if err := s.writeLogArtifact("sbk.log", data); err != nil {
+		s.T().Logf("failed to write sbk logs file: %v", err)
+	}
+
+	s.T().Logf("sbk logs:\n%s", string(data))
+}
+
+func (s *GatewayAPIConformanceSuite) dumpResourceSnapshot(ctx context.Context) {
+	s.dumpCommandOutputToFile(ctx, resourceDumpCollectCmd, "resources.yaml")
+}
+
+func (s *GatewayAPIConformanceSuite) dumpClusterEvents(ctx context.Context) {
+	s.dumpCommandOutputToFile(ctx, eventsCollectCmd, "events.log")
+}
+
+func (s *GatewayAPIConformanceSuite) dumpCommandOutputToFile(ctx context.Context, cmd string, outputName string) {
+	parts := []string{"sh", "-c", cmd}
+	exitCode, output, err := s.k3sContainer.Exec(ctx, parts)
+	if err != nil {
+		s.T().Logf("failed to execute command %q: %v", cmd, err)
+		return
+	}
+	if exitCode != 0 {
+		s.T().Logf("command %q exited with %d", cmd, exitCode)
+		return
+	}
+
+	data, err := io.ReadAll(output)
+	if err != nil {
+		s.T().Logf("failed to read command %q output: %v", cmd, err)
+		return
+	}
+
+	if err := s.writeLogArtifact(outputName, data); err != nil {
+		s.T().Logf("failed to write command %q output file: %v", cmd, err)
+	}
+}
+
+func (s *GatewayAPIConformanceSuite) writeLogArtifact(name string, data []byte) error {
+	outputPath := filepath.Join(s.logDir, name)
+	if err := os.WriteFile(outputPath, data, 0o600); err != nil {
+		return err
+	}
+	s.T().Logf("Conformance log written to: %s", outputPath)
+	return nil
 }

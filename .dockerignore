@@ -33,8 +33,7 @@ tests/
 # publish files
 publish/*
 !publish/container
-# non-rust stuff
-ui/
+
 utils/
 
 # documentation

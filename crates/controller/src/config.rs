@@ -3,7 +3,10 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use switchboard_model::{controller::ControllerInfo, protocol::DEFAULT_STATE_REPORT_INTERVAL_SECS};
 
-use crate::{interface::InterfaceConfig, kernel::KernelDiscoveryConfig, storage::StorageProvider};
+use crate::{
+    interface::InterfaceConfig, kernel::KernelDiscoveryConfig, resolve::ResolveConfig,
+    storage::StorageProvider,
+};
 
 /// Controller Configuration
 /// # Example
@@ -30,6 +33,8 @@ pub struct ControllerConfig {
     /// how to resolve configs
     // #[serde(default)]
     // pub resolve: ResolveConfig,
+    #[serde(default)]
+    pub resolve: ResolveConfig,
     #[serde(default)]
     pub storage: StorageProvider,
     #[serde(default)]

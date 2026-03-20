@@ -5,6 +5,7 @@ use tokio_util::sync::CancellationToken;
 use crate::ControllerContext;
 use crate::utils::k8s::{K8sRuntimeEnvError, kube_client_if_in_cluster};
 
+mod apply;
 mod events;
 mod reconcile;
 mod watch;
@@ -12,6 +13,14 @@ mod watch;
 pub use events::{ChangeKind, K8sRuntimeEvent, ObjectKey, ResourceKind};
 
 const EVENT_CHANNEL_CAPACITY: usize = 2048;
+const APPLY_CHANNEL_CAPACITY: usize = 64;
+
+#[derive(Debug, Clone, Default)]
+pub struct K8sApplyStatus {
+    pub last_digest: Option<String>,
+    pub last_apply_succeeded: bool,
+    pub last_error: Option<String>,
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum K8sRuntimeError {
@@ -69,8 +78,16 @@ async fn run_event_loop(
     ct: CancellationToken,
 ) -> Result<(), K8sRuntimeError> {
     let (tx, mut rx) = mpsc::channel(EVENT_CHANNEL_CAPACITY);
-    let watcher_context = watch::ResourceWatcherContext::new(ct.child_token(), tx);
+    let watcher_context = watch::ResourceWatcherContext::new(ct.child_token(), tx.clone());
     let watcher_handles = watch::spawn_all_watchers(client, watcher_context);
+    let (apply_tx, apply_rx) = mpsc::channel(APPLY_CHANNEL_CAPACITY);
+    let apply_handle = apply::spawn_apply_worker(
+        context.clone(),
+        apply_rx,
+        ct.child_token(),
+        tx.clone(),
+    );
+    let _ = apply_tx.try_send(apply::ApplySignal::RebuildAll);
 
     let mut loop_result = Ok(());
     loop {
@@ -83,7 +100,11 @@ async fn run_event_loop(
                     loop_result = Err(K8sRuntimeError::EventChannelClosed);
                     break;
                 };
+                let need_rebuild = apply::event_triggers_rebuild(&event);
                 reconcile::dispatch_event(&context, event).await;
+                if need_rebuild {
+                    let _ = apply_tx.try_send(apply::ApplySignal::RebuildAll);
+                }
             }
         }
     }
@@ -95,6 +116,11 @@ async fn run_event_loop(
                 continue;
             }
             tracing::warn!(error = %err, "watcher task join failed");
+        }
+    }
+    if let Err(err) = apply_handle.await {
+        if !err.is_cancelled() {
+            tracing::warn!(error = %err, "apply worker task join failed");
         }
     }
 
