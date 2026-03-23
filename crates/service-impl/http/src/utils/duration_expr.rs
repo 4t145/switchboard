@@ -14,7 +14,7 @@ where
     from_duration_expr(s).map_err(serde::de::Error::custom)
 }
 
-#[derive(Debug, Clone, bincode::Encode, bincode::Decode)]
+#[derive(Debug, Clone, )]
 pub struct Never(());
 
 impl serde::Serialize for Never {
@@ -43,7 +43,7 @@ impl<'de> serde::Deserialize<'de> for Never {
     }
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, )]
 #[serde(untagged)]
 /// Represents a timeout duration which can be specified as an expression, milliseconds, or never.
 /// - `Expr`: A human-readable duration expression (e.g., "1h 30m").

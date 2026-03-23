@@ -1,32 +1,10 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, OnceLock},
+use crate::flow::{
+    filter::{AsFilterClass, FilterClass},
+    node::{AsNodeClass, NodeClass},
 };
-
+use crate::instance::{InstanceValue, class::*};
+use std::collections::HashMap;
 use switchboard_service::SerdeValue;
-use tokio::sync::RwLock;
-
-use crate::{
-    flow::{
-        balancer::BalancerClass,
-        filter::{
-            AsFilterClass, FilterClass, request_header_modify::RequestHeaderModifyFilterClass,
-            request_mirror::RequestMirrorFilterClass, request_redirect::RequestRedirectFilterClass,
-            response_header_modify::ResponseHeaderModifyFilterClass, timeout::Timeout,
-            url_rewrite::UrlRewriteFilterClass,
-        },
-        node::{AsNodeClass, NodeClass},
-        router::router::RouterRouterClass,
-        service::{
-            http_client::HttpClientClass, reverse_proxy::ReverseProxyServiceClass,
-            static_response::StaticResponseServiceClass,
-        },
-    },
-    instance::{
-        InstanceValue,
-        class::{Class, ClassData, ClassId, ConstructError, Constructor},
-    },
-};
 
 #[derive(Clone)]
 pub struct ClassDataWithConstructor {
@@ -96,39 +74,60 @@ impl ClassRegistry {
     pub fn register_filter<F: FilterClass>(&mut self, class: F) {
         self.register(AsFilterClass(class));
     }
-    pub fn register_prelude(&mut self) {
-        // nodes
-        {
-            // balancers
-            self.register_node(BalancerClass);
-
-            // routers
-            self.register_node(RouterRouterClass);
-
-            // services
-            self.register_node(HttpClientClass);
-            self.register_node(StaticResponseServiceClass);
-            self.register_node(ReverseProxyServiceClass);
-        }
-        // filters
-        {
-            self.register_filter(UrlRewriteFilterClass);
-            self.register_filter(RequestMirrorFilterClass);
-            self.register_filter(RequestHeaderModifyFilterClass);
-            self.register_filter(RequestRedirectFilterClass);
-            self.register_filter(ResponseHeaderModifyFilterClass);
-            self.register_filter(Timeout);
-        }
-    }
-    pub fn global() -> Arc<RwLock<Self>> {
-        GLOBAL_CLASS_REGISTRY
-            .get_or_init(|| {
-                let mut registry = Self::default();
-                registry.register_prelude();
-                Arc::new(RwLock::new(registry))
-            })
-            .clone()
-    }
 }
 
-static GLOBAL_CLASS_REGISTRY: OnceLock<Arc<RwLock<ClassRegistry>>> = OnceLock::new();
+#[cfg(not(feature = "plugin-dev"))]
+mod resigter {
+    use tokio::sync::RwLock;
+    use std::sync::{Arc, OnceLock};
+    static GLOBAL_CLASS_REGISTRY: OnceLock<Arc<RwLock<super::ClassRegistry>>> = OnceLock::new();
+    use crate::flow::{
+        balancer::BalancerClass,
+        filter::{
+            request_header_modify::RequestHeaderModifyFilterClass,
+            request_mirror::RequestMirrorFilterClass, request_redirect::RequestRedirectFilterClass,
+            response_header_modify::ResponseHeaderModifyFilterClass, timeout::Timeout,
+            url_rewrite::UrlRewriteFilterClass,
+        },
+        router::router::RouterRouterClass,
+        service::{
+            http_client::HttpClientClass, reverse_proxy::ReverseProxyServiceClass,
+            static_response::StaticResponseServiceClass,
+        },
+    };
+    impl super::ClassRegistry {
+        pub fn register_prelude(&mut self) {
+            // nodes
+            {
+                // balancers
+                self.register_node(BalancerClass);
+
+                // routers
+                self.register_node(RouterRouterClass);
+
+                // services
+                self.register_node(HttpClientClass);
+                self.register_node(StaticResponseServiceClass);
+                self.register_node(ReverseProxyServiceClass);
+            }
+            // filters
+            {
+                self.register_filter(UrlRewriteFilterClass);
+                self.register_filter(RequestMirrorFilterClass);
+                self.register_filter(RequestHeaderModifyFilterClass);
+                self.register_filter(RequestRedirectFilterClass);
+                self.register_filter(ResponseHeaderModifyFilterClass);
+                self.register_filter(Timeout);
+            }
+        }
+        pub fn global() -> Arc<RwLock<Self>> {
+            GLOBAL_CLASS_REGISTRY
+                .get_or_init(|| {
+                    let mut registry = Self::default();
+                    registry.register_prelude();
+                    Arc::new(RwLock::new(registry))
+                })
+                .clone()
+        }
+    }
+}

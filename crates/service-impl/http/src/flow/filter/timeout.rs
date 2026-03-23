@@ -40,7 +40,7 @@ impl FilterLike for TimeoutFilter {
         }
     }
 }
-#[derive(Debug, Clone, Deserialize, Serialize, bincode::Encode, bincode::Decode)]
+#[derive(Debug, Clone, Deserialize, Serialize, )]
 pub struct TimeoutConfig {
     #[serde(with = "crate::utils::duration_expr")]
     pub timeout: Duration,

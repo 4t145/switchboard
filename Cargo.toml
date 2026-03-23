@@ -11,6 +11,7 @@ members = [
     "crates/libs/*",
     # examples
     "examples/example-api-server",
+    "examples/example-http-plugin",
 ]
 resolver = "2"
 
@@ -57,6 +58,9 @@ pin-project-lite = "0.2.16"
 
 # Codec
 base64 = { version = "0.22" }
+
+# Plugin system
+libloading = { version = "0.9" }
 
 [workspace.package]
 edition = "2024"

@@ -1,5 +1,4 @@
 use crate::SerdeValue;
-use schemars::{JsonSchema, Schema};
 use serde::{Deserialize, Serialize};
 use switchboard_link_or_value::{LinkOrValue, Resolvable, Resolver};
 pub mod consts;
@@ -301,21 +300,6 @@ impl FromStr for NodePort {
         } else {
             Ok(NodePort::Named(Arc::from(s)))
         }
-    }
-}
-
-impl JsonSchema for NodePort {
-    fn json_schema(generator: &mut schemars::SchemaGenerator) -> Schema {
-        String::json_schema(generator)
-    }
-    fn schema_name() -> std::borrow::Cow<'static, str> {
-        String::schema_name()
-    }
-    fn inline_schema() -> bool {
-        String::inline_schema()
-    }
-    fn schema_id() -> std::borrow::Cow<'static, str> {
-        String::schema_id()
     }
 }
 

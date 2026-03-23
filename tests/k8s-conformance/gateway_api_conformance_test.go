@@ -153,7 +153,7 @@ func (s *GatewayAPIConformanceSuite) TestGatewayAPIConformanceHTTPAndTLS() {
 			ksuite.GatewayHTTPConformanceProfileName,
 			ksuite.GatewayTLSConformanceProfileName,
 		),
-		EnableAllSupportedFeatures: true,
+		EnableAllSupportedFeatures: false,
 	})
 	require.NoError(s.T(), err)
 

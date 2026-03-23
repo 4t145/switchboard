@@ -23,7 +23,7 @@ use switchboard_model::services::http::{ClassId, consts::REVERSE_PROXY_CLASS_ID}
 use crate::{DynRequest, DynResponse, box_error};
 use http::header::{HOST, VIA};
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, )]
 #[serde(default)]
 pub struct ReverseProxyServiceConfig {
     /// Backend authority (host:port) for proxying requests, default is empty

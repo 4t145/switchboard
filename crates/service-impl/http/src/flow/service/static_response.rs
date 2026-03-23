@@ -9,7 +9,7 @@ use switchboard_model::services::http::{ClassId, consts::STATIC_RESPONSE_CLASS_I
 
 use crate::{DynRequest, DynResponse, box_error};
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct StaticResponseServiceConfig {
     #[serde(default)]
     pub headers: Vec<(String, String)>,

@@ -13,7 +13,7 @@ pub struct RouterRouter {
     pub options: TreeRouterOptions,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RouterRouterConfig {
     #[serde(flatten)]
     pub router: RouterSerde<NodePort>,
@@ -22,7 +22,7 @@ pub struct RouterRouterConfig {
 }
 
 #[derive(
-    Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode, Default,
+    Debug, Clone, serde::Serialize, serde::Deserialize, Default,
 )]
 #[serde(default)]
 pub struct TreeRouterOptions {

@@ -15,6 +15,7 @@ use crate::{
 mod ip_hash;
 mod random;
 mod round_robin;
+
 #[derive(Debug, serde::Deserialize)]
 #[serde(untagged)]
 pub enum WeightedPortsConfig {

@@ -8,7 +8,7 @@ use crate::{
     flow::filter::{FilterClass, FilterLike},
 };
 
-#[derive(Clone, Deserialize, Serialize, bincode::Encode, bincode::Decode)]
+#[derive(Clone, Deserialize, Serialize, )]
 pub struct RequestHeaderModifyFilterConfig {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub set: Vec<(String, String)>,

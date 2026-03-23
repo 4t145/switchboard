@@ -53,3 +53,7 @@ pub async fn clone_body(body: &mut DynBody) -> Result<DynBody, BoxedError> {
 pub fn empty_body() -> DynBody {
     DynBody::new(http_body_util::Empty::<bytes::Bytes>::new().map_err(box_error))
 }
+
+pub fn bytes_body(bytes: impl Into<Bytes>) -> DynBody {
+    DynBody::new(http_body_util::Full::<bytes::Bytes>::new(bytes.into()).map_err(box_error))
+}

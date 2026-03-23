@@ -1,10 +1,13 @@
 use std::{collections::HashMap, convert::Infallible, net::SocketAddr, sync::Arc};
+#[cfg(not(feature = "plugin-dev"))]
 pub mod balancer;
 pub mod build;
 pub mod filter;
 pub mod node;
 pub mod router;
 pub mod service;
+pub mod plugin;
+
 use bytes::Bytes;
 use futures::future::BoxFuture;
 use http::{Request, StatusCode};

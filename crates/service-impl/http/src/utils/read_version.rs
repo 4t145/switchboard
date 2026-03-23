@@ -11,7 +11,7 @@ use tokio::io::{self, AsyncRead, ReadBuf};
 use bytes::Bytes;
 
 const H2_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
-use crate::HttpVersion;
+use crate::config::HttpVersion;
 
 pub(crate) fn read_version<S>(io: S) -> ReadVersion<S>
 where

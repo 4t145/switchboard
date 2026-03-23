@@ -10,31 +10,39 @@ categories.workspace = true
 readme.workspace = true
 
 [dependencies]
-typeshare = "1"
+
 bytes = "1.10.1"
-futures = "0.3.31"
 http = "1.3.1"
+futures = "0.3.31"
 http-body-util = "0.1.3"
-hyper = { version = "1.6.0", features = ["client", "server", "http1", "http2"] }
-hyper-util = { version = "0.1.10", features = ["full"] }
-pin-project-lite = "0.2.16"
-rustls = { workspace = true }
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = { version = "1", features = ["preserve_order"] }
-schemars = { version = "1", features = [] }
-anyhow = { version = "1" }
 thiserror = { version = "2" }
-uuid = { version = "1", features = ["v4"] }
-tokio = { workspace = true, features = ["full"] }
-tokio-util = { workspace = true }
-switchboard-service = { version = "0.1.0", workspace = true }
-switchboard-http-router = { workspace = true }
 switchboard-model = { workspace = true }
-tracing = { workspace = true }
-tokio-rustls = { workspace = true }
-hyper-rustls = { version = "0.27", features = ["http2"] }
-matchit = "0.9"
-tera = "1.20.0"
-bincode = { workspace = true }
-rand = { version =  "0.9" }
+
+# Hyper impl
+hyper = { version = "1.6.0", features = ["client", "server", "http1", "http2"], optional = true }
+hyper-util = { version = "0.1.10", features = ["full"],  optional = true  }
+pin-project-lite = { version = "0.2.16",  optional = true }
+rustls = { workspace = true,  optional = true }
+uuid = { version = "1", features = ["v4"],  optional = true  }
+tracing = { workspace = true, optional = true }
+tokio-rustls = { workspace = true, optional = true }
+hyper-rustls = { version = "0.27", features = ["http2"], optional = true }
+matchit = { version = "0.9",  optional = true }
+rand = { version =  "0.9",  optional = true }
+switchboard-service = { version = "0.1.0", workspace = true, optional = true }
+switchboard-http-router = { workspace = true, optional = true }
+libloading = { version = "0.9", optional = true }
+
+# Runtime
+tokio = { workspace = true, features = ["full"],  optional = true }
+tokio-util = { workspace = true,  optional = true }
+
 # chrono = { version = "0.4", features = ["serde"] }
+#
+[features]
+default = ["hyper-impl", "runtime"]
+hyper-impl = ["dep:hyper", "dep:hyper-util", "dep:pin-project-lite", "dep:rustls", "dep:uuid", "dep:tracing", "dep:tokio-rustls", "dep:hyper-rustls", "dep:matchit", "dep:rand", "dep:switchboard-service", "dep:switchboard-http-router", "dep:libloading"]
+runtime = ["dep:tokio", "dep:tokio-util"]
+plugin-dev = []
