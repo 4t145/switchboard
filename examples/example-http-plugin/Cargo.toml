@@ -1,0 +1,24 @@
+[package]
+name = "example-http-plugin"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+readme.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+opt-level = "z"
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+
+[dependencies]
+switchboard-http = { path = "../../crates/service-impl/http", features = ["plugin-dev"] }
+switchboard-model = { path = "../../crates/model" }
