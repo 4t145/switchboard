@@ -1845,6 +1845,7 @@ dependencies = [
 name = "example-http-plugin"
 version = "0.1.0"
 dependencies = [
+ "serde",
  "switchboard-http",
  "switchboard-model",
 ]
@@ -4733,6 +4734,7 @@ name = "sbk"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "libloading 0.9.0",
  "rustls",
  "serde_json",
  "switchboard-http",
@@ -5975,6 +5977,7 @@ dependencies = [
  "bytes",
  "futures",
  "http",
+ "http-body",
  "http-body-util",
  "hyper",
  "hyper-rustls",

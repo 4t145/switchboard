@@ -50,7 +50,7 @@ pub enum Error {
 #[derive(Clone)]
 pub struct KernelContext {
     pub(crate) registry: Registry,
-    pub(crate) kernel_config: Arc<KernelConfig>,
+    pub kernel_config: Arc<KernelConfig>,
     pub(crate) current_config: Arc<RwLock<model::ServiceConfig>>,
     pub(crate) tcp_switchboard: Arc<RwLock<TcpSwitchboard>>,
     // pub(crate) state: Arc<RwLock<KernelState>>,

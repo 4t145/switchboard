@@ -1,8 +1,8 @@
-#[cfg(not(feature = "plugin-dev"))]
+#[cfg(feature = "service-impl")]
 pub mod http_client;
-#[cfg(not(feature = "plugin-dev"))]
+#[cfg(feature = "service-impl")]
 pub mod reverse_proxy;
-#[cfg(not(feature = "plugin-dev"))]
+#[cfg(feature = "service-impl")]
 pub mod static_response;
 
 use switchboard_model::services::http::NodeInterface;

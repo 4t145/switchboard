@@ -28,3 +28,7 @@ http = { version = "1"}
 switchboard-link-or-value = { workspace = true }
 switchboard-serde-value = { workspace = true, features = ["bincode"] }
 tracing = { workspace = true }
+
+[features]
+default = ["resolve"]
+resolve = ["tokio/rt"]

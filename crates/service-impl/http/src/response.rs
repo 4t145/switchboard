@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use http::Response;
-use hyper::body::Body;
+use http_body::Body;
 
 pub trait IntoResponse {
     type Error: std::error::Error + Send + Sync + 'static;

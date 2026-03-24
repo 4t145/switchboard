@@ -4,6 +4,8 @@
 fallback = "frontend"
 
 [hostname."*"]
+"/hello-world" = "hello-world"
+
 "/healthy" = "i-am-healthy"
 "/healthy/{*rest}" = "$default"
 
@@ -28,7 +30,8 @@ fallback = "frontend"
 [output."api"]
 target = "api-service"
 filters = ["rewrite-rest"]
-# filters = ["log-request", "add-header"]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+# filters = ["log-request", "add-header"]                         
+# 
 
 [output."frontend"]
 target = "frontend-service"
@@ -38,3 +41,6 @@ target = "not-found-page"
 
 [output."i-am-healthy"]
 target = "i-am-healthy"
+
+[output."hello-world"]
+target = "hello-world"

@@ -8,11 +8,11 @@ impl ClassRegistry {
     }
 }
 
-#[cfg(not(feature = "plugin-dev"))]
+#[cfg(feature = "service-impl")]
 impl ClassRegistry {
     pub fn load_dynamic_lib(&mut self, lib: &libloading::Library) -> Result<(), libloading::Error> {
         unsafe {
-            let register_fn = lib.get::<PluginRegisterFn>(b"register")?;
+            let register_fn = lib.get::<PluginRegisterFn>(b"register\0")?;
             self.register_rust_plugin(*register_fn);
         };
         return Ok(());

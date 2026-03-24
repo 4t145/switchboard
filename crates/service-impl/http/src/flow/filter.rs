@@ -1,14 +1,14 @@
-#[cfg(not(feature = "plugin-dev"))]
+#[cfg(feature = "service-impl")]
 pub mod request_header_modify;
-#[cfg(not(feature = "plugin-dev"))]
+#[cfg(feature = "service-impl")]
 pub mod request_mirror;
-#[cfg(not(feature = "plugin-dev"))]
+#[cfg(feature = "service-impl")]
 pub mod request_redirect;
-#[cfg(not(feature = "plugin-dev"))]
+#[cfg(feature = "service-impl")]
 pub mod response_header_modify;
-#[cfg(not(feature = "plugin-dev"))]
+#[cfg(feature = "service-impl")]
 pub mod timeout;
-#[cfg(not(feature = "plugin-dev"))]
+#[cfg(feature = "service-impl")]
 pub mod url_rewrite;
 
 

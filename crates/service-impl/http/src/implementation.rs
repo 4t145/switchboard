@@ -172,7 +172,7 @@ pub enum HttpBuildError {
 }
 
 pub struct HttpProvider {
-    rust_dyn_libs: libloading::Libe
+    pub rust_dyn_libs: Vec<libloading::Library>
 }
 
 impl TcpServiceProvider for HttpProvider {
@@ -181,7 +181,7 @@ impl TcpServiceProvider for HttpProvider {
     type Error = HttpBuildError;
     async fn construct(&self, config: Option<SerdeValue>) -> Result<Self::Service, Self::Error> {
         let config: crate::config::Config = config.unwrap_or_default().deserialize_into()?;
-        let class_registry = ClassRegistry::global();
+        let class_registry = ClassRegistry::global(&self);
         let flow = Flow::build(config.flow, class_registry.read_owned().await.deref())?;
         let service = Http {
             service: flow,

@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 // pub mod host_match;
 // pub mod path_match;
-#[cfg(not(feature = "plugin-dev"))]
+#[cfg(feature = "service-impl")]
 #[allow(clippy::module_inception)]
 pub mod router;
-#[cfg(not(feature = "plugin-dev"))]
+#[cfg(feature = "service-impl")]
 pub mod transparent;
 
 use crate::{

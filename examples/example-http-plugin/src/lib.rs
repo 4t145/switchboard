@@ -7,13 +7,16 @@ use switchboard_http::{
 };
 use switchboard_model::services::http::ClassId;
 struct HelloWorldClass;
-
+#[derive(serde::Deserialize, serde::Serialize)]
+struct HelloWorldClassConfig {
+    
+}
 impl NodeClass for HelloWorldClass {
     type Node = HelloWorld;
 
     type Error = Infallible;
 
-    type Config = ();
+    type Config = HelloWorldClassConfig;
 
     fn id(&self) -> ClassId {
         ClassId::new("test", "hello-world")
@@ -40,6 +43,7 @@ impl NodeLike for HelloWorld {
     }
 }
 
+#[unsafe(no_mangle)]
 pub extern "Rust" fn register(register: &mut ClassRegistry, api_version: &'static str) {
     if api_version == API_VERSION {
         register.register_node(HelloWorldClass);

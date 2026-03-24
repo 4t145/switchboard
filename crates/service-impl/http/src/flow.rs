@@ -1,5 +1,5 @@
 use std::{collections::HashMap, convert::Infallible, net::SocketAddr, sync::Arc};
-#[cfg(not(feature = "plugin-dev"))]
+#[cfg(feature = "service-impl")]
 pub mod balancer;
 pub mod build;
 pub mod filter;
@@ -11,7 +11,7 @@ pub mod plugin;
 use bytes::Bytes;
 use futures::future::BoxFuture;
 use http::{Request, StatusCode};
-use hyper::body::Body;
+use http_body::Body;
 
 use serde::{Deserialize, Serialize};
 use switchboard_model::services::http::{FilterId, NodeId, NodePort, NodeTarget};
@@ -230,6 +230,7 @@ impl FlowContext {
     }
 }
 
+#[cfg(feature = "service-impl")]
 impl<Req> hyper::service::Service<Request<Req>> for Flow
 where
     Req: Body<Data = Bytes> + Send + 'static,
@@ -273,6 +274,7 @@ pub struct FlowWithConnectionInfo {
     pub connection_info: ConnectionInfo,
 }
 
+#[cfg(feature = "service-impl")]
 impl<Req> hyper::service::Service<Request<Req>> for FlowWithConnectionInfo
 where
     Req: Body<Data = Bytes> + Send + 'static,

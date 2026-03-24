@@ -76,23 +76,27 @@ impl ClassRegistry {
     }
 }
 
-#[cfg(not(feature = "plugin-dev"))]
+#[cfg(feature = "service-impl")]
 mod resigter {
-    use tokio::sync::RwLock;
     use std::sync::{Arc, OnceLock};
+    use tokio::sync::RwLock;
     static GLOBAL_CLASS_REGISTRY: OnceLock<Arc<RwLock<super::ClassRegistry>>> = OnceLock::new();
-    use crate::flow::{
-        balancer::BalancerClass,
-        filter::{
-            request_header_modify::RequestHeaderModifyFilterClass,
-            request_mirror::RequestMirrorFilterClass, request_redirect::RequestRedirectFilterClass,
-            response_header_modify::ResponseHeaderModifyFilterClass, timeout::Timeout,
-            url_rewrite::UrlRewriteFilterClass,
-        },
-        router::router::RouterRouterClass,
-        service::{
-            http_client::HttpClientClass, reverse_proxy::ReverseProxyServiceClass,
-            static_response::StaticResponseServiceClass,
+    use crate::{
+        HttpProvider,
+        flow::{
+            balancer::BalancerClass,
+            filter::{
+                request_header_modify::RequestHeaderModifyFilterClass,
+                request_mirror::RequestMirrorFilterClass,
+                request_redirect::RequestRedirectFilterClass,
+                response_header_modify::ResponseHeaderModifyFilterClass, timeout::Timeout,
+                url_rewrite::UrlRewriteFilterClass,
+            },
+            router::router::RouterRouterClass,
+            service::{
+                http_client::HttpClientClass, reverse_proxy::ReverseProxyServiceClass,
+                static_response::StaticResponseServiceClass,
+            },
         },
     };
     impl super::ClassRegistry {
@@ -120,11 +124,17 @@ mod resigter {
                 self.register_filter(Timeout);
             }
         }
-        pub fn global() -> Arc<RwLock<Self>> {
+        pub fn global(provider: &HttpProvider) -> Arc<RwLock<Self>> {
             GLOBAL_CLASS_REGISTRY
                 .get_or_init(|| {
                     let mut registry = Self::default();
                     registry.register_prelude();
+                    // loading dynamic libs
+                    for lib in &provider.rust_dyn_libs {
+                        let _ = registry
+                            .load_dynamic_lib(lib)
+                            .inspect_err(|e| tracing::error!("fail to load dyn lib: {e}"));
+                    }
                     Arc::new(RwLock::new(registry))
                 })
                 .clone()

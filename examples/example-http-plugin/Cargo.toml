@@ -17,8 +17,8 @@ opt-level = "z"
 lto = "thin"
 codegen-units = 1
 panic = "abort"
-strip = "symbols"
 
 [dependencies]
-switchboard-http = { path = "../../crates/service-impl/http", features = ["plugin-dev"] }
+switchboard-http = { path = "../../crates/service-impl/http", features = ["plugin-dev"], default-features = false }
 switchboard-model = { path = "../../crates/model" }
+serde = { workspace = true }

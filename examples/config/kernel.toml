@@ -9,3 +9,6 @@ description = "Default Switchboard Kernel Configuration"
 
 [controller.discovery]
 local = "./tmp/run/kernel/"
+
+[provider.http]
+plugins = ["target/release/*"]

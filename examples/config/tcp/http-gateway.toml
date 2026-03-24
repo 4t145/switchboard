@@ -22,6 +22,11 @@ config = "file://examples/config/tcp/http-gateway/not-found-page.toml"
 class = "static-response"
 config = "file://examples/config/tcp/http-gateway/i-am-healthy.toml"
 
+[flow.nodes."hello-world"]
+class = "test.hello-world"
+config = { }
+
 [flow.filters."rewrite-rest"]
 class = "url-rewrite"
 config = { path = "/{rest}" }
+

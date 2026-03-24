@@ -25,7 +25,7 @@ pub fn default_switchboard_config_path() -> PathBuf {
     }
 }
 
-use crate::{services::http::InstanceType, *};
+use crate::*;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
