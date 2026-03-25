@@ -9,6 +9,7 @@ pub const ERROR_BALANCER: &str = "balancer";
 // FILTER ERRORS
 pub const ERR_FILTER_URL_REWRITE: &str = "filter.url-rewrite";
 pub const ERR_FILTER_REQUEST_MIRROR: &str = "filter.request-mirror";
+pub const ERR_FILTER_REQUEST_RATE_LIMIT: &str = "filter.request-rate-limit";
 pub const ERR_FILTER_REQUEST_HEADER_MODIFY: &str = "filter.request-header-modify";
 pub const ERR_FILTER_RESPONSE_HEADER_MODIFY: &str = "filter.response-header-modify";
 

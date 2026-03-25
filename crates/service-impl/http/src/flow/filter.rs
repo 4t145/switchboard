@@ -3,6 +3,8 @@ pub mod request_header_modify;
 #[cfg(feature = "service-impl")]
 pub mod request_mirror;
 #[cfg(feature = "service-impl")]
+pub mod request_rate_limit;
+#[cfg(feature = "service-impl")]
 pub mod request_redirect;
 #[cfg(feature = "service-impl")]
 pub mod response_header_modify;

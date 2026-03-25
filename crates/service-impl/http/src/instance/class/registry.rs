@@ -2,7 +2,7 @@ use crate::flow::{
     filter::{AsFilterClass, FilterClass},
     node::{AsNodeClass, NodeClass},
 };
-use crate::instance::{InstanceValue, class::*};
+use crate::instance::{class::*, InstanceValue};
 use std::collections::HashMap;
 use switchboard_service::SerdeValue;
 
@@ -82,12 +82,12 @@ mod resigter {
     use tokio::sync::RwLock;
     static GLOBAL_CLASS_REGISTRY: OnceLock<Arc<RwLock<super::ClassRegistry>>> = OnceLock::new();
     use crate::{
-        HttpProvider,
         flow::{
             balancer::BalancerClass,
             filter::{
                 request_header_modify::RequestHeaderModifyFilterClass,
                 request_mirror::RequestMirrorFilterClass,
+                request_rate_limit::RequestRateLimitFilterClass,
                 request_redirect::RequestRedirectFilterClass,
                 response_header_modify::ResponseHeaderModifyFilterClass, timeout::Timeout,
                 url_rewrite::UrlRewriteFilterClass,
@@ -98,6 +98,7 @@ mod resigter {
                 static_response::StaticResponseServiceClass,
             },
         },
+        HttpProvider,
     };
     impl super::ClassRegistry {
         pub fn register_prelude(&mut self) {
@@ -118,6 +119,7 @@ mod resigter {
             {
                 self.register_filter(UrlRewriteFilterClass);
                 self.register_filter(RequestMirrorFilterClass);
+                self.register_filter(RequestRateLimitFilterClass);
                 self.register_filter(RequestHeaderModifyFilterClass);
                 self.register_filter(RequestRedirectFilterClass);
                 self.register_filter(ResponseHeaderModifyFilterClass);
