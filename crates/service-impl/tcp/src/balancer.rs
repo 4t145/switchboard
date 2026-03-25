@@ -34,8 +34,10 @@ pub trait BalancerStrategy: Send + Sync + 'static + std::fmt::Debug {
     serde::Deserialize,
     bincode::Encode,
     bincode::Decode,
+    Default,
 )]
 pub enum BalancerStrategyConfig {
+    #[default]
     RoundRobin,
     Random,
     IpHash,

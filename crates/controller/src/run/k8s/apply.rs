@@ -67,7 +67,10 @@ async fn apply_rebuild_all(context: &ControllerContext, event_tx: &mpsc::Sender<
         "gateway_namespace": k8s_resolve_config.gateway_namespace,
     });
 
-    let resolved = match context.resolve_config(K8S_RESOLVER_NAME, resolve_value).await {
+    let resolved = match context
+        .resolve_config(K8S_RESOLVER_NAME, resolve_value)
+        .await
+    {
         Ok(config) => config,
         Err(err) => {
             tracing::warn!(error = %err, "k8s apply resolve failed");
@@ -107,10 +110,9 @@ async fn apply_rebuild_all(context: &ControllerContext, event_tx: &mpsc::Sender<
     let digest = standard_config.digest_sha256_base64();
     {
         let status = context.k8s_apply_status.read().await;
-        if status
-            .as_ref()
-            .is_some_and(|s| s.last_apply_succeeded && s.last_digest.as_deref() == Some(digest.as_str()))
-        {
+        if status.as_ref().is_some_and(|s| {
+            s.last_apply_succeeded && s.last_digest.as_deref() == Some(digest.as_str())
+        }) {
             tracing::debug!(digest = %digest, "k8s apply skipped because digest unchanged");
             return;
         }

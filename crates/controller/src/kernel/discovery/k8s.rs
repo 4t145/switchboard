@@ -57,7 +57,7 @@ pub async fn scan_k8s_kernels() -> Result<HashMap<String, DiscoveredKernel>, Ker
 
     let service_api: Api<Service> = Api::all(client.clone());
     let service_list = service_api
-        .list(&ListParams::default().labels(&sbk_label_selector))
+        .list(&ListParams::default().labels(sbk_label_selector))
         .await?;
 
     for service in service_list.items {

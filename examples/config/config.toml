@@ -16,7 +16,13 @@ binds = [
     "[::]:10022"
 ]
 
-
+[[tcp_services]]
+name = "tcp-gateway"
+provider = "tcp"
+config = "file://examples/config/tcp/tcp-gateway.toml"
+binds = [
+    "[::]:8081"
+]
 
 [[tls]]
 name = "single-example"

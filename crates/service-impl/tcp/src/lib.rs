@@ -20,8 +20,12 @@ use tokio::{
 pub enum TlsStrategyConfig {
     Passthrough(HashMap<String, Outbound>),
     Terminate(Outbound),
-    // ReEncrypt,
+    /*
+    ReEncrypt,
+    */
 }
+
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub enum TlsStrategy {
     Passthrough(HostnameTree<Outbound>),
@@ -33,7 +37,7 @@ impl From<TlsStrategyConfig> for TlsStrategy {
     fn from(config: TlsStrategyConfig) -> Self {
         match config {
             TlsStrategyConfig::Passthrough(map) => {
-                let tree = HostnameTree::from_iter(map.into_iter());
+                let tree = HostnameTree::from_kv_iter(map);
                 TlsStrategy::Passthrough(tree)
             }
             TlsStrategyConfig::Terminate(outbound) => TlsStrategy::Terminate(outbound),
@@ -50,17 +54,9 @@ pub struct Tcp {
 pub struct TcpConfig {
     #[serde(flatten)]
     pub strategy_config: TlsStrategyConfig,
-    pub balancer_strategy: balancer::BalancerStrategyConfig,
+    #[serde(default)]
+    pub balancer: balancer::BalancerStrategyConfig,
 }
-
-// pub enum StrategyData {
-//     Passthrough {
-//         client_hello: Option<OwnedClientHello>,
-//     },
-//     Terminate {
-//         acceptor: Option<TlsAcceptor>,
-//     },
-// }
 
 pub struct TcpConnectionInfo {
     // pub strategy_data: StrategyData,
@@ -113,10 +109,10 @@ impl Tcp {
                     res = forward_tcp(stream, from, outbound.socket_addr()) => {
                         if let Err(e) = res {
                             tracing::error!(%from, %e, "error forwarding connection");
-                            return Err(e);
+                            Err(e)
                         } else {
                             tracing::debug!(%from, "connection forwarded finished");
-                            return Ok(());
+                            Ok(())
                         }
                     }
                 }
@@ -143,20 +139,18 @@ impl Tcp {
                     res = forward_tcp(stream, from, outbound.socket_addr()) => {
                         if let Err(e) = res {
                             tracing::error!(%from, %e, "error forwarding connection");
-                            return Err(e);
+                            Err(e)
                         } else {
                             tracing::debug!(%from, "connection forwarded finished");
-                            return Ok(());
+                            Ok(())
                         }
                     }
                 }
             }
-            _ => {
-                return Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("unsupported TLS strategy: {:?}", self.strategy_config),
-                ));
-            }
+            _ => Err(io::Error::other(format!(
+                "unsupported TLS strategy: {:?}",
+                self.strategy_config
+            ))),
         }
     }
 }
@@ -194,7 +188,7 @@ impl TcpServiceProvider for PortForwardProvider {
         let config: TcpConfig = config.unwrap_or_default().deserialize_into()?;
         Ok(Tcp {
             strategy_config: config.strategy_config.into(),
-            balancer_strategy: config.balancer_strategy.build(),
+            balancer_strategy: config.balancer.build(),
         })
     }
 }

@@ -1,5 +1,3 @@
-use std::ops::Index;
-
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Visitor};
 mod collection;
 mod variant;
@@ -316,7 +314,7 @@ impl Serializer for SerdeValueSerializer {
     {
         let v = value.serialize(SerdeValueSerializer)?;
         Ok(SerdeValue::Map(SerdeMap(vec![(
-            SerdeValue::String(variant.to_string().into()),
+            SerdeValue::String(variant.to_string()),
             v,
         )])))
     }

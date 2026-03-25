@@ -61,6 +61,7 @@ impl Default for FileBrowserConfig {
 
 #[derive(Debug, Clone, Deserialize, Serialize, Hash, PartialEq, Eq)]
 #[serde(default)]
+#[derive(Default)]
 pub struct KernelConfig {
     pub discovery: KernelDiscoveryConfig,
     // pub connect: KernelConnectConfig,
@@ -80,16 +81,6 @@ impl Default for KernelConnectConfig {
         KernelConnectConfig {
             heartbeat_interval: DEFAULT_STATE_REPORT_INTERVAL_SECS,
             channel_buffer_size: 32,
-        }
-    }
-}
-
-impl Default for KernelConfig {
-    fn default() -> Self {
-        KernelConfig {
-            discovery: KernelDiscoveryConfig::default(),
-            // connect: KernelConnectConfig::default(),
-            // psk: Base64Bytes(Vec::new()),
         }
     }
 }

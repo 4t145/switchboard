@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use gateway_api::httproutes::HTTPRouteRulesBackendRefs;
 use switchboard_model::services::http::{
-    consts::{BALANCER_CLASS_ID, REVERSE_PROXY_CLASS_ID},
     ClassId, InstanceData, InstanceId, InstanceType, NodeOutput, NodePort, NodeTarget,
+    consts::{BALANCER_CLASS_ID, REVERSE_PROXY_CLASS_ID},
 };
 use switchboard_model::switchboard_serde_value::value;
 

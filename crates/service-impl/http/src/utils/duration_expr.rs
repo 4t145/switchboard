@@ -14,7 +14,7 @@ where
     from_duration_expr(s).map_err(serde::de::Error::custom)
 }
 
-#[derive(Debug, Clone, )]
+#[derive(Debug, Clone)]
 pub struct Never(());
 
 impl serde::Serialize for Never {
@@ -43,7 +43,7 @@ impl<'de> serde::Deserialize<'de> for Never {
     }
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, )]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(untagged)]
 /// Represents a timeout duration which can be specified as an expression, milliseconds, or never.
 /// - `Expr`: A human-readable duration expression (e.g., "1h 30m").
@@ -126,7 +126,7 @@ pub fn from_duration_expr(
     let mut unit_buf = String::new();
 
     for c in duration_str.chars().chain(std::iter::once(' ')) {
-        if c.is_digit(10) {
+        if c.is_ascii_digit() {
             if !unit_buf.is_empty() {
                 // Process previous number and unit
                 let num: u64 = num_buf

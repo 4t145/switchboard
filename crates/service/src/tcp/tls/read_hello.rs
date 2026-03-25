@@ -71,18 +71,26 @@ fn parse_client_hello(input: &[u8]) -> ParseState {
 
 fn to_owned_client_hello(client_hello: rustls::server::ClientHello<'_>) -> OwnedClientHello {
     OwnedClientHello {
-        server_name: client_hello.server_name().map(std::borrow::ToOwned::to_owned),
+        server_name: client_hello
+            .server_name()
+            .map(std::borrow::ToOwned::to_owned),
         signature_schemes: client_hello.signature_schemes().to_vec(),
         alpn: client_hello
             .alpn()
             .map(|protocols| protocols.map(std::borrow::ToOwned::to_owned).collect()),
-        server_cert_types: client_hello.server_cert_types().map(std::borrow::ToOwned::to_owned),
-        client_cert_types: client_hello.client_cert_types().map(std::borrow::ToOwned::to_owned),
+        server_cert_types: client_hello
+            .server_cert_types()
+            .map(std::borrow::ToOwned::to_owned),
+        client_cert_types: client_hello
+            .client_cert_types()
+            .map(std::borrow::ToOwned::to_owned),
         cipher_suites: client_hello.cipher_suites().to_vec(),
         certificate_authorities: client_hello
             .certificate_authorities()
             .map(std::borrow::ToOwned::to_owned),
-        named_groups: client_hello.named_groups().map(std::borrow::ToOwned::to_owned),
+        named_groups: client_hello
+            .named_groups()
+            .map(std::borrow::ToOwned::to_owned),
     }
 }
 
@@ -200,7 +208,10 @@ mod test {
         let client_hello = client_hello.expect("client hello should be parsed");
 
         assert_eq!(client_hello.server_name.as_deref(), Some("example.com"));
-        assert_eq!(client_hello.alpn, Some(vec![b"h2".to_vec(), b"http/1.1".to_vec()]));
+        assert_eq!(
+            client_hello.alpn,
+            Some(vec![b"h2".to_vec(), b"http/1.1".to_vec()])
+        );
         assert!(!client_hello.signature_schemes.is_empty());
         assert!(!client_hello.cipher_suites.is_empty());
 

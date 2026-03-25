@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use http::{Request, Response};
-use http_body_util::{BodyExt, combinators::UnsyncBoxBody};
 use http_body::Body;
+use http_body_util::{BodyExt, combinators::UnsyncBoxBody};
 use std::error::Error as StdError;
 pub type DynBody = UnsyncBoxBody<bytes::Bytes, BoxedError>;
 pub type DynRequest = Request<DynBody>;

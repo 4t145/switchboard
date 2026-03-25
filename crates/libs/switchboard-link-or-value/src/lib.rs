@@ -80,7 +80,8 @@ pub trait Resolver<L, V>: Sized + Send + Sync + Clone + 'static {
 
 pub trait Writer<L, V>: Sized + Send + Sync + Clone + 'static {
     type Error: std::error::Error + Send + Sync + 'static;
-    fn write(&self, link: L, value: V) -> impl Future<Output = Result<(), Self::Error>> + Send + '_;
+    fn write(&self, link: L, value: V)
+    -> impl Future<Output = Result<(), Self::Error>> + Send + '_;
 }
 
 pub trait Resolvable<L, V, T> {

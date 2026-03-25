@@ -56,5 +56,5 @@ pub async fn scan_uds(
     //     }
     // }
 
-    return Ok(HashMap::new());
+    Ok(HashMap::new())
 }

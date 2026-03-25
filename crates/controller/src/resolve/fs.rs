@@ -4,7 +4,7 @@ pub use switchboard_model::resolve::file_style::*;
 use switchboard_model::{HumanReadableServiceConfig, SerdeValue};
 
 use crate::{
-    link_resolver::{ControllerLinkResolver, Link},
+    link_resolver::Link,
     resolve::{ResolveServiceConfigError, ServiceConfigResolver},
 };
 

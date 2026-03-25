@@ -24,6 +24,7 @@ use crate::tcp_route::TcpRoute;
 pub mod bytes;
 pub mod control;
 pub mod controller;
+pub mod discovery;
 pub mod error;
 pub mod http;
 pub mod kernel;
@@ -31,7 +32,6 @@ pub mod protocol;
 pub mod regex;
 pub mod services;
 pub mod tcp_route;
-pub mod discovery;
 
 pub type HumanReadableServiceConfig<L> = FileStyleConfig<L>;
 

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use serde::Deserialize;
-use switchboard_link_or_value::{LinkOrValue};
+use switchboard_link_or_value::LinkOrValue;
 #[derive(Clone, Debug, Deserialize, Default)]
 #[serde(default)]
 pub struct KernelConfig {
@@ -16,10 +16,10 @@ pub use switchboard_model::resolve::file_style::*;
 
 #[derive(Clone, Debug, Deserialize, Default)]
 pub struct ProviderConfig {
-    pub http: HttpProviderConfig
+    pub http: HttpProviderConfig,
 }
 
 #[derive(Clone, Debug, Deserialize, Default)]
 pub struct HttpProviderConfig {
-    pub plugins: Vec<String>
+    pub plugins: Vec<String>,
 }

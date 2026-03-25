@@ -1,3 +1,5 @@
+<header>⚠This project is still developing⚠</header>
+
 # **SWITCHBOARD**
 > High-performance Easy-to-use Ergonomics Next-generation Post-modern Cross-platform AI-powered Super (And any irresponsible adjective) Gateway.
 
@@ -8,3 +10,35 @@ it should be good enough for most use cases. And with a human-friendly configura
 ```bash
 sb start --config ./config.toml --controller ./controller.toml
 ```
+## Installation
+
+## Features & TODOs
+| Functionality | Status|
+|:--------------|:------|
+|Tcp Gateway    | Done  |
+|HTTP Gateway   | Done  |
+|GRpc Gateway   | Not Started |
+|Rust Plugin    | Done  |
+|WASM Plugin    | Not Started |
+|K8s Gateway API| Developing  |
+|Observability  | Not Started |
+|Web UI         | Developing  |
+|Containers     | Developing  |
+
+## Traffic Router
+### TCP
+
+### HTTP
+
+### GRpc
+<todo/>
+
+### UDP
+<todo/>
+
+## Plugins
+
+## UI
+
+## Kubernates
+

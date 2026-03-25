@@ -15,6 +15,6 @@ impl ClassRegistry {
             let register_fn = lib.get::<PluginRegisterFn>(b"register\0")?;
             self.register_rust_plugin(*register_fn);
         };
-        return Ok(());
+        Ok(())
     }
 }

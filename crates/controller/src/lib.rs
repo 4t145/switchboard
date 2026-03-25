@@ -106,7 +106,7 @@ pub enum Error {
 
     #[error("Controller is not running in kubernetes cluster")]
     NotInKubernetesCluster,
-    
+
     #[error("Controller is running in kubernetes cluster")]
     InKubernetesCluster,
 }

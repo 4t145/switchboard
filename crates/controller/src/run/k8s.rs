@@ -81,12 +81,8 @@ async fn run_event_loop(
     let watcher_context = watch::ResourceWatcherContext::new(ct.child_token(), tx.clone());
     let watcher_handles = watch::spawn_all_watchers(client, watcher_context);
     let (apply_tx, apply_rx) = mpsc::channel(APPLY_CHANNEL_CAPACITY);
-    let apply_handle = apply::spawn_apply_worker(
-        context.clone(),
-        apply_rx,
-        ct.child_token(),
-        tx.clone(),
-    );
+    let apply_handle =
+        apply::spawn_apply_worker(context.clone(), apply_rx, ct.child_token(), tx.clone());
     let _ = apply_tx.try_send(apply::ApplySignal::RebuildAll);
 
     let mut loop_result = Ok(());
@@ -118,10 +114,10 @@ async fn run_event_loop(
             tracing::warn!(error = %err, "watcher task join failed");
         }
     }
-    if let Err(err) = apply_handle.await {
-        if !err.is_cancelled() {
-            tracing::warn!(error = %err, "apply worker task join failed");
-        }
+    if let Err(err) = apply_handle.await
+        && !err.is_cancelled()
+    {
+        tracing::warn!(error = %err, "apply worker task join failed");
     }
 
     loop_result

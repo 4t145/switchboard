@@ -12,7 +12,7 @@ use crate::{
     utils::error_response,
 };
 
-#[derive(Clone, Deserialize, Serialize, )]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct RequestMirrorFilterConfig {
     pub target: NodeTarget,
     #[serde(default)]
@@ -22,7 +22,7 @@ pub struct RequestMirrorFilterConfig {
     pub record_response: bool,
 }
 
-#[derive(Debug, Clone, )]
+#[derive(Debug, Clone)]
 pub enum FractionOrPercentage {
     Fraction(u16, u16),
     Percentage(u16),

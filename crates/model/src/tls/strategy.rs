@@ -10,10 +10,8 @@
 )]
 #[non_exhaustive]
 pub enum TlsStrategy {
-    Passthrough ,
+    Passthrough,
     #[default]
     Terminate,
     // ReEncrypt,
 }
-
-    

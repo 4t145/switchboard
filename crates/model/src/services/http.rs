@@ -147,6 +147,12 @@ where
     }
 }
 
+impl<Cfg> Default for FlowConfig<Cfg> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<Cfg> FlowConfig<Cfg> {
     pub fn new() -> Self {
         Self {

@@ -14,16 +14,20 @@ use crate::{
     },
 };
 use http::{
-    HeaderValue, StatusCode, Uri,
+    HeaderValue, Method, StatusCode, Uri, Version,
+    header::{CONNECTION, UPGRADE},
     uri::{Authority, Scheme},
 };
 use http_body_util::BodyExt;
+use hyper::ext::Protocol;
+use hyper_util::rt::TokioIo;
 use switchboard_model::services::http::{ClassId, consts::REVERSE_PROXY_CLASS_ID};
+use tracing::{Instrument, info_span};
 
 use crate::{DynRequest, DynResponse, box_error};
 use http::header::{HOST, VIA};
-
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, )]
+const DEFAULT_UPGRADE_BUFFER_SIZE: usize = 1 << 13; // 8kb
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct ReverseProxyServiceConfig {
     /// Backend authority (host:port) for proxying requests, default is empty
@@ -37,6 +41,10 @@ pub struct ReverseProxyServiceConfig {
     pub pool_idle_timeout: Option<TimeoutDuration>,
     /// Whether to enforce HTTPS only connections to the backend, default is false
     pub https_only: bool,
+    /// Whether to allow client upgrade http request
+    pub allow_upgrade: bool,
+    /// Upgrade transfer buffer size, default to be 8kb, a upgraded connection will use 2xbuffer_size space.
+    pub upgrade_transfer_buffer_size: u32,
 }
 
 impl Default for ReverseProxyServiceConfig {
@@ -47,6 +55,8 @@ impl Default for ReverseProxyServiceConfig {
             timeout: TimeoutDuration::default(),
             pool_idle_timeout: None,
             https_only: false,
+            allow_upgrade: false,
+            upgrade_transfer_buffer_size: DEFAULT_UPGRADE_BUFFER_SIZE as u32,
         }
     }
 }
@@ -66,6 +76,8 @@ pub struct ReverseProxyService {
     pub scheme: Scheme,
     pub client: Arc<HyperHttpsClient>,
     pub timeout: Option<std::time::Duration>,
+    pub allow_upgrade: bool,
+    pub upgrade_transfer_buffer_size: usize,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -76,6 +88,14 @@ pub enum ReverseProxyError {
     HttpClientError(#[from] hyper_util::client::legacy::Error),
     #[error("Request timed out")]
     RequestTimeout { after: std::time::Duration },
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum UpgradeTransferError {
+    #[error("Upgrade error")]
+    UpgradeError(#[from] hyper::Error),
+    #[error("Tokio bidirection copy error")]
+    CloneBodyError(#[from] tokio::io::Error),
 }
 
 // todo:
@@ -171,7 +191,25 @@ impl ReverseProxyService {
         headers.append(http::header::VIA, Self::via_header_value(res_parts.version));
     }
     pub async fn call_inner(self, req: DynRequest) -> Result<DynResponse, ReverseProxyError> {
-        let req = {
+        // check upgrade
+        let need_upgrade = self.allow_upgrade
+            && (false
+                // is h1 upgrade
+                || (req.version() == Version::HTTP_11
+                    && req.headers().get(UPGRADE).is_some()
+                    && req
+                        .headers()
+                        .get_all(CONNECTION)
+                        .iter()
+                        .any(|h| h == HeaderValue::from_name(UPGRADE)))
+                // is h2 websocket/
+                || (req.version() == Version::HTTP_2
+                    && req.method() == Method::CONNECT
+                    && req
+                        .extensions()
+                        .get::<Protocol>()
+                        .is_some_and(|p| p.as_str() == "websocket" || p.as_str() == "webtransport")));
+        let mut req = {
             let (mut parts, body) = req.into_parts();
             let mut uri_parts = parts.uri.into_parts();
             uri_parts.authority = Some(self.new_authority);
@@ -179,20 +217,65 @@ impl ReverseProxyService {
             parts.uri = Uri::from_parts(uri_parts)?;
             DynRequest::from_parts(parts, body)
         };
-        let req_fut = self.client.request(req);
-        let response = if let Some(request_timeout) = self.timeout {
-            tokio::time::timeout(request_timeout, req_fut)
-                .await
-                .map_err(|_| ReverseProxyError::RequestTimeout {
-                    after: request_timeout,
-                })??
+        if need_upgrade {
+            let request_upgrade = hyper::upgrade::on(&mut req);
+            let req_fut = self.client.request(req);
+            let response = if let Some(request_timeout) = self.timeout {
+                tokio::time::timeout(request_timeout, req_fut)
+                    .await
+                    .map_err(|_| ReverseProxyError::RequestTimeout {
+                        after: request_timeout,
+                    })??
+            } else {
+                req_fut.await?
+            };
+            let (mut resp_parts, body) = response.into_parts();
+            let body = body.map_err(box_error).boxed_unsync();
+            let need_upgrade_response = false
+                || (resp_parts.version == Version::HTTP_11
+                    && resp_parts.status == StatusCode::SWITCHING_PROTOCOLS)
+                || (resp_parts.version == Version::HTTP_2 && resp_parts.status.is_success());
+            if !need_upgrade_response {
+                Self::process_response_parts(&mut resp_parts);
+                return Ok(DynResponse::from_parts(resp_parts, body));
+            }
+            let mut response = DynResponse::from_parts(resp_parts, body);
+            let response_upgrade = hyper::upgrade::on(&mut response);
+            let upgrade_transfer_buffer_size = self.upgrade_transfer_buffer_size;
+            tokio::spawn(
+                async move {
+                    let (request_upgrade, response_upgrade) =
+                        tokio::try_join!(request_upgrade, response_upgrade)?;
+                    let (upload, download) = tokio::io::copy_bidirectional_with_sizes(
+                        &mut TokioIo::new(request_upgrade),
+                        &mut TokioIo::new(response_upgrade),
+                        upgrade_transfer_buffer_size,
+                        upgrade_transfer_buffer_size,
+                    )
+                    .await?;
+                    tracing::debug!(upload, download, "transfer finished");
+                    Ok::<(), UpgradeTransferError>(())
+                }
+                .instrument(info_span!("reverse_proxy.upgrade")),
+            );
+            Ok(response)
         } else {
-            req_fut.await?
-        };
-        let (mut resp_parts, body) = response.into_parts();
-        Self::process_response_parts(&mut resp_parts);
-        let body = body.map_err(box_error).boxed_unsync();
-        Ok(DynResponse::from_parts(resp_parts, body))
+            // plain http
+            let req_fut = self.client.request(req);
+            let response = if let Some(request_timeout) = self.timeout {
+                tokio::time::timeout(request_timeout, req_fut)
+                    .await
+                    .map_err(|_| ReverseProxyError::RequestTimeout {
+                        after: request_timeout,
+                    })??
+            } else {
+                req_fut.await?
+            };
+            let (mut resp_parts, body) = response.into_parts();
+            let body = body.map_err(box_error).boxed_unsync();
+            Self::process_response_parts(&mut resp_parts);
+            Ok(DynResponse::from_parts(resp_parts, body))
+        }
     }
 }
 
@@ -244,7 +327,7 @@ impl NodeClass for ReverseProxyServiceClass {
     type Error = ReverseProxyServiceConfigError;
     type Node = ServiceNode<ReverseProxyService>;
 
-    fn construct(&self, config: Self::Config) -> Result<Self::Node, Self::Error> {
+    fn construct(&self, config: ReverseProxyServiceConfig) -> Result<Self::Node, Self::Error> {
         let authority = config
             .backend
             .parse()
@@ -265,6 +348,8 @@ impl NodeClass for ReverseProxyServiceClass {
                     .map_err(ReverseProxyServiceConfigError::BuildHttpClientError)?,
             ),
             timeout,
+            allow_upgrade: config.allow_upgrade,
+            upgrade_transfer_buffer_size: config.upgrade_transfer_buffer_size as usize,
         }))
     }
 

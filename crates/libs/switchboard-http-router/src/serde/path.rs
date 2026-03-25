@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use crate::{
     path::{PathTree, PathTreeRegexMatch},
     rule::RuleBucket,
-    serde::rule::{RuleBucketSerde, RuleBucketSimplifiedSerde},
+    serde::rule::RuleBucketSimplifiedSerde,
 };
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode)]
@@ -61,16 +61,14 @@ impl<T: Clone> PathTreeSerdeMapStyle<T> {
                 let regex = regex_str.to_string();
                 path_tree.regex_matches.push(PathTreeRegexMatchSerde {
                     regex,
-                    target: RuleBucketSimplifiedSerde::from(bucket),
+                    target: bucket,
                 });
             } else {
                 // check if route ends with '/*' for matchit route
                 if let Some(prefix) = route.strip_suffix("/*") {
                     route = format!("{}/{{*rest}}", prefix);
                 }
-                path_tree
-                    .route
-                    .insert(route, RuleBucketSimplifiedSerde::from(bucket));
+                path_tree.route.insert(route, bucket);
             }
         }
         path_tree

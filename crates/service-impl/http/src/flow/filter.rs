@@ -11,7 +11,6 @@ pub mod timeout;
 #[cfg(feature = "service-impl")]
 pub mod url_rewrite;
 
-
 use std::sync::Arc;
 
 use futures::future::BoxFuture;

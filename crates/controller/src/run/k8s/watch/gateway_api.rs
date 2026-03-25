@@ -10,7 +10,7 @@ use gateway_api::referencegrants::ReferenceGrant;
 use kube::{Api, Client};
 use tokio::task::JoinHandle;
 
-use super::{spawn_resource_watcher, ResourceWatcherContext};
+use super::{ResourceWatcherContext, spawn_resource_watcher};
 use crate::run::k8s::ResourceKind;
 
 pub fn spawn_watchers(client: Client, context: ResourceWatcherContext) -> Vec<JoinHandle<()>> {

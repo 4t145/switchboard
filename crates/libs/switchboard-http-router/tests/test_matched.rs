@@ -93,7 +93,7 @@ fn rule_bucket_matches_method_header_and_query() {
     let mut tree = PathTree::new();
 
     // Build a bucket with composite match: method + header + query
-    let mut bucket = switchboard_http_router::rule::RuleBucket::new();
+    let mut bucket = switchboard_http_router::rule::RuleBucket::new("M");
     let rule = RuleMatch {
         method: Some(http::Method::POST),
         headers: vec![HeaderMatch {
@@ -105,7 +105,7 @@ fn rule_bucket_matches_method_header_and_query() {
             query_value: RegexOrExact::Exact(Arc::from("111")),
         }],
     };
-    bucket.add_rule(rule, "M");
+    bucket.add_rule(rule);
     tree.add_matchit_route("/foo", bucket).unwrap();
     router.set("example.com", tree);
 
@@ -123,11 +123,15 @@ fn rule_bucket_matches_method_header_and_query() {
         PathTreeMatched::Matchit { matched, .. } => {
             assert_eq!(matched.data, "M");
             // method matched
-            assert!(matched.matched.method_matched);
+            assert!(matched.matched.is_some());
+            let rule_matched = matched
+                .matched
+                .as_ref()
+                .expect("composite rule should produce detailed match info");
             // header matched one
-            assert_eq!(matched.matched.header_matches.len(), 1);
+            assert_eq!(rule_matched.header_matches.len(), 1);
             // query matched one
-            assert_eq!(matched.matched.query_matches.len(), 1);
+            assert_eq!(rule_matched.query_matches.len(), 1);
         }
         _ => panic!("unexpected variant"),
     }

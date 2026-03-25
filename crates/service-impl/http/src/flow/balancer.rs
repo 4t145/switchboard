@@ -78,18 +78,18 @@ impl NodeLike for Balancer {
         let strategy = self.strategy.clone();
         if let Some(port) = port {
             let req = DynRequest::from_parts(parts, body);
-            return futures::future::Either::Left(async move {
+            futures::future::Either::Left(async move {
                 let response = context.call(req, port.clone()).await;
                 let (mut response_parts, body) = response.into_parts();
                 strategy.resolve(port, &mut response_parts, context);
                 DynResponse::from_parts(response_parts, body)
-            });
+            })
         } else {
-            return futures::future::Either::Right(futures::future::ready(error_response(
+            futures::future::Either::Right(futures::future::ready(error_response(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "No available backend service",
                 ERROR_BALANCER,
-            )));
+            )))
         }
     }
     fn interface(&self) -> NodeInterface {

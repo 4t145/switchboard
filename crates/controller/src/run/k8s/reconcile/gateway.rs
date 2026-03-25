@@ -75,7 +75,10 @@ async fn reconcile_inner(
     };
 
     let gateway_class_api: Api<GatewayClass> = Api::all(client);
-    let gateway_class = match gateway_class_api.get(&gateway.spec.gateway_class_name).await {
+    let gateway_class = match gateway_class_api
+        .get(&gateway.spec.gateway_class_name)
+        .await
+    {
         Ok(gateway_class) => Some(gateway_class),
         Err(kube::Error::Api(response)) if response.code == 404 => None,
         Err(err) => return Err(err.into()),
@@ -143,9 +146,9 @@ fn build_gateway_conditions(
         .as_ref()
         .and_then(|status| status.conditions.as_ref())
         .and_then(|conditions| {
-            conditions
-                .iter()
-                .find(|condition| condition.type_ == GatewayClassConditionTypeEnum::Accepted.to_string())
+            conditions.iter().find(|condition| {
+                condition.type_ == GatewayClassConditionTypeEnum::Accepted.to_string()
+            })
         })
     else {
         return vec![new_gateway_condition(
@@ -246,7 +249,10 @@ async fn reconcile_gateway_with_apply_status(
     };
 
     let gateway_class_api: Api<GatewayClass> = Api::all(client.clone());
-    let gateway_class = match gateway_class_api.get(&gateway.spec.gateway_class_name).await {
+    let gateway_class = match gateway_class_api
+        .get(&gateway.spec.gateway_class_name)
+        .await
+    {
         Ok(gateway_class) => Some(gateway_class),
         Err(kube::Error::Api(response)) if response.code == 404 => None,
         Err(err) => return Err(err.into()),

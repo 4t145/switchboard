@@ -41,8 +41,7 @@ const HTTP_ROUTE_KIND: &str = "HTTPRoute";
 const SERVICE_BACKEND_KIND: &str = "Service";
 
 const MSG_ACCEPTED: &str = "HTTPRoute is accepted by switchboard controller";
-const MSG_NO_MATCHING_PARENT: &str =
-    "No matching managed Gateway parent found for this HTTPRoute";
+const MSG_NO_MATCHING_PARENT: &str = "No matching managed Gateway parent found for this HTTPRoute";
 const MSG_INVALID_PARENT_KIND: &str =
     "HTTPRoute parentRef kind or group is not supported by switchboard controller";
 const MSG_PARENT_NOT_ALLOWED: &str =
@@ -118,7 +117,14 @@ async fn reconcile_inner(
 
     let generation = route.metadata.generation.unwrap_or(0);
     let apply_status = context.k8s_apply_status.read().await.clone();
-    let parents = build_parent_statuses(client, &route, &namespace, generation, apply_status.as_ref()).await?;
+    let parents = build_parent_statuses(
+        client,
+        &route,
+        &namespace,
+        generation,
+        apply_status.as_ref(),
+    )
+    .await?;
 
     let desired_status = HTTPRouteStatus { parents };
     let status_unchanged = route
@@ -161,7 +167,8 @@ async fn build_parent_statuses(
             section_name: parent_ref.section_name.clone(),
         };
 
-        let parent_state = resolve_parent_state(client.clone(), route_namespace, parent_ref).await?;
+        let parent_state =
+            resolve_parent_state(client.clone(), route_namespace, parent_ref).await?;
         let conditions = match parent_state {
             RouteParentState::Accepted => {
                 let backend_state =
@@ -173,9 +180,11 @@ async fn build_parent_statuses(
                 REASON_NO_MATCHING_PARENT,
                 MSG_NO_MATCHING_PARENT,
             ),
-            RouteParentState::InvalidParentKind => {
-                build_conditions_for_parent_state(generation, REASON_INVALID_KIND, MSG_INVALID_PARENT_KIND)
-            }
+            RouteParentState::InvalidParentKind => build_conditions_for_parent_state(
+                generation,
+                REASON_INVALID_KIND,
+                MSG_INVALID_PARENT_KIND,
+            ),
             RouteParentState::ParentNotAllowed => build_conditions_for_parent_state(
                 generation,
                 REASON_REF_NOT_PERMITTED,
@@ -346,7 +355,9 @@ async fn listener_namespace_allows_route(
 
     match from {
         GatewayListenersAllowedRoutesNamespacesFrom::All => Ok(true),
-        GatewayListenersAllowedRoutesNamespacesFrom::Same => Ok(gateway_namespace == route_namespace),
+        GatewayListenersAllowedRoutesNamespacesFrom::Same => {
+            Ok(gateway_namespace == route_namespace)
+        }
         GatewayListenersAllowedRoutesNamespacesFrom::Selector => {
             let Some(selector) = listener
                 .allowed_routes
@@ -391,8 +402,10 @@ fn matches_namespace_selector(
             let values = expr.values.as_deref().unwrap_or(&[]);
             let label_value = labels.get(&expr.key);
             let matches = match expr.operator.as_str() {
-                "In" => label_value.is_some_and(|value| values.iter().any(|candidate| candidate == value)),
-                "NotIn" => label_value.is_some_and(|value| values.iter().all(|candidate| candidate != value)),
+                "In" => label_value
+                    .is_some_and(|value| values.iter().any(|candidate| candidate == value)),
+                "NotIn" => label_value
+                    .is_some_and(|value| values.iter().all(|candidate| candidate != value)),
                 "Exists" => label_value.is_some(),
                 "DoesNotExist" => label_value.is_none(),
                 _ => false,
@@ -487,10 +500,7 @@ async fn reference_grant_allows_backend_ref(
         let to_allows = grant.spec.to.iter().any(|to| {
             to.group.is_empty()
                 && to.kind == SERVICE_BACKEND_KIND
-                && to
-                    .name
-                    .as_deref()
-                    .is_none_or(|name| name == backend_name)
+                && to.name.as_deref().is_none_or(|name| name == backend_name)
         });
         if to_allows {
             return Ok(true);
@@ -535,33 +545,39 @@ fn build_conditions_for_backend_state(
     backend_state: BackendRefsState,
     apply_status: Option<&crate::run::k8s::K8sApplyStatus>,
 ) -> Vec<Condition> {
-    let (resolved_status, resolved_reason, resolved_message, programmed_status, programmed_reason, programmed_message) =
-        match backend_state {
-            BackendRefsState::Resolved => (
-                STATUS_TRUE,
-                REASON_RESOLVED_REFS,
-                MSG_RESOLVED_REFS,
-                STATUS_TRUE,
-                REASON_PROGRAMMED,
-                MSG_PROGRAMMED,
-            ),
-            BackendRefsState::Invalid => (
-                STATUS_FALSE,
-                REASON_INVALID_BACKEND_REFS,
-                MSG_INVALID_BACKEND_REFS,
-                STATUS_FALSE,
-                REASON_INVALID_BACKEND_REFS,
-                MSG_INVALID_BACKEND_REFS,
-            ),
-            BackendRefsState::RefNotPermitted => (
-                STATUS_FALSE,
-                REASON_REF_NOT_PERMITTED,
-                MSG_BACKEND_REF_NOT_PERMITTED,
-                STATUS_FALSE,
-                REASON_REF_NOT_PERMITTED,
-                MSG_BACKEND_REF_NOT_PERMITTED,
-            ),
-        };
+    let (
+        resolved_status,
+        resolved_reason,
+        resolved_message,
+        programmed_status,
+        programmed_reason,
+        programmed_message,
+    ) = match backend_state {
+        BackendRefsState::Resolved => (
+            STATUS_TRUE,
+            REASON_RESOLVED_REFS,
+            MSG_RESOLVED_REFS,
+            STATUS_TRUE,
+            REASON_PROGRAMMED,
+            MSG_PROGRAMMED,
+        ),
+        BackendRefsState::Invalid => (
+            STATUS_FALSE,
+            REASON_INVALID_BACKEND_REFS,
+            MSG_INVALID_BACKEND_REFS,
+            STATUS_FALSE,
+            REASON_INVALID_BACKEND_REFS,
+            MSG_INVALID_BACKEND_REFS,
+        ),
+        BackendRefsState::RefNotPermitted => (
+            STATUS_FALSE,
+            REASON_REF_NOT_PERMITTED,
+            MSG_BACKEND_REF_NOT_PERMITTED,
+            STATUS_FALSE,
+            REASON_REF_NOT_PERMITTED,
+            MSG_BACKEND_REF_NOT_PERMITTED,
+        ),
+    };
 
     let programmed = if apply_status.is_some_and(|status| !status.last_apply_succeeded) {
         new_condition(

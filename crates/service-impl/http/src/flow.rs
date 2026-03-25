@@ -4,9 +4,9 @@ pub mod balancer;
 pub mod build;
 pub mod filter;
 pub mod node;
+pub mod plugin;
 pub mod router;
 pub mod service;
-pub mod plugin;
 
 use bytes::Bytes;
 use futures::future::BoxFuture;

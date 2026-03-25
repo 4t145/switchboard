@@ -3,7 +3,6 @@ use std::net::SocketAddr;
 use switchboard_service::SerdeValue;
 // use switchboard_service::tcp::RunningTcpService;
 
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct TcpServiceInfo {
     // id is the unique identifier of the TCP service

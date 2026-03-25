@@ -137,7 +137,8 @@ impl ServiceBuilder {
         let data = secret.data.unwrap_or_default();
         let cert_bytes = data.get("tls.crt").cloned().unwrap_or_default().0;
         let key_bytes = data.get("tls.key").cloned().unwrap_or_default().0;
-        let tls_cert_params = switchboard_model::tls::TlsCertParams::from_bytes(&cert_bytes, &key_bytes)?;
+        let tls_cert_params =
+            switchboard_model::tls::TlsCertParams::from_bytes(&cert_bytes, &key_bytes)?;
 
         Ok(tls_cert_params)
     }
@@ -151,7 +152,10 @@ impl ServiceBuilder {
         } = self.config;
         let mut resolved_tls = BTreeMap::new();
         for (name, tls_link) in tls {
-            let Tls { resolver: resource, options } = tls_link;
+            let Tls {
+                resolver: resource,
+                options,
+            } = tls_link;
             let tls_param = Self::fetch_tls_cert_params(self.client.clone(), &resource).await?;
             let resolved_tls_resolver = tls_param.into();
             resolved_tls.insert(
@@ -220,10 +224,13 @@ impl K8sServiceConfigBuilder {
     async fn gather_k8s_gateway_config(&self) -> Result<K8sGateways, K8sGatewayResourceError> {
         let mut gathered_gateways = K8sGateways::default();
         let client = self.client.clone();
-        let gateway_class_api = kube::Api::<gateway_api::gatewayclasses::GatewayClass>::all(client.clone());
+        let gateway_class_api =
+            kube::Api::<gateway_api::gatewayclasses::GatewayClass>::all(client.clone());
         tracing::debug!("Fetching K8s GatewayClasses");
         let gateway_list = gateway_class_api
-            .list(&ListParams { ..Default::default() })
+            .list(&ListParams {
+                ..Default::default()
+            })
             .await?;
         let gateway_classes = gateway_list
             .items
@@ -235,7 +242,9 @@ impl K8sServiceConfigBuilder {
         tracing::debug!("Found {} GatewayClasses", gateway_classes.len());
         let gateway_api = kube::Api::<gateway_api::gateways::Gateway>::all(client.clone());
         let gateways = gateway_api
-            .list(&ListParams { ..Default::default() })
+            .list(&ListParams {
+                ..Default::default()
+            })
             .await?;
         let gateways = gateways
             .items
@@ -248,7 +257,8 @@ impl K8sServiceConfigBuilder {
         let (route_list, tcp_route_list, tls_route_list) =
             fetch_routes_by_scope(client.clone(), self.config.route_namespace_scope()).await?;
 
-        let mut gateway_router_map = HashMap::<String, Vec<gateway_api::httproutes::HTTPRoute>>::new();
+        let mut gateway_router_map =
+            HashMap::<String, Vec<gateway_api::httproutes::HTTPRoute>>::new();
         let mut gateway_tcp_route_map =
             HashMap::<String, Vec<gateway_api::experimental::tcproutes::TCPRoute>>::new();
         let mut gateway_tls_route_map =
@@ -256,7 +266,10 @@ impl K8sServiceConfigBuilder {
         for route in route_list {
             let route_namespace = route.namespace().unwrap_or_default();
             for pr in route.spec.parent_refs.clone().unwrap_or_default() {
-                let parent_namespace = pr.namespace.clone().unwrap_or_else(|| route_namespace.clone());
+                let parent_namespace = pr
+                    .namespace
+                    .clone()
+                    .unwrap_or_else(|| route_namespace.clone());
                 let parent_name = resource_key(&parent_namespace, &pr.name);
                 gateway_router_map
                     .entry(parent_name)
@@ -267,7 +280,10 @@ impl K8sServiceConfigBuilder {
         for route in tcp_route_list {
             let route_namespace = route.namespace().unwrap_or_default();
             for pr in route.spec.parent_refs.clone().unwrap_or_default() {
-                let parent_namespace = pr.namespace.clone().unwrap_or_else(|| route_namespace.clone());
+                let parent_namespace = pr
+                    .namespace
+                    .clone()
+                    .unwrap_or_else(|| route_namespace.clone());
                 gateway_tcp_route_map
                     .entry(resource_key(&parent_namespace, &pr.name))
                     .or_default()
@@ -277,7 +293,10 @@ impl K8sServiceConfigBuilder {
         for route in tls_route_list {
             let route_namespace = route.namespace().unwrap_or_default();
             for pr in route.spec.parent_refs.clone().unwrap_or_default() {
-                let parent_namespace = pr.namespace.clone().unwrap_or_else(|| route_namespace.clone());
+                let parent_namespace = pr
+                    .namespace
+                    .clone()
+                    .unwrap_or_else(|| route_namespace.clone());
                 gateway_tls_route_map
                     .entry(resource_key(&parent_namespace, &pr.name))
                     .or_default()
@@ -301,11 +320,17 @@ impl K8sServiceConfigBuilder {
                 let route_name = route.name_any();
                 gateway_data.http_routes.insert(route_name, route);
             }
-            for route in gateway_tcp_route_map.remove(&gateway_key).unwrap_or_default() {
+            for route in gateway_tcp_route_map
+                .remove(&gateway_key)
+                .unwrap_or_default()
+            {
                 let route_name = route.name_any();
                 gateway_data.tcp_routes.insert(route_name, route);
             }
-            for route in gateway_tls_route_map.remove(&gateway_key).unwrap_or_default() {
+            for route in gateway_tls_route_map
+                .remove(&gateway_key)
+                .unwrap_or_default()
+            {
                 let route_name = route.name_any();
                 gateway_data.tls_routes.insert(route_name, route);
             }

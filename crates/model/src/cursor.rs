@@ -68,14 +68,14 @@ impl<F> FlattenPageQueryWithFilter<F> {
     }
 }
 
-impl<F> Into<(PageQuery, F)> for FlattenPageQueryWithFilter<F> {
-    fn into(self) -> (PageQuery, F) {
+impl<F> From<FlattenPageQueryWithFilter<F>> for (PageQuery, F) {
+    fn from(val: FlattenPageQueryWithFilter<F>) -> Self {
         (
             PageQuery {
-                cursor: Cursor { next: self.next },
-                limit: self.limit,
+                cursor: Cursor { next: val.next },
+                limit: val.limit,
             },
-            self.filter,
+            val.filter,
         )
     }
 }

@@ -63,7 +63,7 @@ fn ip_hash(addr: &IpAddr) -> u64 {
     // use default hasher
     let mut hasher = std::hash::DefaultHasher::new();
     addr.hash(&mut hasher);
-    hasher.finish() as u64
+    hasher.finish()
 }
 
 impl BalancerStrategy for IpHashBalancer {

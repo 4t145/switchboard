@@ -84,12 +84,12 @@ impl<T: Clone> TryInto<RuleBucket<T>> for RuleBucketSimplifiedSerde<T> {
     }
 }
 
-impl<T> Into<RuleBucketSerde<T>> for RuleBucketSimplifiedSerde<T>
+impl<T> From<RuleBucketSimplifiedSerde<T>> for RuleBucketSerde<T>
 where
     T: Clone,
 {
-    fn into(self) -> RuleBucketSerde<T> {
-        match self {
+    fn from(val: RuleBucketSimplifiedSerde<T>) -> Self {
+        match val {
             RuleBucketSimplifiedSerde::JustTarget(t) => RuleBucketSerde::new(t),
             RuleBucketSimplifiedSerde::Rules { rules, target } => {
                 let mut bucket = RuleBucketSerde::new(target);
@@ -310,8 +310,8 @@ impl FromStr for RegexOrExactSerde {
     type Err = Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.starts_with("re:") {
-            Ok(RegexOrExactSerde::Regex(s[3..].to_string()))
+        if let Some(s) = s.strip_prefix("re:") {
+            Ok(RegexOrExactSerde::Regex(s.to_string()))
         } else {
             Ok(RegexOrExactSerde::Exact(s.to_string()))
         }

@@ -57,12 +57,9 @@ pub async fn get_entry(
     Query(query): Query<GetEntryQuery>,
 ) -> Response {
     let process = async move {
-        let checked_path = checked_path_in_allowed_roots(
-            &state,
-            &query.root,
-            query.relative_path.as_deref(),
-        )
-        .await?;
+        let checked_path =
+            checked_path_in_allowed_roots(&state, &query.root, query.relative_path.as_deref())
+                .await?;
         let entry = build_entry(&checked_path, query.include_hidden).await?;
         let children = if query.list_children && matches!(entry.entry_type, EntryType::Directory) {
             Some(list_children(&checked_path, query.include_hidden).await?)
@@ -98,8 +95,9 @@ async fn canonical_allowed_roots(state: &HttpState) -> crate::Result<Vec<PathBuf
         .file_browser
         .allowed_roots
     {
-        let resolved_root =
-            tokio::fs::canonicalize(root).await.map_err(crate::Error::FileBrowserIoError)?;
+        let resolved_root = tokio::fs::canonicalize(root)
+            .await
+            .map_err(crate::Error::FileBrowserIoError)?;
         roots.insert(resolved_root);
     }
     Ok(roots.into_iter().collect())

@@ -138,7 +138,7 @@ impl<T> HostnameTree<T> {
             self.host_with_wildcard.set(host, data);
         }
     }
-    pub fn from_iter<K, I>(iter: I) -> Self
+    pub fn from_kv_iter<K, I>(iter: I) -> Self
     where
         K: AsRef<str>,
         I: IntoIterator<Item = (K, T)>,

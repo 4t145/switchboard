@@ -59,12 +59,12 @@ impl FromStr for StrTemplate {
                 '{' => {
                     // Check for escaped {{
                     chars.next(); // consume '{'
-                    if let Some(&next_ch) = chars.peek() {
-                        if next_ch == '{' {
-                            current_static.push('{');
-                            chars.next(); // consume second '{'
-                            continue;
-                        }
+                    if let Some(&next_ch) = chars.peek()
+                        && next_ch == '{'
+                    {
+                        current_static.push('{');
+                        chars.next(); // consume second '{'
+                        continue;
                     }
 
                     // Flush current static segment
@@ -106,12 +106,12 @@ impl FromStr for StrTemplate {
                 '}' => {
                     // Check for escaped }}
                     chars.next(); // consume '}'
-                    if let Some(&next_ch) = chars.peek() {
-                        if next_ch == '}' {
-                            current_static.push('}');
-                            chars.next(); // consume second '}'
-                            continue;
-                        }
+                    if let Some(&next_ch) = chars.peek()
+                        && next_ch == '}'
+                    {
+                        current_static.push('}');
+                        chars.next(); // consume second '}'
+                        continue;
                     }
                     // Unmatched '}', treat as literal
                     current_static.push('}');

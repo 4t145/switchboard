@@ -21,9 +21,7 @@ pub struct RouterRouterConfig {
     pub options: TreeRouterOptions,
 }
 
-#[derive(
-    Debug, Clone, serde::Serialize, serde::Deserialize, Default,
-)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 #[serde(default)]
 pub struct TreeRouterOptions {
     // #[serde(default)]

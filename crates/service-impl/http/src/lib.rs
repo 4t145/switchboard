@@ -1,4 +1,4 @@
-
+#![warn(clippy::unwrap_used, clippy::indexing_slicing)]
 #[cfg(feature = "service-impl")]
 pub mod config;
 pub mod consts;

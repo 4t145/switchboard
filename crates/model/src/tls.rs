@@ -3,8 +3,8 @@ use std::{
     fmt::{Debug, Display},
     str::FromStr,
 };
-pub mod strategy;
 pub mod sni;
+pub mod strategy;
 use serde::{Deserialize, Serialize};
 use switchboard_link_or_value::{
     LinkOrValue, Resolvable, Resolver, resolver::string_parse::StringParseResolver,
@@ -75,7 +75,7 @@ impl TlsCertParams {
     pub fn from_bytes(cert_bytes: &[u8], key_bytes: &[u8]) -> Result<Self, TlsCertParamsError> {
         let mut certs: PemsFile = PemsFile(Vec::new());
         for pem in pem::parse_many(cert_bytes).map_err(TlsCertParamsError::CertParseError)? {
-            certs.0.push(pem.into());
+            certs.0.push(pem);
         }
         let key = pem::parse(key_bytes)
             .map_err(TlsCertParamsError::KeyParseError)?

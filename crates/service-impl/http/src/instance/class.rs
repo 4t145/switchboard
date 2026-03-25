@@ -1,5 +1,5 @@
-pub mod registry;
 pub mod plugin;
+pub mod registry;
 
 use std::sync::Arc;
 

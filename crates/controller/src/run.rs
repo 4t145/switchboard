@@ -1,5 +1,5 @@
-pub mod standalone;
 pub mod k8s;
+pub mod standalone;
 
 use crate::ControllerContext;
 use tokio_util::sync::CancellationToken;

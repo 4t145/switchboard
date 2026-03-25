@@ -56,17 +56,16 @@ impl ControllerContext {
         }
     }
     pub fn build_axum_router(&self) -> axum::Router<()> {
-        let api_router = axum::Router::new()
-            .nest(
-                "/api",
-                axum::Router::new()
-                    .nest("/file_browser", file_browser::router())
-                    .nest("/k8s", k8s::router())
-                    .nest("/kernel_manager", kernel_manager::router())
-                    .nest("/resolve", resolve::router())
-                    .nest("/storage", storage::router())
-                    .nest("/state", state::router()),
-            );
+        let api_router = axum::Router::new().nest(
+            "/api",
+            axum::Router::new()
+                .nest("/file_browser", file_browser::router())
+                .nest("/k8s", k8s::router())
+                .nest("/kernel_manager", kernel_manager::router())
+                .nest("/resolve", resolve::router())
+                .nest("/storage", storage::router())
+                .nest("/state", state::router()),
+        );
 
         let Some(web_root) = self
             .controller_config

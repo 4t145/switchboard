@@ -39,7 +39,11 @@ pub async fn reconcile_service(context: &ControllerContext, change: ChangeKind, 
     }
 }
 
-pub async fn reconcile_endpoint_slice(context: &ControllerContext, change: ChangeKind, key: &ObjectKey) {
+pub async fn reconcile_endpoint_slice(
+    context: &ControllerContext,
+    change: ChangeKind,
+    key: &ObjectKey,
+) {
     trace_reconcile_start("endpointslice dependency", change, key);
 
     if let Err(err) = reconcile_endpoint_slice_inner(context, change, key).await {
@@ -206,7 +210,12 @@ async fn trigger_routes_for_service(
 
     for route in routes.items {
         let route_namespace = route.namespace().unwrap_or_default();
-        if !route_references_service_backend(&route, &route_namespace, service_namespace, service_name) {
+        if !route_references_service_backend(
+            &route,
+            &route_namespace,
+            service_namespace,
+            service_name,
+        ) {
             continue;
         }
 
@@ -249,7 +258,10 @@ fn route_references_service_backend(
         };
 
         for backend_ref in backend_refs {
-            let backend_group = backend_ref.group.as_deref().unwrap_or(DEFAULT_BACKEND_GROUP);
+            let backend_group = backend_ref
+                .group
+                .as_deref()
+                .unwrap_or(DEFAULT_BACKEND_GROUP);
             if backend_group != DEFAULT_BACKEND_GROUP {
                 continue;
             }
@@ -259,10 +271,7 @@ fn route_references_service_backend(
                 continue;
             }
 
-            let backend_namespace = backend_ref
-                .namespace
-                .as_deref()
-                .unwrap_or(route_namespace);
+            let backend_namespace = backend_ref.namespace.as_deref().unwrap_or(route_namespace);
             if backend_namespace == service_namespace && backend_ref.name == service_name {
                 return true;
             }
@@ -288,7 +297,11 @@ fn gateway_references_secret(gateway: &Gateway, secret_name: &str) -> bool {
     })
 }
 
-fn route_references_gateway_parent(route: &HTTPRoute, gateway_namespace: &str, gateway_name: &str) -> bool {
+fn route_references_gateway_parent(
+    route: &HTTPRoute,
+    gateway_namespace: &str,
+    gateway_name: &str,
+) -> bool {
     let Some(parent_refs) = route.spec.parent_refs.as_ref() else {
         return false;
     };

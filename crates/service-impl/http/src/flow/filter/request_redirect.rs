@@ -7,7 +7,7 @@ use crate::{
     flow::filter::{FilterClass, FilterLike},
 };
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, )]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct RequestRedirectFilterConfig {
     /// target URL to redirect to

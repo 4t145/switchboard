@@ -16,10 +16,10 @@ impl FileResolver {
         StringParseResolver::new(*self)
     }
     pub async fn resolve_string(&self, path: PathBuf) -> Result<String, FileResolveError> {
-        <Self as Resolver<PathBuf, String>>::resolve(&self, path).await
+        <Self as Resolver<PathBuf, String>>::resolve(self, path).await
     }
     pub async fn resolve_value(&self, path: PathBuf) -> Result<SerdeValue, FileResolveError> {
-        <Self as Resolver<PathBuf, SerdeValue>>::resolve(&self, path).await
+        <Self as Resolver<PathBuf, SerdeValue>>::resolve(self, path).await
     }
 }
 

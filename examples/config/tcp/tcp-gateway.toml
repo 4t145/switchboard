@@ -1,0 +1,10 @@
+strategy = "Passthrough"
+balancer = "RoundRobin"
+
+[outbound."test-a.example.com"]
+host = "127.0.0.1"
+port = "5678"
+
+[outbound."test-b.example.com"]
+host = "127.0.0.1"
+port = "5679"

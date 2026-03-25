@@ -8,9 +8,7 @@ use switchboard_http::{
 use switchboard_model::services::http::ClassId;
 struct HelloWorldClass;
 #[derive(serde::Deserialize, serde::Serialize)]
-struct HelloWorldClassConfig {
-    
-}
+struct HelloWorldClassConfig {}
 impl NodeClass for HelloWorldClass {
     type Node = HelloWorld;
 
@@ -35,7 +33,7 @@ impl NodeLike for HelloWorld {
         _req: switchboard_http::DynRequest,
         _context: &'c mut switchboard_http::flow::FlowContext,
     ) -> impl Future<Output = switchboard_http::DynResponse> + 'c + Send {
-        async move { return DynResponse::new(bytes_body("hello world")) }
+        async move { DynResponse::new(bytes_body("hello world")) }
     }
 
     fn interface(&self) -> switchboard_model::services::http::NodeInterface {

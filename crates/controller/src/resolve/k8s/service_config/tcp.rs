@@ -5,9 +5,7 @@ use std::{
 
 use kube::ResourceExt;
 use switchboard_model::{
-    Listener, TcpServiceConfig, Tls,
-    switchboard_serde_value,
-    tcp_route::TcpRoute,
+    Listener, TcpServiceConfig, Tls, switchboard_serde_value, tcp_route::TcpRoute,
 };
 use switchboard_tcp::{
     TcpConfig, TlsStrategyConfig,
@@ -70,7 +68,7 @@ impl ServiceBuilder {
                     let strategy_config = TlsStrategyConfig::Passthrough(sni_map);
                     let tcp_config = TcpConfig {
                         strategy_config,
-                        balancer_strategy: BalancerStrategyConfig::RoundRobin,
+                        balancer: BalancerStrategyConfig::RoundRobin,
                     };
                     let value = switchboard_serde_value::SerdeValue::serialize_from(&tcp_config)?;
                     self.config.tcp_services.insert(
@@ -161,7 +159,7 @@ impl ServiceBuilder {
                     let strategy_config = TlsStrategyConfig::Terminate(outbound);
                     let tcp_config = TcpConfig {
                         strategy_config,
-                        balancer_strategy: BalancerStrategyConfig::RoundRobin,
+                        balancer: BalancerStrategyConfig::RoundRobin,
                     };
                     let value = switchboard_serde_value::SerdeValue::serialize_from(&tcp_config)?;
 

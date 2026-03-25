@@ -12,12 +12,12 @@ use gateway_api::{
     },
 };
 use switchboard_model::services::http::{
+    ClassId, InstanceData, InstanceId, InstanceType,
     consts::{
         FILTER_REQUEST_HEADER_MODIFY_CLASS_ID, FILTER_REQUEST_MIRROR_CLASS_ID,
         FILTER_REQUEST_REDIRECT_CLASS_ID, FILTER_RESPONSE_HEADER_MODIFY_CLASS_ID,
         FILTER_URL_REWRITE_CLASS_ID,
     },
-    ClassId, InstanceData, InstanceId, InstanceType,
 };
 use switchboard_model::switchboard_serde_value::value;
 

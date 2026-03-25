@@ -85,6 +85,12 @@ pub struct KernelManager {
     kernels: HashMap<KernelAddr, KernelHandle>,
 }
 
+impl Default for KernelManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl KernelManager {
     pub fn new() -> Self {
         Self {

@@ -276,13 +276,13 @@ impl Socks5 {
 
         let response = [VERSION, selected_method.into_u8()];
         stream.write_all(&response).await?;
-        if let Some(auth) = selected_auth {
-            if !auth.auth(stream).await? {
-                return Err(io::Error::new(
-                    io::ErrorKind::PermissionDenied,
-                    "Authentication failed",
-                ));
-            }
+        if let Some(auth) = selected_auth
+            && !auth.auth(stream).await?
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "Authentication failed",
+            ));
         }
 
         let request = read_request(stream).await?;

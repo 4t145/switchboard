@@ -13,7 +13,7 @@ use crate::{
     utils::error_response,
 };
 
-#[derive(Clone, Deserialize, Serialize, )]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct UrlRewriteFilterConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,

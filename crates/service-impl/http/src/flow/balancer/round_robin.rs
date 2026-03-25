@@ -34,9 +34,9 @@ impl BalancerStrategy for RoundRobinBalancer {
     ) -> Option<NodePort> {
         let backend_count = self.weights.len();
         if backend_count == 0 {
-            return None;
+            None
         } else if backend_count == 1 {
-            return Some(self.weights[0].1.clone());
+            Some(self.weights[0].1.clone())
         } else {
             let current_index = self
                 .current_index
