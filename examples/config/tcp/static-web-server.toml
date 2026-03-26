@@ -1,0 +1,7 @@
+[flow]
+entrypoint = "sws"
+
+
+[flow.nodes."sws"]
+class = "static-file"
+config = "file://examples/config/tcp/static-web-server/static-files.toml"

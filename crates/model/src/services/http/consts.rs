@@ -11,3 +11,4 @@ pub const BALANCER_CLASS_ID: &str = "balancer";
 pub const REVERSE_PROXY_CLASS_ID: &str = "reverse-proxy";
 pub const HTTP_CLIENT_CLASS_ID: &str = "http-client";
 pub const STATIC_RESPONSE_CLASS_ID: &str = "static-response";
+pub const STATIC_FILE_CLASS_ID: &str = "static-file";

@@ -1,0 +1,29 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: sans-serif;
+  line-height: 1.5;
+  color: #222;
+  background: #f5f7fb;
+}
+
+main {
+  max-width: 720px;
+  margin: 40px auto;
+  padding: 24px;
+  background: #fff;
+  border: 1px solid #d9e1ec;
+  border-radius: 8px;
+}
+
+h1,
+h2 {
+  margin-top: 0;
+}
+
+a {
+  color: #005bb5;
+}

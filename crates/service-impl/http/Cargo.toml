@@ -35,6 +35,8 @@ matchit = { version = "0.9",  optional = true }
 rand = { version =  "0.9",  optional = true }
 switchboard-http-router = { workspace = true, optional = true }
 libloading = { version = "0.9", optional = true }
+mime = { version = "0.3", optional = true }
+httpdate = { version = "1", optional = true }
 
 # Runtime
 tokio = { workspace = true, features = ["full"],  optional = true }
@@ -44,6 +46,6 @@ tokio-util = { workspace = true,  optional = true }
 #
 [features]
 default = ["service-impl", "runtime"]
-service-impl = ["dep:hyper", "dep:hyper-util", "dep:pin-project-lite", "dep:rustls", "dep:uuid", "dep:tokio-rustls", "dep:hyper-rustls", "dep:matchit", "dep:rand", "dep:switchboard-http-router", "dep:libloading"]
+service-impl = ["dep:hyper", "dep:hyper-util", "dep:pin-project-lite", "dep:rustls", "dep:uuid", "dep:tokio-rustls", "dep:hyper-rustls", "dep:matchit", "dep:rand", "dep:switchboard-http-router", "dep:libloading", "dep:mime", "dep:httpdate"]
 runtime = ["dep:tokio", "dep:tokio-util"]
 plugin-dev = ["runtime"]

@@ -1,6 +1,7 @@
 use bytes::Bytes;
+use futures::{Stream, TryStreamExt};
 use http::{Request, Response};
-use http_body::Body;
+use http_body::{Body, Frame};
 use http_body_util::{BodyExt, combinators::UnsyncBoxBody};
 use std::error::Error as StdError;
 pub type DynBody = UnsyncBoxBody<bytes::Bytes, BoxedError>;
@@ -56,4 +57,15 @@ pub fn empty_body() -> DynBody {
 
 pub fn bytes_body(bytes: impl Into<Bytes>) -> DynBody {
     DynBody::new(http_body_util::Full::<bytes::Bytes>::new(bytes.into()).map_err(box_error))
+}
+
+pub fn stream_body<S, E>(stream: S) -> DynBody
+where
+    S: Stream<Item = Result<Bytes, E>> + Send + 'static,
+    E: std::error::Error + Send + Sync + 'static,
+{
+    DynBody::new(BodyExt::map_err(
+        http_body_util::StreamBody::new(stream.map_ok(Frame::data)),
+        box_error,
+    ))
 }

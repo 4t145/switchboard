@@ -4,7 +4,8 @@ pub mod http_client;
 pub mod reverse_proxy;
 #[cfg(feature = "service-impl")]
 pub mod static_response;
-
+#[cfg(all(feature = "service-impl", feature = "runtime"))]
+pub mod static_file;
 use switchboard_model::services::http::NodeInterface;
 
 use crate::{

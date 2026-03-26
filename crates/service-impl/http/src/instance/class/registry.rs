@@ -95,7 +95,7 @@ mod resigter {
             router::router::RouterRouterClass,
             service::{
                 http_client::HttpClientClass, reverse_proxy::ReverseProxyServiceClass,
-                static_response::StaticResponseServiceClass,
+                static_file::StaticFileClass, static_response::StaticResponseServiceClass,
             },
         },
         HttpProvider,
@@ -114,6 +114,7 @@ mod resigter {
                 self.register_node(HttpClientClass);
                 self.register_node(StaticResponseServiceClass);
                 self.register_node(ReverseProxyServiceClass);
+                self.register_node(StaticFileClass);
             }
             // filters
             {

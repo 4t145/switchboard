@@ -32,7 +32,10 @@ impl Writer<PathBuf, SerdeValue> for FileResolver {
             .ok_or(FileResolveError::UnsupportedFileExtension)?;
         match ext {
             "json" => {
-                let file = File::create(&path)?;
+                let file = File::create(&path).map_err(|e| FileResolveError::IoError {
+                    source: e,
+                    path: path.to_owned(),
+                })?;
                 serde_json::to_writer_pretty(file, &value)
                     .map_err(|e| FileResolveError::from_deserialization_error(e, "json"))?;
                 Ok(())
@@ -40,13 +43,23 @@ impl Writer<PathBuf, SerdeValue> for FileResolver {
             "toml" => {
                 let toml_string = toml::to_string_pretty(&value)
                     .map_err(|e| FileResolveError::from_deserialization_error(e, "toml"))?;
-                tokio::fs::write(&path, toml_string).await?;
+                tokio::fs::write(&path, toml_string).await.map_err(|e| {
+                    FileResolveError::IoError {
+                        source: e,
+                        path: path.to_owned(),
+                    }
+                })?;
                 Ok(())
             }
             "toon" => {
                 let toon_string = serde_toon::to_string_pretty(&value)
                     .map_err(|e| FileResolveError::from_deserialization_error(e, "toon"))?;
-                tokio::fs::write(&path, toon_string).await?;
+                tokio::fs::write(&path, toon_string).await.map_err(|e| {
+                    FileResolveError::IoError {
+                        source: e,
+                        path: path.to_owned(),
+                    }
+                })?;
                 Ok(())
             }
             _ => Err(FileResolveError::UnsupportedFileExtension),
@@ -64,7 +77,14 @@ impl Resolver<PathBuf, SerdeValue> for FileResolver {
 impl Resolver<PathBuf, String> for FileResolver {
     type Error = FileResolveError;
     async fn resolve(&self, path: PathBuf) -> Result<String, Self::Error> {
-        let data = tokio::fs::read_to_string(&path).await?;
+        let path = path.strip_prefix("file://").unwrap_or(&path);
+        let data =
+            tokio::fs::read_to_string(&path)
+                .await
+                .map_err(|e| FileResolveError::IoError {
+                    source: e,
+                    path: path.to_owned(),
+                })?;
         Ok(data)
     }
 }
@@ -73,8 +93,11 @@ impl Resolver<PathBuf, String> for FileResolver {
 pub enum FileResolveError {
     #[error("Unsupported file extension")]
     UnsupportedFileExtension,
-    #[error("IO error: {0}")]
-    IoError(#[from] std::io::Error),
+    #[error("IO error: {source}")]
+    IoError {
+        source: tokio::io::Error,
+        path: PathBuf,
+    },
     #[error("Deserialization error {format}")]
     DeserializationError {
         #[source]
@@ -96,11 +119,17 @@ impl FileResolveError {
 }
 
 pub async fn resolve_from_path(path: &Path) -> Result<SerdeValue, FileResolveError> {
+    let path = path.strip_prefix("file://").unwrap_or(path);
     let ext = path
         .extension()
         .and_then(|s| s.to_str())
         .ok_or(FileResolveError::UnsupportedFileExtension)?;
-    let data = tokio::fs::read(path).await?;
+    let data = tokio::fs::read(path)
+        .await
+        .map_err(|e| FileResolveError::IoError {
+            source: e,
+            path: path.to_owned(),
+        })?;
     match ext {
         "json" | "toml" | "toon" => deserialize_from_path::<SerdeValue>(path).await,
         "bincode" => {
@@ -116,11 +145,17 @@ pub async fn resolve_from_path(path: &Path) -> Result<SerdeValue, FileResolveErr
 pub async fn deserialize_from_path<T: DeserializeOwned>(
     path: &Path,
 ) -> Result<T, FileResolveError> {
+    let path = path.strip_prefix("file://").unwrap_or(path);
     let ext = path
         .extension()
         .and_then(|s| s.to_str())
         .ok_or(FileResolveError::UnsupportedFileExtension)?;
-    let data = tokio::fs::read(path).await?;
+    let data = tokio::fs::read(path)
+        .await
+        .map_err(|e| FileResolveError::IoError {
+            source: e,
+            path: path.to_owned(),
+        })?;
     match ext {
         "json" => {
             let value: T = serde_json::from_slice(&data)

@@ -9,12 +9,13 @@ binds = [
 ]
 
 [[tcp_services]]
-name = "ssh-port-forward"
-provider = "pf"
-config = "127.0.0.1:22"
+name = "tcp-sws"
+provider = "http"
+config = "file://examples/config/tcp/static-web-server.toml"
 binds = [
-    "[::]:10022"
+    "[::]:3000"
 ]
+
 
 [[tcp_services]]
 name = "tcp-gateway"

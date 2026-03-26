@@ -1,0 +1,68 @@
+root = "./examples/example-sws"
+
+[response]
+index = ["index.html", "index.htm"]
+allow_symlink = false
+auto_index = true
+auto_index_exact_size = true
+auto_index_localtime = true
+dir_without_index_policy = "forbidden"
+mode_default = "inline"
+
+[response.mode_by_extension]
+zip = "attachment"
+tar = "attachment"
+gz = "attachment"
+7z = "attachment"
+sqlite = "deny"
+db = "deny"
+
+[mime_sniff]
+default_type = "application/octet-stream"
+
+[mime_sniff.by_extension]
+html = "text/html; charset=utf-8"
+htm = "text/html; charset=utf-8"
+css = "text/css; charset=utf-8"
+js = "application/javascript; charset=utf-8"
+mjs = "application/javascript; charset=utf-8"
+json = "application/json; charset=utf-8"
+map = "application/json; charset=utf-8"
+txt = "text/plain; charset=utf-8"
+xml = "application/xml; charset=utf-8"
+svg = "image/svg+xml"
+png = "image/png"
+jpg = "image/jpeg"
+jpeg = "image/jpeg"
+gif = "image/gif"
+webp = "image/webp"
+ico = "image/x-icon"
+wasm = "application/wasm"
+pdf = "application/pdf"
+
+[cache]
+enabled = true
+last_modified = true
+conditional_get = true
+
+[cache.etag]
+enabled = true
+weak = true
+
+[cache.default_policy]
+mode = "no-cache"
+
+[[cache.rules]]
+path_prefix = "/assets/"
+ext = ["js", "css", "png", "jpg", "jpeg", "gif", "svg", "webp", "ico", "woff", "woff2", "ttf", "eot", "wasm"]
+
+[cache.rules.policy]
+mode = "immutable"
+max_age_seconds = 31536000
+
+[[cache.rules]]
+ext = ["html", "htm"]
+
+[cache.rules.policy]
+mode = "no-cache"
+must_revalidate = true
