@@ -1,0 +1,19 @@
+[package]
+name = "sb"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+readme.workspace = true
+
+[dependencies]
+clap = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3", features = [
+    "env-filter",
+    "fmt",
+] }
+tokio = { workspace = true, features = ["full"] }

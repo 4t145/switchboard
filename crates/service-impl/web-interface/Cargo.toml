@@ -1,0 +1,27 @@
+[package]
+name = "switchboard-web-interface"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+categories.workspace = true
+readme.workspace = true
+
+[dependencies]
+tokio = { version = "1", features = ["full"]}
+switchboard-service = { version = "0.1.0", workspace = true }
+switchboard-kernel = { workspace = true }
+tokio-util = { workspace = true, features = ["net", "io"] }
+http = { workspace = true }
+futures = { workspace = true }
+axum = { version  = "0.8" }
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["server", "http1", "tokio", "service"] }
+switchboard-model = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["preserve_order"] }
+tower-http = { version = "0.6", features = ["fs"] }
+thiserror = { workspace = true }

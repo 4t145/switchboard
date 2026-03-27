@@ -11,12 +11,13 @@ members = [
     "crates/libs/*",
     # examples
     "examples/example-api-server",
-    "examples/example-http-plugin",
+    "examples/example-http-plugin", "binary/sb",
 ]
 resolver = "2"
 
 [workspace.dependencies]
 switchboard-service = { path = "crates/service" }
+switchboard-kernel = { path = "crates/kernel" }
 switchboard-socks5 = { path = "crates/service-impl/socks5" }
 switchboard-model = { path = "crates/model" }
 

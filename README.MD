@@ -9,6 +9,28 @@ it should be good enough for most use cases. And with a human-friendly configura
 
 ## Quick Start
 
+
+For personal user, you can just run a kernel locally.
+```bash
+sb config config.toml;
+sb start;
+```
+
+After you update config file, you can hot update it.
+```bash
+sb reload;
+```
+
+Gracefully shutdown:
+
+```bash
+sb shutdown;
+```
+
+```bash
+sb controller run --config controller.toml
+```
+
 ```bash
 sb start --config ./config.toml --controller ./controller.toml
 ```

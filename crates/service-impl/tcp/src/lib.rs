@@ -178,8 +178,8 @@ async fn forward_tcp<T: AsyncStream, A: ToSocketAddrs + std::fmt::Debug>(
     Ok(())
 }
 
-pub struct PortForwardProvider;
-impl TcpServiceProvider for PortForwardProvider {
+pub struct TcpProvider;
+impl TcpServiceProvider for TcpProvider {
     const NAME: &'static str = "tcp";
     type Service = Tcp;
     type Error = SerdeValueError;

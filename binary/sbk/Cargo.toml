@@ -27,3 +27,4 @@ switchboard-pf = { path = "../../crates/service-impl/pf" }
 switchboard-uds = { path = "../../crates/service-impl/uds" }
 switchboard-http = { path = "../../crates/service-impl/http", features = ["default"] }
 switchboard-tcp = { path = "../../crates/service-impl/tcp" }
+switchboard-web-interface = { path = "../../crates/service-impl/web-interface" }

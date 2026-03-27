@@ -4,9 +4,9 @@ use switchboard_http::HttpProvider;
 use switchboard_kernel::KernelContext;
 use switchboard_pf::PortForwardProvider;
 use switchboard_socks5::Socks5Provider;
-use switchboard_tcp::PortForwardProvider as TcpProvider;
+use switchboard_tcp::TcpProvider;
 use switchboard_uds::UdsProvider;
-
+use switchboard_web_interface::WebInterfaceProvider;
 #[cfg(target_os = "linux")]
 const LIB_EXT: &str = "so";
 #[cfg(target_os = "macos")]
@@ -15,6 +15,11 @@ const LIB_EXT: &str = "dynlib";
 const LIB_EXT: &str = "dll";
 pub async fn register_prelude(context: &KernelContext) {
     context.register_service(Socks5Provider).await;
+    context
+        .register_service(WebInterfaceProvider {
+            kernel_context: context.clone(),
+        })
+        .await;
     context.register_service(PortForwardProvider).await;
     // http loading
     {
