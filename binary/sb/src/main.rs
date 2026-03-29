@@ -1,10 +1,26 @@
+use std::path::PathBuf;
+
 use ::clap::Parser;
 
-mod clap;
-mod workspace;
+use crate::workspace::Workspace;
 
-fn main() {
+mod clap;
+mod commands;
+mod workspace;
+mod error;
+
+pub use error::Error;
+pub use error::Result;
+
+pub struct Context {
+    sbk_path: PathBuf,
+    workspace: Workspace,
+}
+
+#[tokio::main]
+async fn main() {
     let args = clap::ClapArgs::parse();
+    
     println!("{args:?}")
 }
 // just sbk
